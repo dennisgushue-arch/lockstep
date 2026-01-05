@@ -40,12 +40,12 @@ export default function Landing() {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
             <Link href="/auth">
-              <Button size="lg" className="rounded-none h-14 px-8 text-lg font-bold bg-foreground text-background hover:bg-white/90">
+              <Button size="lg" className="rounded-none h-20 px-12 text-2xl font-black bg-white text-black hover:bg-white/90 shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-none transition-all">
                 LOCK YOUR FIRST INTENT — FREE
               </Button>
             </Link>
