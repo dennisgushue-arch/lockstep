@@ -23,10 +23,10 @@ export default function Landing() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-5xl md:text-8xl font-heading font-bold tracking-tighter leading-tight"
+            className="text-6xl md:text-9xl font-heading font-extrabold tracking-tighter leading-tight"
           >
             STOP SAYING <br/>
-            <span className="text-muted-foreground">"I SHOULD"</span>
+            <span className="text-zinc-700">"I SHOULD"</span>
           </motion.h1>
           
           <motion.p 
