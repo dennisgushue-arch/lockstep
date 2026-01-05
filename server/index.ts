@@ -5,7 +5,12 @@ import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
-
+app.get("/api/env", (req, res) => {
+res.json({
+openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
+model: process.env.OPENAI_MODEL || null,
+});
+});
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
