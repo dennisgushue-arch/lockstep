@@ -20,23 +20,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href={user ? "/dashboard" : "/"}>
-            <a className="text-xl font-heading font-bold tracking-tighter hover:text-primary/80 transition-colors">
+            <span className="text-xl font-heading font-bold tracking-tighter hover:text-primary/80 transition-colors cursor-pointer">
               INTENT.
-            </a>
+            </span>
           </Link>
 
           <nav className="flex items-center gap-4">
             {user ? (
               <>
                 <Link href="/dashboard">
-                  <a className={`text-sm font-medium transition-colors hover:text-primary ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
                     Dashboard
-                  </a>
+                  </span>
                 </Link>
                 <Link href="/capture">
-                  <a className={`text-sm font-medium transition-colors hover:text-primary ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
                     New Intent
-                  </a>
+                  </span>
                 </Link>
                 <button 
                   onClick={logout}
@@ -72,7 +72,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="container mx-auto px-4 text-center text-xs text-muted-foreground font-mono">
             <p>INTENT SYSTEMS © 2026</p>
             <Link href="/admin">
-              <a className="mt-2 inline-block hover:text-foreground hover:underline">System Admin</a>
+              <span className="mt-2 inline-block hover:text-foreground hover:underline cursor-pointer">System Admin</span>
             </Link>
           </div>
         </footer>
