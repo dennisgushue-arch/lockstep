@@ -40,7 +40,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
                 <button 
                   onClick={logout}
-                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors ml-2"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors ml-2 cursor-pointer"
                 >
                   Sign Out
                 </button>
