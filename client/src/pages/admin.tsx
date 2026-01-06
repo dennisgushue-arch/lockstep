@@ -15,7 +15,10 @@ export default function AdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-3xl font-heading font-bold text-red-500">ADMIN / DEBUG</h1>
+      <h1 className="text-3xl font-heading font-bold text-red-500 flex items-center gap-3">
+        ADMIN / DEBUG
+        <Badge className="bg-green-500 text-black hover:bg-green-600 border-none font-bold">MVP COMPLETE</Badge>
+      </h1>
       
       <div className="grid gap-8 md:grid-cols-2">
         <Card>
