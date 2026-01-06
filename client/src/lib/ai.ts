@@ -1,7 +1,23 @@
-/**
- * AI Service for Intent Prototype
- * In Mockup Mode, this provides the confrontational analysis logic.
- */
+import { supabase } from "./supabase";
+
+export type AnalyzeIntentResult = {
+  category: string;
+  confidence: number;
+  first_action?: string;
+  reflection: string;
+};
+
+export async function analyzeIntent(raw_text: string): Promise<AnalyzeIntentResult> {
+  const { data, error } = await supabase.functions.invoke("analyze_intent", {
+    body: { raw_text },
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as AnalyzeIntentResult;
+}
 
 export interface IntentAnalysis {
   category: "fitness" | "work" | "growth" | "social" | "other";
