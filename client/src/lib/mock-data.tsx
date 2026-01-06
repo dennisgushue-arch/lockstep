@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { format, addDays } from "date-fns";
+import { analyzeIntent as analyzeIntentAI } from "./ai";
 
 // Types
 export type User = {
@@ -80,19 +81,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const analyzeIntent = async (text: string) => {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate OpenAI call
-    
-    // Mock OpenAI classification logic
-    const mockAnalysis = {
-      id: Math.random().toString(36).substr(2, 9),
-      text,
-      category: text.toLowerCase().includes("run") ? "Health" : "Productivity",
-      action: text.toLowerCase().includes("run") ? "Put on running shoes" : "Open your laptop",
-      confidence: 0.95,
-      reflection: `You said you want to "${text}". \n\nWhy haven't you done it yet? Usually, it's not about time. It's about fear or friction. \n\nBy locking this in, you are removing the option to hesitate.`
-    };
-    
-    setCurrentIntent(mockAnalysis);
+    try {
+      const result = await analyzeIntentAI(text);
+      
+      const mockAnalysis: Intent = {
+        id: Math.random().toString(36).substr(2, 9),
+        text,
+        category: result.category,
+        action: result.first_action || (text.toLowerCase().includes("run") ? "Put on running shoes" : "Open your laptop"),
+        confidence: result.confidence,
+        reflection: result.reflection
+      };
+      
+      setCurrentIntent(mockAnalysis);
+    } catch (error) {
+      console.error("AI Analysis failed:", error);
+      throw error;
+    }
   };
 
   const clearCurrentIntent = () => setCurrentIntent(null);
