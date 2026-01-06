@@ -43,9 +43,9 @@ export default function AdminPage() {
           <CardContent>
             <ul className="space-y-2 text-sm font-mono">
               <li className="flex justify-between"><span>SUPABASE_URL</span> <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">ACTIVE</Badge></li>
-              <li className="flex justify-between"><span>STRIPE_SECRET</span> <Badge variant="outline">MOCKED</Badge></li>
+              <li className="flex justify-between"><span>STRIPE_SECRET</span> <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">ACTIVE</Badge></li>
               <li className="flex justify-between"><span>OPENAI_API_KEY</span> <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">ACTIVE</Badge></li>
-              <li className="flex justify-between"><span>TWILIO_SID</span> <Badge variant="outline">OPTIONAL</Badge></li>
+              <li className="flex justify-between"><span>TWILIO_SID</span> <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">ACTIVE</Badge></li>
             </ul>
           </CardContent>
         </Card>
