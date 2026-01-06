@@ -34,9 +34,12 @@ export default function CapturePage() {
     
     setIsProcessing(true);
     try {
+      console.log("Submitting intent:", text);
       await analyzeIntent(text);
+      console.log("Analysis complete, redirecting...");
       setLocation("/reflection");
     } catch (error) {
+      console.error("Capture failed:", error);
       toast({
         title: "Processing Failed",
         description: "Could not understand intent. Try again.",
