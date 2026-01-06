@@ -12,21 +12,45 @@ export const supabase = {
         return {
           data: {
             category: "fitness",
-            confidence: 0.98,
-            first_action: "Put on your shoes. Now.",
-            reflection: "You've said you'd exercise before. What makes this time different? The couch is comfortable, and your excuses are well-rehearsed. If you don't lock this in, we both know you'll stay seated."
+            confidence: 0.99,
+            first_action: "Put on your shoes and walk out the door. No thinking.",
+            reflection: "You've been 'planning' this for months. Your body is a temple you've been neglecting while your mind builds elaborate monuments to 'tomorrow.' If you don't lock this in now, your potential will continue to be nothing more than a ghost of what could have been. Are you a runner, or just someone who owns expensive shoes?"
           },
           error: null
         };
       }
 
-      if (text.includes("write") || text.includes("novel") || text.includes("book")) {
+      if (text.includes("write") || text.includes("novel") || text.includes("book") || text.includes("creative")) {
         return {
           data: {
-            category: "productivity",
-            confidence: 0.92,
-            first_action: "Open your editor and delete your distractions.",
-            reflection: "Procrastination is a slow death for your ambitions. You're waiting for 'inspiration' while your discipline rots. Write the words or admit you're a pretender."
+            category: "creative",
+            confidence: 0.98,
+            first_action: "Write one sentence. The worst one you can think of.",
+            reflection: "The world doesn't need another person with a 'great idea' they never wrote down. You're suffocating your talent with perfectionism—which is just a high-end word for cowardice. You're terrified that if you actually try, you might fail. I have news for you: by not writing, you've already failed. Lock it in or admit you're just a dreamer."
+          },
+          error: null
+        };
+      }
+
+      if (text.includes("diet") || text.includes("eat") || text.includes("sugar") || text.includes("fasting")) {
+        return {
+          data: {
+            category: "consumption",
+            confidence: 0.96,
+            first_action: "Throw away the one thing you know you shouldn't eat.",
+            reflection: "You treat your cravings like they're commands. They're not. They're just noise. Every time you give in, you're telling your brain that your temporary pleasure is worth more than your long-term respect. Is a moment on the tongue really worth the weight of another broken promise? Stop negotiating with your impulses."
+          },
+          error: null
+        };
+      }
+
+      if (text.includes("money") || text.includes("save") || text.includes("spend") || text.includes("budget")) {
+        return {
+          data: {
+            category: "finance",
+            confidence: 0.94,
+            first_action: "Check your bank balance and stare at it for 60 seconds.",
+            reflection: "You spend money to buy a version of yourself that you haven't actually earned yet. You're trading your future freedom for present-day trinkets. This isn't about math; it's about control. Do you own your money, or does your lifestyle own you? Put a real stake on the line and see how quickly your 'needs' become 'wants.'"
           },
           error: null
         };
