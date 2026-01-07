@@ -27,6 +27,7 @@ function Router() {
         <Route path="/reflection" component={ReflectionPage} />
         <Route path="/lock-in" component={LockInPage} />
         <Route path="/stakes" component={StakesPage} />
+        <Route path="/stake-test" component={StakesPage} />
         <Route path="/admin" component={AdminPage} />
         <Route component={NotFound} />
       </Switch>
