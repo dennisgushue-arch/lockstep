@@ -3,9 +3,7 @@ import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Stakes } from "@/components/stakes";
 import { format, addHours } from "date-fns";
 import { CalendarIcon, Loader2, DollarSign, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,50 +59,12 @@ export default function LockInPage() {
         <p className="text-muted-foreground">Make it painful to fail.</p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        {/* Stake Amount */}
-        <div className="space-y-4">
-          <Label className="text-base font-bold">STAKE AMOUNT</Label>
-          <div className="grid grid-cols-3 gap-4">
-            {[5, 10, 20].map((amount) => (
-              <Button
-                key={amount}
-                variant={stake === amount ? "default" : "outline"}
-                className={cn(
-                  "h-24 text-2xl font-bold flex flex-col gap-1 rounded-none border-2",
-                  stake === amount ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-foreground"
-                )}
-                onClick={() => setStake(amount)}
-              >
-                ${amount}
-                <span className="text-xs font-normal opacity-70">USD</span>
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Consequence Type */}
-        <div className="space-y-4">
-          <Label className="text-base font-bold">CONSEQUENCE TYPE</Label>
-          <RadioGroup value={consequence} onValueChange={(v: any) => setConsequence(v)} className="flex flex-col gap-4">
-            <div className={cn("flex items-start space-x-3 border-2 p-4 cursor-pointer transition-colors", consequence === 'money' ? "border-primary bg-primary/5" : "border-border")}>
-              <RadioGroupItem value="money" id="money" className="mt-1" />
-              <Label htmlFor="money" className="cursor-pointer">
-                <div className="font-bold flex items-center gap-2"><DollarSign className="w-4 h-4"/> Financial Forfeit</div>
-                <div className="text-sm text-muted-foreground mt-1">Money is donated to a charity you hate if you miss the deadline.</div>
-              </Label>
-            </div>
-            
-            <div className={cn("flex items-start space-x-3 border-2 p-4 cursor-pointer transition-colors", consequence === 'social' ? "border-primary bg-primary/5" : "border-border")}>
-              <RadioGroupItem value="social" id="social" className="mt-1" />
-              <Label htmlFor="social" className="cursor-pointer">
-                <div className="font-bold flex items-center gap-2"><Users className="w-4 h-4"/> Social Witness</div>
-                <div className="text-sm text-muted-foreground mt-1">We email your boss/partner that you failed to complete this task.</div>
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-      </div>
+      <Stakes 
+        stake={stake} 
+        setStake={setStake} 
+        consequence={consequence} 
+        setConsequence={setConsequence} 
+      />
 
       {/* Schedule */}
       <div className="space-y-4">
