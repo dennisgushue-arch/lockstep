@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Stakes } from "@/components/stakes";
+import { Stakes as StakeScreen } from "@/components/stakes";
 import { format, addHours } from "date-fns";
 import { CalendarIcon, Loader2, DollarSign, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -59,7 +59,7 @@ export default function LockInPage() {
         <p className="text-muted-foreground">Make it painful to fail.</p>
       </div>
 
-      <Stakes 
+      <StakeScreen 
         stake={stake} 
         setStake={setStake} 
         consequence={consequence} 
