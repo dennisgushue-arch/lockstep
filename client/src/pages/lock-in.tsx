@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Stakes as StakeScreen } from "@/components/stakes";
 import { supabase } from "@/lib/supabase";
 import { format, addHours } from "date-fns";
+import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import { CalendarIcon, Loader2, DollarSign, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +17,8 @@ export default function LockInPage() {
   const { currentIntent, createCommitment } = useApp();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const stripe = useStripe();
+  const elements = useElements();
   
   const [stake, setStake] = useState<number>(5);
   const [consequence, setConsequence] = useState<'money' | 'social' | 'escalate'>('money');
@@ -32,24 +35,70 @@ export default function LockInPage() {
 
   const handleConfirm = async () => {
     if (!date) return;
-    
+    if (!stripe || !elements) return;
+
     setIsSubmitting(true);
     try {
-      await createCommitment({
+      // 1) Create commitment first (your existing function)
+      const commitment = await createCommitment({
         stakeAmount: stake,
         consequenceType: consequence,
-        scheduledDate: date
+        scheduledDate: date,
       });
+
+      // We need a commitment id. Adjust based on what createCommitment returns.
+      const commitmentId = commitment?.id;
+      if (!commitmentId) {
+        throw new Error("Commitment created but missing id. Update createCommitment to return the inserted row id.");
+      }
+
+      // 2) Create PaymentIntent (manual capture) on the server
+      const amountCents = Math.round(stake * 100);
+
+      const { data: pi, error: piErr } = await supabase.functions.invoke("create_stake_intent", {
+        body: { amount_cents: amountCents, commitment_id: commitmentId },
+      });
+
+      if (piErr) throw piErr;
+      if (!pi?.client_secret || !pi?.payment_intent_id) {
+        throw new Error("Payment intent missing client_secret/payment_intent_id");
+      }
+
+      // 3) Confirm card payment (authorization, not capture)
+      const card = elements.getElement(CardElement);
+      if (!card) throw new Error("Card input not ready");
+
+      const result = await stripe.confirmCardPayment(pi.client_secret, {
+        payment_method: { card },
+      });
+
+      if (result.error) throw result.error;
+
+      // 4) Store PI id + mark authorized (server truth)
+      const { error: updErr } = await supabase
+        .from("commitments")
+        .update({
+          stripe_payment_intent_id: pi.payment_intent_id,
+          stake_amount_cents: amountCents,
+          stake_currency: "usd",
+          stake_status: "authorized",
+        })
+        .eq("id", commitmentId);
+
+      if (updErr) throw updErr;
+
       toast({
         title: "LOCKED IN",
-        description: "Your commitment is live. Good luck.",
+        description: "Your card is authorized. Complete it or the stake is donated.",
       });
+
       setLocation("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
+      console.error(error);
       toast({
         title: "Error",
-        description: "Failed to create commitment.",
-        variant: "destructive"
+        description: error?.message || "Failed to lock in.",
+        variant: "destructive",
       });
       setIsSubmitting(false);
     }
@@ -106,12 +155,31 @@ export default function LockInPage() {
         </p>
       </div>
 
-      <div className="pt-4">
+      <div className="pt-4 space-y-4">
+        <div className="border-2 border-zinc-800 p-4 bg-zinc-900/50">
+          <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 block">Secure Payment Authorization</Label>
+          <div className="p-4 bg-black border border-zinc-800 rounded-none">
+            <CardElement 
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#ffffff',
+                    '::placeholder': {
+                      color: '#52525b',
+                    },
+                  },
+                },
+              }}
+            />
+          </div>
+        </div>
+
         <Button 
           size="lg" 
           className="w-full h-16 rounded-none text-xl font-bold bg-white text-black hover:bg-gray-200"
           onClick={handleConfirm}
-          disabled={isSubmitting || !date}
+          disabled={isSubmitting || !date || !stripe}
         >
           {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "CONFIRM COMMITMENT"}
         </Button>

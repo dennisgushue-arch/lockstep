@@ -38,7 +38,7 @@ type AppContextType = {
   clearCurrentIntent: () => void;
   
   commitments: Commitment[];
-  createCommitment: (config: { stakeAmount: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date }) => Promise<void>;
+  createCommitment: (config: { stakeAmount: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date }) => Promise<Commitment>;
   completeCommitment: (id: string) => Promise<void>;
   markMissed: (id: string) => Promise<void>;
   
@@ -103,7 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const clearCurrentIntent = () => setCurrentIntent(null);
 
   const createCommitment = async ({ stakeAmount, consequenceType, scheduledDate }: { stakeAmount: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date }) => {
-    if (!currentIntent) return;
+    if (!currentIntent) throw new Error("No intent found");
     
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate Stripe
     
@@ -120,6 +120,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     setCommitments(prev => [newCommitment, ...prev]);
     setCurrentIntent(null);
+    return newCommitment;
   };
 
   const completeCommitment = async (id: string) => {
