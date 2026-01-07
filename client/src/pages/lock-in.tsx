@@ -6,6 +6,7 @@ import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Stakes as StakeScreen } from "@/components/stakes";
+import { supabase } from "@/lib/supabase";
 import { format, addHours } from "date-fns";
 import { CalendarIcon, Loader2, DollarSign, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
