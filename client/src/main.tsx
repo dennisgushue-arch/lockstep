@@ -7,6 +7,7 @@ import App from "./App";
 import "./index.css";
 
 const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+console.log("Stripe pk:", pk);
 if (!pk) {
 // This makes the problem obvious instead of silently failing
 console.error("Missing VITE_STRIPE_PUBLISHABLE_KEY in env");
