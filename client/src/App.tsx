@@ -35,6 +35,7 @@ function Router() {
             consequence="money" 
             setConsequence={() => {}} 
             commitmentId="test-commitment-id"
+            onSuccess={() => alert("Authorized !")}
           />
         </Route>
         <Route path="/admin" component={AdminPage} />

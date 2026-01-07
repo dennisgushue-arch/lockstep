@@ -9,15 +9,28 @@ interface StakesProps {
   consequence: 'money' | 'social' | 'escalate';
   setConsequence: (v: 'money' | 'social' | 'escalate') => void;
   commitmentId?: string;
+  onSuccess?: () => void;
 }
 
-export function Stakes({ stake, setStake, consequence, setConsequence, commitmentId }: StakesProps) {
+export function Stakes({ stake, setStake, consequence, setConsequence, commitmentId, onSuccess }: StakesProps) {
   return (
     <div className="space-y-8">
       {commitmentId && (
-        <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-none">
-          <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tracking Reference</p>
-          <p className="text-sm font-mono text-primary font-bold">{commitmentId}</p>
+        <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-none flex justify-between items-center">
+          <div>
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tracking Reference</p>
+            <p className="text-sm font-mono text-primary font-bold">{commitmentId}</p>
+          </div>
+          {onSuccess && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 rounded-none text-[10px] font-bold uppercase tracking-widest border-primary/50 hover:bg-primary hover:text-primary-foreground"
+              onClick={onSuccess}
+            >
+              Authorize
+            </Button>
+          )}
         </div>
       )}
 
