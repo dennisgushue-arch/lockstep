@@ -34,6 +34,7 @@ function Router() {
             setStake={() => {}} 
             consequence="money" 
             setConsequence={() => {}} 
+            commitmentId="test-commitment-id"
           />
         </Route>
         <Route path="/admin" component={AdminPage} />
