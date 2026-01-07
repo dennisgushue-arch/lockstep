@@ -13,6 +13,7 @@ import Dashboard from "@/pages/dashboard";
 import CapturePage from "@/pages/capture";
 import ReflectionPage from "@/pages/reflection";
 import LockInPage from "@/pages/lock-in";
+import StakesPage from "@/pages/stakes";
 import AdminPage from "@/pages/admin";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
         <Route path="/capture" component={CapturePage} />
         <Route path="/reflection" component={ReflectionPage} />
         <Route path="/lock-in" component={LockInPage} />
+        <Route path="/stakes" component={StakesPage} />
         <Route path="/admin" component={AdminPage} />
         <Route component={NotFound} />
       </Switch>
