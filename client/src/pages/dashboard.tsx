@@ -13,6 +13,43 @@ export default function Dashboard() {
   const sortedCommitments = [...commitments].sort((a, b) => 
     new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
   );
+  const [isCompleting, setIsCompleting] = useState<string | null>(null);
+
+  const handleMarkComplete = async (commitmentId: string) => {
+  try {
+  setIsCompleting(commitmentId);
+
+  const { error } = await supabase.functions.invoke("complete_commitment", {
+  body: { commitment_id: commitmentId },
+  });
+
+  if (error) throw error;
+
+  toast({
+  title: "Completed",
+  description: "Stake released.",
+  variant: "default",
+  });
+    <Button
+    onClick={() => handleMarkComplete(c.id)}
+    disabled={isCompleting === c.id}
+    className="rounded-none font-bold"
+    >
+    {isCompleting === c.id ? "RELEASING..." : "MARK COMPLETE"}
+    </Button>
+  // Refresh data (use whatever your app uses)
+  // e.g. refetch(), router reload, or just optimistic update
+  } catch (e: any) {
+  console.error(e);
+  toast({
+  title: "Error",
+  description: e?.message || "Could not mark complete.",
+  variant: "destructive",
+  });
+  } finally {
+  setIsCompleting(null);
+  }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
