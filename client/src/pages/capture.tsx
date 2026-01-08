@@ -43,7 +43,7 @@ export default function CapturePage() {
       toast({
         title: "Processing Failed",
         description: "Could not understand intent. Try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
       setIsProcessing(false);
     }

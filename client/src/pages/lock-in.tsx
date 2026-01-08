@@ -9,7 +9,7 @@ import { Stakes as StakeScreen } from "@/components/stakes";
 import { supabase } from "@/lib/supabase";
 import { format, addHours } from "date-fns";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
-import { CalendarIcon, Loader2, DollarSign, Users, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,35 +36,38 @@ export default function LockInPage() {
   const handleConfirm = async () => {
     if (!date) return;
     if (!stripe || !elements) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
+
+    let commitmentId: string | null = null;
+
     try {
-      // 1) Create commitment first (your existing function)
+      // 1) Create commitment
       const commitment = await createCommitment({
         stakeAmount: stake,
         consequenceType: consequence,
         scheduledDate: date,
       });
 
-      // We need a commitment id. Adjust based on what createCommitment returns.
-      const commitmentId = commitment?.id;
+      commitmentId = commitment?.id ?? null;
       if (!commitmentId) {
-        throw new Error("Commitment created but missing id. Update createCommitment to return the inserted row id.");
+        throw new Error("Commitment created but missing id.");
       }
 
-      // 2) Create PaymentIntent (manual capture) on the server
+      // 2) Create PaymentIntent (manual capture)
       const amountCents = Math.round(stake * 100);
 
       const { data: pi, error: piErr } = await supabase.functions.invoke("create_stake_intent", {
         body: { amount_cents: amountCents, commitment_id: commitmentId },
-      });
+      }) as { data: { client_secret: string; payment_intent_id: string } | null; error: any };
 
       if (piErr) throw piErr;
       if (!pi?.client_secret || !pi?.payment_intent_id) {
         throw new Error("Payment intent missing client_secret/payment_intent_id");
       }
 
-      // 3) Confirm card payment (authorization, not capture)
+      // 3) Confirm card payment (authorize)
       const card = elements.getElement(CardElement);
       if (!card) throw new Error("Card input not ready");
 
@@ -74,32 +77,22 @@ export default function LockInPage() {
 
       if (result.error) throw result.error;
 
-      // 4) Store PI id + mark authorized (server truth)
-      const { error: updErr } = await supabase
-        .from("commitments")
-        .update({
-          stripe_payment_intent_id: pi.payment_intent_id,
-          stake_amount_cents: amountCents,
-          stake_currency: "usd",
-          stake_status: "authorized",
-        })
-        .eq("id", commitmentId);
-
-      if (updErr) throw updErr;
-
       toast({
         title: "LOCKED IN",
         description: "Your card is authorized. Complete it or the stake is donated.",
+        variant: "default",
       });
 
       setLocation("/dashboard");
     } catch (error: any) {
       console.error(error);
+
       toast({
         title: "Error",
         description: error?.message || "Failed to lock in.",
         variant: "destructive",
       });
+
       setIsSubmitting(false);
     }
   };
@@ -140,7 +133,7 @@ export default function LockInPage() {
               selected={date}
               onSelect={setDate}
               initialFocus
-              disabled={(date) => date < new Date()}
+              disabled={(d) => d < new Date()}
             />
           </PopoverContent>
         </Popover>
@@ -150,8 +143,16 @@ export default function LockInPage() {
       <div className="bg-zinc-950 border border-border p-6 space-y-4 mt-8">
         <h3 className="text-lg font-bold font-heading">SUMMARY</h3>
         <p className="text-xl leading-relaxed">
-          I will <span className="text-white font-bold underline underline-offset-4">{currentIntent.action}</span> by <span className="text-white font-bold">{date ? format(date, "PPP 'at' p") : '...'}</span>.
-          If I fail, I lose <span className="text-red-500 font-bold">${stake}</span> via {consequence} consequence.
+          I will{" "}
+          <span className="text-white font-bold underline underline-offset-4">
+            {currentIntent.action}
+          </span>{" "}
+          by{" "}
+          <span className="text-white font-bold">
+            {date ? format(date, "PPP 'at' p") : "..."}
+          </span>
+          . If I fail, I lose{" "}
+          <span className="text-red-500 font-bold">${stake}</span> via {consequence} consequence.
         </p>
       </div>
 
@@ -180,6 +181,7 @@ export default function LockInPage() {
           className="w-full h-16 rounded-none text-xl font-bold bg-white text-black hover:bg-gray-200"
           onClick={handleConfirm}
           disabled={isSubmitting || !date || !stripe}
+          data-testid="button-confirm-commitment"
         >
           {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "CONFIRM COMMITMENT"}
         </Button>
