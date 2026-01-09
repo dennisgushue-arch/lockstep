@@ -65,7 +65,7 @@ export default function Landing() {
               You don't need another todo list. You don't need a gentle nudge. You need a consequence that actually matters.
             </p>
             <p>
-              We built Intent for people who are tired of letting themselves down.
+              We built Lockstep for people who are tired of letting themselves down.
             </p>
           </div>
         </div>

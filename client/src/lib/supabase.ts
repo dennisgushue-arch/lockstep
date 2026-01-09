@@ -1,12 +1,58 @@
 // Mock Supabase client for prototype mode
+// This simulates Supabase Edge Functions and database operations
+
+type MockRow = Record<string, any>;
+const mockDatabase: Record<string, MockRow[]> = {
+  commitments: []
+};
+
 export const supabase = {
   functions: {
-    invoke: async (name: string, { body }: { body: any }) => {
+    invoke: async (name: string, { body }: { body: any }): Promise<{ data: any; error: any }> => {
       console.log(`[Mock Supabase] Invoking function: ${name}`, body);
-      // Simulate network delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
       
-      const text = body.raw_text.toLowerCase();
+      // Handle create_stake_intent for Stripe payment flow
+      if (name === "create_stake_intent") {
+        const mockPaymentIntentId = `pi_mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        const mockClientSecret = `${mockPaymentIntentId}_secret_${Math.random().toString(36).substring(2, 15)}`;
+        
+        console.log(`[Mock Supabase] Created mock payment intent:`, {
+          payment_intent_id: mockPaymentIntentId,
+          client_secret: mockClientSecret,
+          amount_cents: body.amount_cents,
+          commitment_id: body.commitment_id
+        });
+        
+        return {
+          data: {
+            payment_intent_id: mockPaymentIntentId,
+            client_secret: mockClientSecret,
+          },
+          error: null
+        };
+      }
+
+      // Handle fail_commitment for capturing stakes
+      if (name === "fail_commitment") {
+        console.log(`[Mock Supabase] Failing commitment:`, body.commitment_id);
+        return {
+          data: { success: true, captured: true },
+          error: null
+        };
+      }
+
+      // Handle complete_commitment for releasing stakes
+      if (name === "complete_commitment") {
+        console.log(`[Mock Supabase] Completing commitment:`, body.commitment_id);
+        return {
+          data: { success: true, released: true },
+          error: null
+        };
+      }
+      
+      // Original analyze_intent logic
+      const text = (body.raw_text || "").toLowerCase();
       
       if (text.includes("run") || text.includes("gym") || text.includes("workout")) {
         return {
@@ -89,5 +135,71 @@ export const supabase = {
         error: null
       };
     }
+  },
+  
+  from: (table: string) => {
+    return {
+      select: (columns?: string) => ({
+        eq: (column: string, value: any) => ({
+          single: async () => {
+            const rows = mockDatabase[table] || [];
+            const row = rows.find(r => r[column] === value);
+            return { data: row || null, error: null };
+          },
+          then: async (resolve: any) => {
+            const rows = mockDatabase[table] || [];
+            const filtered = rows.filter(r => r[column] === value);
+            resolve({ data: filtered, error: null });
+          }
+        }),
+        then: async (resolve: any) => {
+          resolve({ data: mockDatabase[table] || [], error: null });
+        }
+      }),
+      insert: (data: MockRow | MockRow[]) => ({
+        select: () => ({
+          single: async () => {
+            const rows = Array.isArray(data) ? data : [data];
+            rows.forEach(row => {
+              if (!row.id) row.id = `mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+              mockDatabase[table] = mockDatabase[table] || [];
+              mockDatabase[table].push(row);
+            });
+            console.log(`[Mock Supabase] Inserted into ${table}:`, rows);
+            return { data: rows[0], error: null };
+          }
+        }),
+        then: async (resolve: any) => {
+          const rows = Array.isArray(data) ? data : [data];
+          rows.forEach(row => {
+            if (!row.id) row.id = `mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            mockDatabase[table] = mockDatabase[table] || [];
+            mockDatabase[table].push(row);
+          });
+          console.log(`[Mock Supabase] Inserted into ${table}:`, rows);
+          resolve({ data: rows, error: null });
+        }
+      }),
+      update: (data: MockRow) => ({
+        eq: (column: string, value: any) => ({
+          then: async (resolve: any) => {
+            mockDatabase[table] = (mockDatabase[table] || []).map(row => 
+              row[column] === value ? { ...row, ...data } : row
+            );
+            console.log(`[Mock Supabase] Updated ${table} where ${column}=${value}:`, data);
+            resolve({ data: null, error: null });
+          }
+        })
+      }),
+      delete: () => ({
+        eq: (column: string, value: any) => ({
+          then: async (resolve: any) => {
+            mockDatabase[table] = (mockDatabase[table] || []).filter(row => row[column] !== value);
+            console.log(`[Mock Supabase] Deleted from ${table} where ${column}=${value}`);
+            resolve({ data: null, error: null });
+          }
+        })
+      })
+    };
   }
 };
