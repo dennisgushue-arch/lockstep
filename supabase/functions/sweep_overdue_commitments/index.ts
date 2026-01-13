@@ -2,10 +2,10 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SERVICE_ROLE = Deno.env.get("SERVICE_ROLE_KEY")!;
 
 // Use ONE secret name. We'll accept both headers to avoid mismatches.
-const SWEEP_SECRET = Deno.env.get("CRON_SECRET") || Deno.env.get("SWEEP_SECRET") || "";
+const SWEEP_SECRET = Deno.env.get("SWEEP_SECRET") || "";
 
 // Call fail_commitment via the public functions endpoint (not /functions/v1 off SUPABASE_URL)
 const FAIL_FN_URL = `${SUPABASE_URL}/functions/v1/fail_commitment`;
@@ -14,17 +14,24 @@ serve(async (req) => {
 try {
 // ✅ Cron auth: accept either header name
 const provided =
-req.headers.get("X-SWEEP-SECRET") ??
-req.headers.get("x-sweep-secret") ??
-req.headers.get("x-cron-secret") ??
-req.headers.get("X-CRON-SECRET");
+req.headers.get("x-sweep-secret") ||
+req.headers.get("x-cron-secret") ||
+"";
 
-if (!SWEEP_SECRET || provided !== SWEEP_SECRET) {
-return new Response(JSON.stringify({ error: "Forbidden" }), {
-status: 403,
-headers: { "Content-Type": "application/json" },
-});
-}
+  if (!SWEEP_SECRET) {
+  return new Response(JSON.stringify({ error: "Server misconfigured: missing SWEEP_SECRET" }), {
+  status: 500,
+  headers: { "Content-Type": "application/json" },
+  });
+  }
+
+  if (!provided || provided !== SWEEP_SECRET) {
+  return new Response(JSON.stringify({ error: "Forbidden: bad secret" }), {
+  status: 403,
+  headers: { "Content-Type": "application/json" },
+  });
+  }
+
 
 // ✅ Service role client (no Authorization header needed)
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
