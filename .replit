@@ -31,10 +31,12 @@ task = "shell.exec"
 args = "npm run dev:client"
 waitForPort = 5000
 
+# dev server/task entries
 modules = ["nodejs-20", "postgresql-16", "web"]
 run = "pnpm dev"
 packages = ["run", "imagemagickBig", "supabase-cli", "gh"]
 
+# local/external ports for dev servers
 localPort = 5001
 externalPort = 3000
 localPort = 5002
@@ -49,6 +51,7 @@ mockupState = "MOCKUP"
 
 [userenv]
 [userenv.shared]
+# DO NOT store secrets in the repo. Use environment variables / secret manager.
 SUPABASE_URL = "REDACTED"
 SUPABASE_ANON_KEY = "REDACTED"
 SUPABASE_SERVICE_ROLE_KEY = "REDACTED"
