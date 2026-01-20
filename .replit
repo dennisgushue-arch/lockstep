@@ -6,19 +6,15 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-
 [[ports]]
 localPort = 5000
 externalPort = 80
-
 [env]
 PORT = "5000"
-
 [deployment]
 deploymentTarget = "static"
 build = ["npm", "run", "build"]
 publicDir = "dist/public"
-
 [workflows]
 runButton = "Project"
 [[workflows.workflow]]
@@ -32,12 +28,10 @@ name = "Start application"
 task = "shell.exec"
 args = "npm run dev:client"
 waitForPort = 5000
-
 # dev server/task entries
 modules = ["nodejs-20", "postgresql-16", "web"]
 run = "pnpm dev"
 packages = ["run", "imagemagickBig", "supabase-cli", "gh"]
-
 # local/external ports for dev servers
 localPort = 5001
 externalPort = 3000
@@ -49,13 +43,15 @@ localPort = 5173
 externalPort = 5173
 localPort = 5174
 externalPort = 3002
-
 [agent]
 mockupState = "MOCKUP"
-
 [userenv]
 [userenv.shared]
 # DO NOT store secrets in the repo. Use environment variables / secret manager.
 SUPABASE_URL = "REDACTED"
 SUPABASE_ANON_KEY = "REDACTED"
 SUPABASE_SERVICE_ROLE_KEY = "REDACTED"\
+packages = ["run", "imagemagickBig"]
+SUPABASE_URL = "https://pirhugiuguaahvvxifpu.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_N92Nynp89eFlGmhJTz8uvA_wmX-2ooE"
+SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpcmh1Z2l1Z3VhYWh2dnhpZnB1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzU1OTg4OSwiZXhwIjoyMDgzMTM1ODg5fQ.M1w3NluVkmLfVcX7564E89MMtXZ__vANNLuL4JLkCfY"
