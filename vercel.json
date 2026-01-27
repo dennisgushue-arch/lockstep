@@ -3,7 +3,7 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": { "distDir": "dist/public" }
     }
   ],
   "routes": [
@@ -11,8 +11,3 @@
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
-JSON
-
-git add vercel.json
-git commit -m "Add vercel.json: set static build output to dist for Vite"
-git push origin HEAD:main
