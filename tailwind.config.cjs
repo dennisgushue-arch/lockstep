@@ -1,17 +1,11 @@
-/** Tailwind config for Lockstep (Vite + client/)
- * Note: removed the overly-broad "./**/*.md" pattern to avoid matching node_modules.
- */
+/** Temporary narrow Tailwind config for debugging */
 module.exports = {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx,html}",
-    "./client/**/*.{js,ts,jsx,tsx,html}",
-    "./client/client/**/*.{js,ts,jsx,tsx,html}",
+    "./client/index.html",
+    "./client/src/**/*.{js,ts,jsx,tsx,html}",
     "./components/**/*.{js,ts,jsx,tsx,html}",
     "./pages/**/*.{js,ts,jsx,tsx,html}"
   ],
-  theme: {
-    extend: {},
-  },
+  theme: { extend: {} },
   plugins: [],
 };
