@@ -1,5 +1,6 @@
-// Mock Supabase client for prototype mode
-// This simulates Supabase Edge Functions and database operations
+// Mock Supabase client implementation
+// This is a standalone mock that simulates Supabase Edge Functions and database operations
+// without requiring the Supabase CLI or SDK. It runs entirely in-memory for prototype mode.
 
 type MockRow = Record<string, any>;
 const mockDatabase: Record<string, MockRow[]> = {
