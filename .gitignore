@@ -75,3 +75,5 @@ package.json.bak
 
 # Old backup files
 *-old.ts
+.vercel
+.env*.local
