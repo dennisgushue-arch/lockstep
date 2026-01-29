@@ -4,14 +4,15 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-  "dev:client": "vite dev --port 5000",
-  "dev": "vite --config vite.config.ts --host 0.0.0.0 --port 5000",
-  "build": "vite build --config vite.config.ts",
-  "preview": "vite preview --config vite.config.ts --host 0.0.0.0 --port 5000",
-  "start": "NODE_ENV=production node dist/index.cjs",
-  "check": "tsc",
-  "db:push": "drizzle-kit push"
-},"dependencies": {
+    "dev:client": "vite dev --port 5000",
+    "dev": "vite --config vite.config.ts --host 0.0.0.0 --port 5000",
+    "build": "vite build --config vite.config.ts",
+    "preview": "vite preview --config vite.config.ts --host 0.0.0.0 --port 5000",
+    "start": "NODE_ENV=production node dist/index.cjs",
+    "check": "tsc",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -43,6 +44,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.1",
+    "@supabase/supabase-js": "^2.93.2",
     "@tanstack/react-query": "^5.60.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
