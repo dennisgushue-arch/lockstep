@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm build",
-  "outputDirectory": "dist",
+  "outputDirectory": "dist/public",
   "installCommand": "pnpm install --prod=false",
   "routes": [
     {
