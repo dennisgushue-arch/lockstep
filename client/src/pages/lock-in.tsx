@@ -35,8 +35,42 @@ export default function LockInPage() {
 
   const handleConfirm = async () => {
     if (!date) return;
-    if (!stripe || !elements) return;
     if (isSubmitting) return;
+
+    // Skip Stripe validation in mock mode (when stripe is null)
+    if (!stripe || !elements) {
+      console.warn("[Lock-in] Stripe not available - running in mock mode");
+      // In mock mode, just create the commitment without payment
+      try {
+        await createCommitment({
+          stakeAmount: stake,
+          consequenceType: consequence,
+          scheduledDate: date,
+        });
+        
+        toast({
+          title: "LOCKED IN (Mock Mode)",
+          description: "Commitment created without payment authorization.",
+          variant: "default",
+        });
+        
+        setLocation("/dashboard");
+        return;
+      } catch (error: any) {
+        console.error("Lock-in failed - FULL ERROR:", error);
+        console.error("Error stack:", error?.stack || 'No stack');
+        console.error("Error details:", JSON.stringify(error, null, 2));
+
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to lock in.",
+          variant: "destructive",
+        });
+
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 

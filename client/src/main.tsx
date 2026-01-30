@@ -8,18 +8,15 @@ import App from "./App";
 const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 console.log("Stripe pk:", pk);
 
-const stripePromise = pk ? loadStripe(pk) : null;
+// Create stripe promise (can be null for mock mode)
+const stripePromise = pk ? loadStripe(pk) : Promise.resolve(null);
 
+// Always provide Elements context to avoid hook errors
+// When stripe is null, payment features will gracefully degrade
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {stripePromise ? (
-      <Elements stripe={stripePromise}>
-        <App />
-      </Elements>
-    ) : (
-      <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        Missing <code>VITE_STRIPE_PUBLISHABLE_KEY</code>. Add it in Replit Secrets and restart.
-      </div>
-    )}
+    <Elements stripe={stripePromise}>
+      <App />
+    </Elements>
   </React.StrictMode>
 );
