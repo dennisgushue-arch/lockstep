@@ -46,11 +46,21 @@ export interface DetectionResult {
 export function normalizeIntent(text: string): string {
   const lower = text.toLowerCase();
   
-  // Remove filler words
-  const cleaned = lower
-    .replace(/^(i|i'm|i've|i'd|i'll|i should|i need to|i want to|i have to|i must|i really)\s+/g, "")
-    .replace(/\s+(really|definitely|probably|maybe|soon|eventually|sometime)\s+/g, " ")
+  // Remove filler words and commitment language
+  let cleaned = lower
+    .replace(/^(i|i'm|i've|i'd|i'll|i should|i need to|i want to|i have to|i must|i really|i gotta|gotta|gonna|i'm gonna)\s+/gi, "")
+    .replace(/\s+(really|definitely|probably|maybe|soon|eventually|sometime|finally|actually)\s+/g, " ")
+    .replace(/\s+(again|more|less)\s+/g, " ")
     .trim();
+  
+  // Extract core action + object patterns
+  // "start going to the gym" → "go gym"
+  // "need to call mom" → "call mom"
+  const actionMatch = cleaned.match(/(start|begin|stop|quit|call|text|meet|visit|work on|finish|complete|launch|build|write|read|exercise|run|work out|meditate|practice|learn|study)\s+(.+)/);
+  if (actionMatch) {
+    const [, action, object] = actionMatch;
+    cleaned = `${action} ${object}`.replace(/\s+/g, " ").trim();
+  }
   
   return cleaned;
 }
@@ -61,20 +71,39 @@ export function normalizeIntent(text: string): string {
 export function categorizeIntent(text: string): string {
   const lower = text.toLowerCase();
   
-  if (/\b(workout|exercise|run|gym|fitness|health|weight|diet)\b/.test(lower)) {
+  // Health & Fitness
+  if (/\b(workout|exercise|run|gym|fitness|health|weight|diet|yoga|meditate|sleep|walk|jog|train|lift)\b/.test(lower)) {
     return "fitness";
   }
-  if (/\b(work|business|project|startup|side hustle|career)\b/.test(lower)) {
+  
+  // Work & Career
+  if (/\b(work|business|project|startup|side hustle|career|job|portfolio|resume|linkedin|networking|pitch|launch|build)\b/.test(lower)) {
     return "work";
   }
-  if (/\b(learn|study|read|course|skill|practice)\b/.test(lower)) {
+  
+  // Learning & Growth
+  if (/\b(learn|study|read|course|skill|practice|book|tutorial|training|certification|language|coding|program)\b/.test(lower)) {
     return "growth";
   }
-  if (/\b(family|kids|partner|friend|relationship|spend time)\b/.test(lower)) {
+  
+  // Relationships & Social
+  if (/\b(family|kids|parent|partner|spouse|friend|relationship|spend time|call|visit|date|hang out|catch up)\b/.test(lower)) {
     return "social";
   }
-  if (/\b(drink|smoke|screen|scroll|social media|phone)\b/.test(lower)) {
-    return "consumption";
+  
+  // Bad Habits to Break
+  if (/\b(drink|drunk|smoking|smoke|vaping|vape|quit|stop|screen|scroll|social media|phone|procrastinat|waste time)\b/.test(lower)) {
+    return "habits";
+  }
+  
+  // Creativity & Hobbies
+  if (/\b(write|paint|draw|music|instrument|create|art|hobby|photo|blog|video|podcast)\b/.test(lower)) {
+    return "creative";
+  }
+  
+  // Finance & Admin
+  if (/\b(money|budget|save|invest|taxes|insurance|bills|debt|bank|financial|expense)\b/.test(lower)) {
+    return "finance";
   }
   
   return "other";
@@ -85,18 +114,28 @@ export function categorizeIntent(text: string): string {
  * Returns 0-1 score
  */
 export function calculateIntentConfidence(text: string): number {
-  let score = 0.5; // Start neutral
+  let score = 0.4; // Start slightly skeptical
   
   const lower = text.toLowerCase();
+  const length = text.length;
   
-  // Boost for commitment language
-  if (/\b(must|have to|need to|should|committed to)\b/.test(lower)) score += 0.2;
+  // Too short = likely not a real intent
+  if (length < 15) score -= 0.2;
+  if (length > 30) score += 0.1;
   
-  // Boost for temporal signals
-  if (/\b(tomorrow|next week|this week|monday|today|soon)\b/.test(lower)) score += 0.15;
+  // Strong commitment language
+  if (/\b(must|have to|need to|should|committed to|promise|swear|determined)\b/.test(lower)) score += 0.25;
+  if (/\b(really need|seriously need|definitely need|absolutely must)\b/.test(lower)) score += 0.15;
   
-  // Boost for action verbs
-  if (/\b(start|begin|launch|finish|complete|do|make)\b/.test(lower)) score += 0.1;
+  // Temporal signals (time-bound intents are stronger)
+  if (/\b(tomorrow|next week|this week|monday|tuesday|wednesday|thursday|friday|today|tonight)\b/.test(lower)) score += 0.2;
+  if (/\b(soon|eventually|sometime|one day)\b/.test(lower)) score += 0.05; // Vague time = weaker
+  
+  // Action verbs (concrete actions are stronger)
+  if (/\b(start|begin|launch|finish|complete|quit|stop|call|text|meet|book|schedule|sign up)\b/.test(lower)) score += 0.15;
+  
+  // Repetition signals ("again", "more", "keep saying")
+  if (/\b(again|keep saying|always say|keep talking about|mentioned before)\b/.test(lower)) score += 0.1;
   
   // Penalize for uncertainty
   if (/\b(maybe|might|possibly|thinking about|considering)\b/.test(lower)) score -= 0.2;

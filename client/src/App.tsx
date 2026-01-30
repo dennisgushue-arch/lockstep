@@ -1,6 +1,7 @@
 import Missed from "@/pages/missed";
 import TestIntentPage from "@/pages/test-intent";
 import DebugPage from "@/pages/debug";
+import CreditsPage from "@/pages/credits";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ import ReflectionPage from "@/pages/reflection";
 import LockInPage from "@/pages/lock-in";
 import StakesPage from "@/pages/stakes";
 import DetectionPage from "@/pages/detection";
+import SettingsPage from "@/pages/settings";
 import { Stakes as StakeScreen } from "@/components/stakes";
 import AdminPage from "@/pages/admin";
 
@@ -32,7 +34,9 @@ function Router() {
         <Route path="/detection" component={DetectionPage} />
         <Route path="/reflection" component={ReflectionPage} />
         <Route path="/lock-in" component={LockInPage} />
+        <Route path="/credits" component={CreditsPage} />
         <Route path="/stakes" component={StakesPage} />
+        <Route path="/settings" component={SettingsPage} />
         <Route path="/missed" component={Missed} />
         <Route path="/test-intent" component={TestIntentPage} />
         <Route path="/debug" component={DebugPage} />
