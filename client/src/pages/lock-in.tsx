@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Stakes as StakeScreen } from "@/components/stakes";
 import { supabase } from "@/lib/supabase";
 import { format, addHours } from "date-fns";
-import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
+import { useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcElement } from "@stripe/react-stripe-js";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -101,12 +101,14 @@ export default function LockInPage() {
         throw new Error("Payment intent missing client_secret/payment_intent_id");
       }
 
-      // 3) Confirm card payment (authorize)
-      const card = elements.getElement(CardElement);
-      if (!card) throw new Error("Card input not ready");
+      // 3) Confirm card payment (authorize) using individual card elements
+      const cardNumberElement = elements.getElement(CardNumberElement);
+      if (!cardNumberElement) throw new Error("Card number input not ready");
 
       const result = await stripe.confirmCardPayment(pi.client_secret, {
-        payment_method: { card },
+        payment_method: {
+          card: cardNumberElement,
+        },
       });
 
       if (result.error) throw result.error;
@@ -193,22 +195,74 @@ export default function LockInPage() {
       </div>
 
       <div className="pt-4 space-y-4 relative z-0">
-        <div className="border-2 border-zinc-800 p-4 bg-zinc-900/50">
-          <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 block">Secure Payment Authorization</Label>
-          <div className="p-4 bg-black border border-zinc-800 rounded-none pointer-events-auto" style={{ isolation: 'isolate' }}>
-            <CardElement 
-              options={{
-                style: {
-                  base: {
-                    fontSize: '16px',
-                    color: '#ffffff',
-                    '::placeholder': {
-                      color: '#52525b',
+        <div className="border-2 border-zinc-800 p-6 bg-zinc-900/50">
+          <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 block">Secure Payment Authorization</Label>
+          
+          {/* Card Number */}
+          <div className="mb-4">
+            <Label className="text-xs font-semibold text-zinc-400 block mb-2">Card Number</Label>
+            <div className="p-3 bg-black border border-zinc-800 rounded-none pointer-events-auto" style={{ isolation: 'isolate' }}>
+              <CardNumberElement 
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      color: '#ffffff',
+                      fontFamily: 'monospace',
+                      '::placeholder': {
+                        color: '#52525b',
+                      },
                     },
                   },
-                },
-              }}
-            />
+                  placeholder: '4242 4242 4242 4242',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Expiry and CVC in a grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs font-semibold text-zinc-400 block mb-2">Expiry Date</Label>
+              <div className="p-3 bg-black border border-zinc-800 rounded-none pointer-events-auto" style={{ isolation: 'isolate' }}>
+                <CardExpiryElement 
+                  options={{
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        color: '#ffffff',
+                        fontFamily: 'monospace',
+                        '::placeholder': {
+                          color: '#52525b',
+                        },
+                      },
+                    },
+                    placeholder: 'MM / YY',
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold text-zinc-400 block mb-2">CVC</Label>
+              <div className="p-3 bg-black border border-zinc-800 rounded-none pointer-events-auto" style={{ isolation: 'isolate' }}>
+                <CardCvcElement 
+                  options={{
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        color: '#ffffff',
+                        fontFamily: 'monospace',
+                        '::placeholder': {
+                          color: '#52525b',
+                        },
+                      },
+                    },
+                    placeholder: '123',
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
