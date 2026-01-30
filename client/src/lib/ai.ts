@@ -23,7 +23,35 @@ export async function analyzeIntent(raw_text: string): Promise<StructuredIntent>
 
     if (error) {
       console.error("[AI] Error from Supabase function:", JSON.stringify(error, null, 2));
-      throw new Error(`Supabase error: ${JSON.stringify(error)}`);
+      
+      // Fallback: try direct fetch if Supabase client fails
+      console.log("[AI] Attempting direct fetch fallback...");
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/analyze_intent`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ raw_text }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const fallbackData = await response.json();
+        console.log("[AI] Fallback fetch succeeded:", fallbackData);
+        
+        const intent = fallbackData as StructuredIntent;
+        if (!intent.category || !intent.reflection) {
+          throw new Error("Invalid response structure from fallback");
+        }
+        return intent;
+      } catch (fallbackError) {
+        console.error("[AI] Fallback fetch also failed:", fallbackError);
+        throw new Error(`Function unavailable: ${error.message || error.name || "unknown error"}`);
+      }
     }
 
     if (!data) {
