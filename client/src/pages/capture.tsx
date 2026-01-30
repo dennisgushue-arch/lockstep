@@ -42,9 +42,10 @@ export default function CapturePage() {
       console.error("Capture failed - FULL ERROR:", error);
       console.error("Error stack:", error instanceof Error ? error.stack : 'No stack');
       console.error("Error details:", JSON.stringify(error, null, 2));
+      const errorMessage = error instanceof Error ? error.message : "Could not understand intent";
       toast({
         title: "Processing Failed",
-        description: "Could not understand intent. Try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setIsProcessing(false);

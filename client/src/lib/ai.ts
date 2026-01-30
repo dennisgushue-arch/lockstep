@@ -31,8 +31,17 @@ export async function analyzeIntent(raw_text: string): Promise<StructuredIntent>
       throw new Error("No data returned from analyze_intent");
     }
 
-    // Validate the response has required fields
-    const intent = data as StructuredIntent;
+    let normalizedData: unknown = data;
+    if (typeof data === "string") {
+      try {
+        normalizedData = JSON.parse(data);
+      } catch (parseError) {
+        console.error("[AI] Failed to parse string response:", data);
+        throw new Error("Invalid JSON response from analyze_intent");
+      }
+    }
+
+    const intent = ((normalizedData as { data?: StructuredIntent })?.data ?? normalizedData) as StructuredIntent;
     console.log("[AI] Intent object:", JSON.stringify(intent, null, 2));
     
     if (!intent.category) {
