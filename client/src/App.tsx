@@ -1,4 +1,5 @@
 import Missed from "@/pages/missed";
+import TestIntentPage from "@/pages/test-intent";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ function Router() {
         <Route path="/lock-in" component={LockInPage} />
         <Route path="/stakes" component={StakesPage} />
         <Route path="/missed" component={Missed} />
+        <Route path="/test-intent" component={TestIntentPage} />
         <Route path="/stake-test">
           <StakeScreen 
             stake={5} 
