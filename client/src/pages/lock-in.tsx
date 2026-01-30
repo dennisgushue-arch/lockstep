@@ -107,7 +107,12 @@ export default function LockInPage() {
 
       // 3) Confirm card payment (authorize) using individual card elements
       const cardNumberElement = elements.getElement(CardNumberElement);
+      const cardExpiryElement = elements.getElement(CardExpiryElement);
+      const cardCvcElement = elements.getElement(CardCvcElement);
+      
       if (!cardNumberElement) throw new Error("Card number input not ready");
+      if (!cardExpiryElement) throw new Error("Card expiry input not ready");
+      if (!cardCvcElement) throw new Error("Card CVC input not ready");
 
       const result = await stripe.confirmCardPayment(pi.client_secret, {
         payment_method: {

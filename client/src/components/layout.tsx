@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { DetectionBadge } from "@/components/detection-notifications";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -33,6 +34,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     Dashboard
                   </span>
                 </Link>
+                <Link href="/detection">
+                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/detection' ? 'text-primary' : 'text-muted-foreground'}`}>
+                    Detection
+                  </span>
+                </Link>
+                <DetectionBadge />
                 <Link href="/capture">
                   <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
                     New Intent

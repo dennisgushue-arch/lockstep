@@ -15,6 +15,7 @@ import CapturePage from "@/pages/capture";
 import ReflectionPage from "@/pages/reflection";
 import LockInPage from "@/pages/lock-in";
 import StakesPage from "@/pages/stakes";
+import DetectionPage from "@/pages/detection";
 import { Stakes as StakeScreen } from "@/components/stakes";
 import AdminPage from "@/pages/admin";
 
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/auth" component={AuthPage} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/capture" component={CapturePage} />
+        <Route path="/detection" component={DetectionPage} />
         <Route path="/reflection" component={ReflectionPage} />
         <Route path="/lock-in" component={LockInPage} />
         <Route path="/stakes" component={StakesPage} />

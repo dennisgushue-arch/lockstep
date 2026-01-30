@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { format, addDays } from "date-fns";
 import { analyzeIntent as analyzeIntentAI, type StructuredIntent } from "./ai";
+import type { IntentSignal, IntentPattern, DetectionResult } from "./passive-detection";
+import { processNewSignal, shouldPromptCommitment } from "./passive-detection";
+import { inputManager, type SourceType } from "./input-sources";
 
 // Types
 export type User = {
@@ -44,6 +47,15 @@ type AppContextType = {
   completeCommitment: (id: string) => Promise<void>;
   markMissed: (id: string) => Promise<void>;
   
+  // Passive Detection
+  intentSignals: IntentSignal[];
+  intentPatterns: IntentPattern[];
+  captureSignal: (text: string, sourceType?: SourceType) => Promise<DetectionResult | null>;
+  getActivePatterns: () => IntentPattern[];
+  dismissPattern: (patternId: string) => void;
+  lockInPattern: (patternId: string) => void;
+  syncInputSources: () => Promise<void>;
+  
   // Debug
   runMissCheck: () => Promise<string>;
 };
@@ -54,6 +66,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [currentIntent, setCurrentIntent] = useState<Intent | null>(null);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
+  
+  // Passive detection state
+  const [intentSignals, setIntentSignals] = useState<IntentSignal[]>([]);
+  const [intentPatterns, setIntentPatterns] = useState<IntentPattern[]>([]);
 
   // Initialize with some dummy data if we want, or clean slate
   useEffect(() => {
@@ -63,11 +79,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const storedCommitments = localStorage.getItem('intent_mock_commitments');
     if (storedCommitments) setCommitments(JSON.parse(storedCommitments));
+    
+    const storedSignals = localStorage.getItem('intent_mock_signals');
+    if (storedSignals) setIntentSignals(JSON.parse(storedSignals));
+    
+    const storedPatterns = localStorage.getItem('intent_mock_patterns');
+    if (storedPatterns) setIntentPatterns(JSON.parse(storedPatterns));
   }, []);
 
   useEffect(() => {
     localStorage.setItem('intent_mock_commitments', JSON.stringify(commitments));
   }, [commitments]);
+  
+  useEffect(() => {
+    localStorage.setItem('intent_mock_signals', JSON.stringify(intentSignals));
+  }, [intentSignals]);
+  
+  useEffect(() => {
+    localStorage.setItem('intent_mock_patterns', JSON.stringify(intentPatterns));
+  }, [intentPatterns]);
 
   const login = async (email: string) => {
     // Simulate magic link delay
@@ -152,6 +182,102 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return `Checked for missed commitments. Found ${missedCount}.`;
   };
+  
+  // Passive Detection Methods
+  
+  const captureSignal = async (text: string, sourceType: SourceType = "manual"): Promise<DetectionResult | null> => {
+    if (!user) throw new Error("User not logged in");
+    
+    // Create new signal
+    const signal = await inputManager.captureManualSignal(user.id, text);
+    signal.sourceType = sourceType;
+    
+    try {
+      // Process through detection algorithm
+      const { updatedPattern, detectionResult } = processNewSignal(signal, intentPatterns);
+      
+      // Update state
+      setIntentSignals(prev => [...prev, signal]);
+      
+      // Update or add pattern
+      setIntentPatterns(prev => {
+        const existingIndex = prev.findIndex(p => p.id === updatedPattern.id);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = updatedPattern;
+          return updated;
+        }
+        return [...prev, updatedPattern];
+      });
+      
+      return detectionResult;
+    } catch (error) {
+      console.log("Signal processing skipped:", error);
+      // Still save the signal even if low confidence
+      setIntentSignals(prev => [...prev, signal]);
+      return null;
+    }
+  };
+  
+  const getActivePatterns = (): IntentPattern[] => {
+    return intentPatterns.filter(p => p.status === "active");
+  };
+  
+  const dismissPattern = (patternId: string) => {
+    setIntentPatterns(prev =>
+      prev.map(p => (p.id === patternId ? { ...p, status: "dismissed" as const } : p))
+    );
+  };
+  
+  const lockInPattern = (patternId: string) => {
+    const pattern = intentPatterns.find(p => p.id === patternId);
+    if (!pattern) return;
+    
+    // Set as current intent for lock-in flow
+    const intent: Intent = {
+      id: Math.random().toString(36).substr(2, 9),
+      text: pattern.normalizedIntent,
+      category: pattern.category,
+      goal: pattern.normalizedIntent,
+      first_action: "Complete first action within 24 hours",
+      reflection: `You've mentioned this ${pattern.occurrenceCount} times over ${pattern.daySpan} days. Time to put your money where your mouth is.`,
+      confidence: 0.9,
+      suggested_stake: pattern.suggestedStake || 10,
+    };
+    
+    setCurrentIntent(intent);
+    setIntentPatterns(prev =>
+      prev.map(p => (p.id === patternId ? { ...p, status: "locked" as const } : p))
+    );
+  };
+  
+  const syncInputSources = async () => {
+    if (!user) return;
+    
+    // Sync all connected sources
+    const newSignals = await inputManager.syncAllSources(user.id);
+    
+    // Process each signal
+    for (const signal of newSignals) {
+      try {
+        const { updatedPattern } = processNewSignal(signal, intentPatterns);
+        
+        setIntentPatterns(prev => {
+          const existingIndex = prev.findIndex(p => p.id === updatedPattern.id);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = updatedPattern;
+            return updated;
+          }
+          return [...prev, updatedPattern];
+        });
+      } catch (error) {
+        console.log("Signal processing skipped:", error);
+      }
+    }
+    
+    setIntentSignals(prev => [...prev, ...newSignals]);
+  };
 
   return (
     <AppContext.Provider value={{
@@ -165,6 +291,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createCommitment,
       completeCommitment,
       markMissed,
+      intentSignals,
+      intentPatterns,
+      captureSignal,
+      getActivePatterns,
+      dismissPattern,
+      lockInPattern,
+      syncInputSources,
       runMissCheck
     }}>
       {children}

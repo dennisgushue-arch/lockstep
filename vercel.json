@@ -1,6 +1,8 @@
 {
+  "installCommand": "pnpm install",
   "buildCommand": "pnpm build",
   "outputDirectory": "public",
+  "framework": null,
   "routes": [
     {
       "handle": "filesystem"

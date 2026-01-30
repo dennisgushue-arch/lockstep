@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PatternSummaryWidget } from "@/components/detection-notifications";
 
 import { format } from "date-fns";
 import { AlertCircle, Plus } from "lucide-react";
@@ -118,6 +119,9 @@ NEW INTENT
 </Button>
 </Link>
 </div>
+
+{/* Pattern Detection Widget */}
+<PatternSummaryWidget />
 
 {sortedCommitments.length === 0 ? (
 <div className="py-24 text-center border border-dashed border-border rounded-lg bg-zinc-900/20">
