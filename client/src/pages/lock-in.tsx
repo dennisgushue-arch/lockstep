@@ -19,6 +19,9 @@ export default function LockInPage() {
   const { toast } = useToast();
   const stripe = useStripe();
   const elements = useElements();
+  const [cardNumberReady, setCardNumberReady] = useState(false);
+  const [cardExpiryReady, setCardExpiryReady] = useState(false);
+  const [cardCvcReady, setCardCvcReady] = useState(false);
   
   // Initialize stake with AI suggestion
   const [stake, setStake] = useState<number>(currentIntent?.suggested_stake ?? 5);
@@ -74,6 +77,15 @@ export default function LockInPage() {
         setIsSubmitting(false);
         return;
       }
+    }
+
+    if (!cardNumberReady || !cardExpiryReady || !cardCvcReady) {
+      toast({
+        title: "Card inputs loading",
+        description: "Please wait for the card fields to finish loading.",
+        variant: "destructive",
+      });
+      return;
     }
 
     setIsSubmitting(true);
@@ -211,7 +223,7 @@ export default function LockInPage() {
           <div className="mb-4">
             <Label className="text-xs font-semibold text-zinc-400 block mb-2">Card Number</Label>
             <div className="p-3 bg-black border border-zinc-800 rounded-none pointer-events-auto" style={{ isolation: 'isolate' }}>
-              <CardNumberElement 
+              <CardNumberElement
                 options={{
                   style: {
                     base: {
@@ -225,6 +237,7 @@ export default function LockInPage() {
                   },
                   placeholder: '4242 4242 4242 4242',
                 }}
+                onReady={() => setCardNumberReady(true)}
               />
             </div>
           </div>
@@ -248,6 +261,7 @@ export default function LockInPage() {
                     },
                     placeholder: 'MM / YY',
                   }}
+                  onReady={() => setCardExpiryReady(true)}
                 />
               </div>
             </div>
@@ -269,6 +283,7 @@ export default function LockInPage() {
                     },
                     placeholder: '123',
                   }}
+                  onReady={() => setCardCvcReady(true)}
                 />
               </div>
             </div>
@@ -279,7 +294,7 @@ export default function LockInPage() {
           size="lg" 
           className="w-full h-16 rounded-none text-xl font-bold bg-white text-black hover:bg-gray-200"
           onClick={handleConfirm}
-          disabled={isSubmitting || !date || !stripe}
+          disabled={isSubmitting || !date || !stripe || !cardNumberReady || !cardExpiryReady || !cardCvcReady}
           data-testid="button-confirm-commitment"
         >
           {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "CONFIRM COMMITMENT"}
