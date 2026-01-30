@@ -27,7 +27,10 @@ export async function analyzeIntent(raw_text: string): Promise<StructuredIntent>
       // Fallback: try direct fetch if Supabase client fails
       console.log("[AI] Attempting direct fetch fallback...");
       try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseUrl = rawSupabaseUrl
+          ? rawSupabaseUrl.replace(".supabase.com", ".supabase.co")
+          : rawSupabaseUrl;
         const response = await fetch(`${supabaseUrl}/functions/v1/analyze_intent`, {
           method: "POST",
           headers: {
