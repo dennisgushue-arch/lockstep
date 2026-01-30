@@ -85,7 +85,9 @@ export default function LockInPage() {
 
       setLocation("/dashboard");
     } catch (error: any) {
-      console.error(error);
+      console.error("Lock-in failed - FULL ERROR:", error);
+      console.error("Error stack:", error?.stack || 'No stack');
+      console.error("Error details:", JSON.stringify(error, null, 2));
 
       toast({
         title: "Error",

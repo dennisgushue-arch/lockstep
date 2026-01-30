@@ -29,6 +29,9 @@ export default function AuthPage() {
         setLocation("/dashboard");
       }, 1000);
     } catch (error) {
+      console.error("Auth failed - FULL ERROR:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack');
+      console.error("Error details:", JSON.stringify(error, null, 2));
       toast({
         title: "Error",
         description: "Failed to login. Please try again.",

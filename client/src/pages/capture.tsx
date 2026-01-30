@@ -39,7 +39,9 @@ export default function CapturePage() {
       console.log("Analysis complete, redirecting...");
       setLocation("/reflection");
     } catch (error) {
-      console.error("Capture failed:", error);
+      console.error("Capture failed - FULL ERROR:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack');
+      console.error("Error details:", JSON.stringify(error, null, 2));
       toast({
         title: "Processing Failed",
         description: "Could not understand intent. Try again.",

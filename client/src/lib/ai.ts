@@ -8,12 +8,22 @@ export type AnalyzeIntentResult = {
 };
 
 export async function analyzeIntent(raw_text: string): Promise<AnalyzeIntentResult> {
+  console.log("[AI] Analyzing intent:", raw_text);
+  
   const { data, error } = await supabase.functions.invoke("analyze_intent", {
     body: { raw_text },
   });
 
+  console.log("[AI] Response:", { data, error });
+
   if (error) {
+    console.error("[AI] Error from Supabase function:", error);
     throw error;
+  }
+
+  if (!data) {
+    console.error("[AI] No data returned from analyze_intent");
+    throw new Error("No data returned from analyze_intent");
   }
 
   return data as AnalyzeIntentResult;
