@@ -61,88 +61,83 @@ const mockSupabase = {
           error: null
         };
       }
-      
-      // Original analyze_intent logic
+
+      // Response templates with placeholders
+      const templates = {
+        fitness: {
+          goal: "I want to exercise and build a consistent fitness habit",
+          first_action: "Put on your workout gear and step outside right now—no debate.",
+          reflection: (rawText: string) => `You say you want to ${rawText.toLowerCase()}. How many times have you said that? Your body doesn't need another promise; it needs proof. The couch will be there tomorrow, but so will your regret. Lock this in or stop wasting mental energy.`,
+          suggested_stake: 10
+        },
+        work: {
+          goal: "I want to focus and complete meaningful work",
+          first_action: "Close everything except what you need. Write three sentences of your work right now.",
+          reflection: (rawText: string) => `"${rawText}" sounds ambitious. But ambition without stakes is just daydreaming. You've had a thousand ideas. How many did you actually execute? This time, put money on it. Make failure cost something.`,
+          suggested_stake: 20
+        },
+        consumption: {
+          goal: "I want to change my eating and consumption habits",
+          first_action: "Throw away or delete one thing right now that you know sabotages you.",
+          reflection: (rawText: string) => `You want to ${rawText.toLowerCase()}? Good intention. But intentions die the moment you're tired or bored. Your habits own you right now. The only way to break free is to make breaking them painful if you fail.`,
+          suggested_stake: 15
+        },
+        growth: {
+          goal: "I want to take control of my finances and future",
+          first_action: "Check your current balance and write down what you want it to be in 90 days.",
+          reflection: (rawText: string) => `"${rawText}" - yet you're still spending like you don't care. Money is a test of your values. What you spend on reveals what you actually believe about yourself. Lock in a stake and prove you mean it.`,
+          suggested_stake: 25
+        },
+        addiction: {
+          goal: "I want to break free from this habit",
+          first_action: "Delete the app, throw it out, or put it somewhere you can't reach. Do it now.",
+          reflection: (rawText: string) => `You're ready to ${rawText.toLowerCase()}. But 'ready' is a feeling, and feelings fade. You need consequences. Real consequences. Money consequences. That's what will keep you honest when your willpower fails at 3 AM.`,
+          suggested_stake: 50
+        },
+        other: {
+          goal: (rawText: string) => rawText,
+          first_action: "Identify the smallest concrete first step and do it immediately.",
+          reflection: (rawText: string) => `You want to ${rawText.toLowerCase()}. But wanting isn't doing. You know that. Everyone knows that. What separates you from everyone else is whether you'll put something on the line to actually make it happen. Will you?`,
+          suggested_stake: 10
+        }
+      };
+
+      // Parse intent from raw text
       const text = (body.raw_text || "").toLowerCase();
-      
-      if (text.includes("run") || text.includes("gym") || text.includes("workout")) {
-        return {
-          data: {
-            category: "fitness",
-            confidence: 0.99,
-            goal: "I want to exercise regularly",
-            first_action: "Put on your shoes and walk out the door. No thinking.",
-            reflection: "You've been 'planning' this for months. Your body is a temple you've been neglecting while your mind builds elaborate monuments to 'tomorrow.' If you don't lock this in now, your potential will continue to be nothing more than a ghost of what could have been. Are you a runner, or just someone who owns expensive shoes?",
-            suggested_stake: 10
-          },
-          error: null
-        };
+      let category: keyof typeof templates = "other";
+      let confidence = 0.85;
+
+      if (text.includes("run") || text.includes("gym") || text.includes("workout") || text.includes("exercise") || text.includes("walk")) {
+        category = "fitness";
+        confidence = 0.99;
+      } else if (text.includes("write") || text.includes("code") || text.includes("work") || text.includes("project") || text.includes("build")) {
+        category = "work";
+        confidence = 0.98;
+      } else if (text.includes("diet") || text.includes("eat") || text.includes("sugar") || text.includes("fasting") || text.includes("food")) {
+        category = "consumption";
+        confidence = 0.96;
+      } else if (text.includes("money") || text.includes("save") || text.includes("spend") || text.includes("budget") || text.includes("financial")) {
+        category = "growth";
+        confidence = 0.94;
+      } else if (text.includes("quit") || text.includes("stop") || text.includes("smoking") || text.includes("drinking") || text.includes("scroll") || text.includes("habit")) {
+        category = "addiction";
+        confidence = 0.97;
       }
 
-      if (text.includes("write") || text.includes("novel") || text.includes("book") || text.includes("creative")) {
-        return {
-          data: {
-            category: "work",
-            confidence: 0.98,
-            goal: "I want to write and complete a creative project",
-            first_action: "Write one sentence. The worst one you can think of.",
-            reflection: "The world doesn't need another person with a 'great idea' they never wrote down. You're suffocating your talent with perfectionism—which is just a high-end word for cowardice. You're terrified that if you actually try, you might fail. I have news for you: by not writing, you've already failed. Lock it in or admit you're just a dreamer.",
-            suggested_stake: 20
-          },
-          error: null
-        };
-      }
-
-      if (text.includes("diet") || text.includes("eat") || text.includes("sugar") || text.includes("fasting")) {
-        return {
-          data: {
-            category: "consumption",
-            confidence: 0.96,
-            goal: "I want to change my eating habits",
-            first_action: "Throw away the one thing you know you shouldn't eat.",
-            reflection: "You treat your cravings like they're commands. They're not. They're just noise. Every time you give in, you're telling your brain that your temporary pleasure is worth more than your long-term respect. Is a moment on the tongue really worth the weight of another broken promise? Stop negotiating with your impulses.",
-            suggested_stake: 15
-          },
-          error: null
-        };
-      }
-
-      if (text.includes("money") || text.includes("save") || text.includes("spend") || text.includes("budget")) {
-        return {
-          data: {
-            category: "growth",
-            confidence: 0.94,
-            goal: "I want to improve my financial habits",
-            first_action: "Check your bank balance and stare at it for 60 seconds.",
-            reflection: "You spend money to buy a version of yourself that you haven't actually earned yet. You're trading your future freedom for present-day trinkets. This isn't about math; it's about control. Do you own your money, or does your lifestyle own you? Put a real stake on the line and see how quickly your 'needs' become 'wants.'",
-            suggested_stake: 25
-          },
-          error: null
-        };
-      }
-
-      if (text.includes("quit") || text.includes("stop") || text.includes("smoking") || text.includes("drinking") || text.includes("scroll")) {
-        return {
-          data: {
-            category: "addiction",
-            confidence: 0.97,
-            goal: "I want to quit a harmful habit",
-            first_action: "Delete the app, throw out the pack, pour it down the drain. Now.",
-            reflection: "You're not addicted to the thing; you're addicted to avoiding yourself. Every time you reach for your escape, you're choosing numbness over presence. You're letting a chemical or a screen own the driver's seat of your life. This isn't about willpower—it's about whether you believe you deserve freedom. Do you?",
-            suggested_stake: 50
-          },
-          error: null
-        };
-      }
+      // Generate response from template
+      const tmpl = templates[category];
+      const goal = typeof tmpl.goal === "function" ? tmpl.goal(body.raw_text) : tmpl.goal;
+      const first_action = typeof tmpl.first_action === "function" ? tmpl.first_action(body.raw_text) : tmpl.first_action;
+      const reflection = typeof tmpl.reflection === "function" ? tmpl.reflection(body.raw_text) : tmpl.reflection;
 
       return {
         data: {
-          category: "other",
-          confidence: 0.85,
-          goal: body.raw_text || "Complete this goal",
-          first_action: "Do the smallest possible version of this goal. Right now.",
-          reflection: "You've been thinking about this for how long? Every minute you spend 'preparing' is a minute you're not doing. The only difference between you and the person who succeeds is that they started before they felt ready. Lock this in, or keep living in the fantasy of 'someday.'",
-          suggested_stake: 10
+          category,
+          confidence,
+          goal,
+          first_action,
+          reflection,
+          suggested_stake: tmpl.suggested_stake
         },
         error: null
       };
