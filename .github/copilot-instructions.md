@@ -134,4 +134,4 @@ supabase functions deploy <name>  # Deploy single Edge Function
 - **Frontend**: Vercel (automatic from main branch pushes)
 - **Edge Functions**: Manual `supabase functions deploy` or CI/CD pipeline
 - **Database**: Drizzle migrations via `pnpm db:push` (requires `DATABASE_URL`)
-- See [DEPLOYMENT.md](/DEPLOYMENT.md) for full setup steps including Stripe and Supabase secret configuration
+- See [DEPLOYMENT.md](../../DEPLOYMENT.md) for full setup steps including Stripe and Supabase secret configuration

@@ -71,7 +71,14 @@ const mockSupabase = {
       }
 
       // Response templates with placeholders
-      const templates = {
+      type TemplateConfig = {
+        goal: string | ((text: string) => string);
+        first_action: string | ((text: string) => string);
+        reflection: (rawText: string) => string;
+        suggested_stake: number;
+      };
+      
+      const templates: Record<string, TemplateConfig> = {
         fitness: {
           goal: "I want to exercise and build a consistent fitness habit",
           first_action: "Put on your workout gear and step outside right now—no debate.",
