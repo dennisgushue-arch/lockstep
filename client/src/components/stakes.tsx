@@ -14,7 +14,7 @@ interface StakesProps {
 
 export function Stakes({ stake, setStake, consequence, setConsequence, commitmentId, onSuccess }: StakesProps) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative z-20">
       {commitmentId && (
         <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-none flex justify-between items-center">
           <div>
@@ -44,7 +44,7 @@ export function Stakes({ stake, setStake, consequence, setConsequence, commitmen
                 key={amount}
                 variant={stake === amount ? "default" : "outline"}
                 className={cn(
-                  "h-24 text-2xl font-bold flex flex-col gap-1 rounded-none border-2",
+                  "h-24 text-2xl font-bold flex flex-col gap-1 rounded-none border-2 cursor-pointer",
                   stake === amount ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-foreground"
                 )}
                 onClick={() => setStake(amount)}

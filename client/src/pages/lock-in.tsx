@@ -148,7 +148,7 @@ export default function LockInPage() {
       />
 
       {/* Schedule */}
-      <div className="space-y-4">
+      <div className="space-y-4 relative z-10">
         <Label className="text-base font-bold">DEADLINE</Label>
         <Popover>
           <PopoverTrigger asChild>
@@ -192,10 +192,10 @@ export default function LockInPage() {
         </p>
       </div>
 
-      <div className="pt-4 space-y-4">
+      <div className="pt-4 space-y-4 relative z-0">
         <div className="border-2 border-zinc-800 p-4 bg-zinc-900/50">
           <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 block">Secure Payment Authorization</Label>
-          <div className="p-4 bg-black border border-zinc-800 rounded-none">
+          <div className="p-4 bg-black border border-zinc-800 rounded-none pointer-events-auto" style={{ isolation: 'isolate' }}>
             <CardElement 
               options={{
                 style: {
