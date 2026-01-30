@@ -1,24 +1,5 @@
 {
   "buildCommand": "pnpm build",
-  "outputDirectory": "public",
-  "framework": null,
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/:path((?!assets).*)",
-      "destination": "/index.html"
-    }
-  ]
+  "outputDirectory": "./public",
+  "framework": null
 }
