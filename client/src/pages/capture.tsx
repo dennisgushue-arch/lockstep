@@ -56,8 +56,8 @@ export default function CapturePage() {
     <div className="container max-w-2xl mx-auto px-4 py-12 flex flex-col h-[calc(100vh-64px)] justify-center">
       <div className="space-y-6">
         <div className="space-y-2">
-          <h1 className="text-4xl md:text-5xl font-heading font-bold">DECLARE YOUR INTENT.</h1>
-          <p className="text-muted-foreground text-lg">What is the one thing you must do?</p>
+          <h1 className="text-4xl md:text-5xl font-heading font-bold">SAY IT OUT LOUD.</h1>
+          <p className="text-muted-foreground text-lg">What are you actually going to do? (Or stop pretending.)</p>
         </div>
 
         <div className="relative">
@@ -88,11 +88,11 @@ export default function CapturePage() {
             {isProcessing ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                ANALYZING
+                PROCESSING
               </>
             ) : (
               <>
-                ANALYZE
+                NEXT
                 <ArrowRight className="w-5 h-5" />
               </>
             )}

@@ -60,42 +60,47 @@ export function PassiveIntentSuggestion({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-500" />
-            Time to Commit?
+            <Sparkles className="w-5 h-5 text-red-500" />
+            Stop Saying It. Do It.
           </DialogTitle>
-          <DialogDescription>
-            {occurrenceText} {timeText}. Let's lock this in.
+          <DialogDescription className="text-sm font-medium text-foreground/70">
+            {occurrenceText} {timeText}.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-lg font-semibold text-blue-900">
+        <div className="py-4 space-y-3">
+          <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+            <p className="text-lg font-semibold text-red-900">
               "{pattern.normalizedIntent}"
             </p>
-            <p className="text-sm text-blue-800 mt-2">
-              Category: <span className="font-medium">{pattern.category}</span>
+            <p className="text-sm text-red-800 mt-3 font-medium">
+              Category: <span className="capitalize">{pattern.category}</span>
             </p>
             {pattern.suggestedStake && (
-              <p className="text-sm text-blue-800 mt-1">
-                Suggested stake: <span className="font-medium">${pattern.suggestedStake}</span>
+              <p className="text-sm text-red-800 mt-2">
+                Stake at risk: <span className="font-bold text-red-900">${pattern.suggestedStake}</span>
               </p>
             )}
           </div>
+          <p className="text-xs text-muted-foreground/70 leading-relaxed">
+            You've said this {pattern.occurrenceCount} times. No commitment. No skin in the game.
+            <br />
+            If it matters, prove it. If it doesn't, stop saying it.
+          </p>
         </div>
 
         <DialogFooter className="flex gap-2 justify-end">
           <Button
             variant="outline"
             onClick={handleDismiss}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-red-200 text-red-700 hover:bg-red-50"
           >
             <X className="w-4 h-4" />
-            Dismiss
+            Keep Saying It
           </Button>
-          <Button onClick={handleCapture} className="flex items-center gap-2">
+          <Button onClick={handleCapture} className="flex items-center gap-2 bg-red-600 hover:bg-red-700">
             <Sparkles className="w-4 h-4" />
-            Lock It In
+            I Mean It
           </Button>
         </DialogFooter>
       </DialogContent>

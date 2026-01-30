@@ -75,14 +75,14 @@ export default function ReflectionPage() {
           }}
         >
           <RotateCcw className="w-4 h-4 mr-2" />
-          RETRY
+          GO BACK
         </Button>
         <Button 
           size="lg" 
-          className="flex-[2] rounded-none h-16 text-lg font-bold bg-white text-black hover:bg-gray-200"
+          className="flex-[2] rounded-none h-16 text-lg font-bold bg-red-600 text-white hover:bg-red-700"
           onClick={() => setLocation("/lock-in")}
         >
-          LOCK IT IN
+          STAKE IT
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
       </div>

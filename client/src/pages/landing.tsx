@@ -35,9 +35,8 @@ export default function Landing() {
             transition={{ delay: 0.4, duration: 0.8 }}
             className="text-xl md:text-2xl text-muted-foreground font-light max-w-2xl mx-auto"
           >
-            We listen to what you say. <br/>
-            We turn it into action. <br/>
-            With consequences that matter.
+            You're lying to yourself. <br/>
+            Lockstep makes that expensive.
           </motion.p>
 
           <motion.div
@@ -46,8 +45,8 @@ export default function Landing() {
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
             <Link href="/auth">
-              <Button size="lg" className="rounded-none h-20 px-12 text-2xl font-black bg-white text-black hover:bg-white/90 shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-none transition-all">
-                LOCK YOUR FIRST INTENT — FREE
+              <Button size="lg" className="rounded-none h-20 px-12 text-2xl font-black bg-red-600 text-white hover:bg-red-700 shadow-[8px_8px_0px_0px_rgba(220,38,38,0.3)] hover:shadow-none transition-all">
+                PROVE YOU MEAN IT
               </Button>
             </Link>
           </motion.div>
@@ -60,13 +59,13 @@ export default function Landing() {
           <h2 className="text-3xl md:text-4xl font-heading font-bold">THE PROBLEM</h2>
           <div className="space-y-6 text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
             <p>
-              <span className="text-foreground font-medium">Willpower is a finite resource.</span> You wake up with good intentions, but by 6 PM, the day has eroded your resolve.
+              <span className="text-foreground font-medium">You say you'll do something. You don't.</span> Not because you can't. Because there's no cost to failing.
             </p>
             <p>
-              You don't need another todo list. You don't need a gentle nudge. You need a consequence that actually matters.
+              Every productivity app lets you fail quietly. You snooze, reschedule, and move on. No shame. No consequence. No change.
             </p>
             <p>
-              We built Lockstep for people who are tired of letting themselves down.
+              Lockstep is for people who are ready to stop lying to themselves.
             </p>
           </div>
         </div>
