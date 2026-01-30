@@ -1,13 +1,17 @@
 import { supabase } from "./supabase";
 
-export type AnalyzeIntentResult = {
-  category: string;
-  confidence: number;
-  first_action?: string;
-  reflection: string;
-};
+export type IntentCategory = "fitness" | "work" | "growth" | "social" | "consumption" | "addiction" | "other";
 
-export async function analyzeIntent(raw_text: string): Promise<AnalyzeIntentResult> {
+export interface StructuredIntent {
+  category: IntentCategory;
+  confidence: number;
+  goal: string;
+  first_action: string;
+  reflection: string;
+  suggested_stake: number;
+}
+
+export async function analyzeIntent(raw_text: string): Promise<StructuredIntent> {
   console.log("[AI] Analyzing intent:", raw_text);
   
   const { data, error } = await supabase.functions.invoke("analyze_intent", {
@@ -26,7 +30,14 @@ export async function analyzeIntent(raw_text: string): Promise<AnalyzeIntentResu
     throw new Error("No data returned from analyze_intent");
   }
 
-  return data as AnalyzeIntentResult;
+  // Validate the response has required fields
+  const intent = data as StructuredIntent;
+  if (!intent.category || !intent.reflection) {
+    throw new Error("Invalid intent response structure");
+  }
+
+  console.log("[AI] Parsed intent:", intent);
+  return intent;
 }
 
 export interface IntentAnalysis {

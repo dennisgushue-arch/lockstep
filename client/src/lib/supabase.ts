@@ -70,8 +70,10 @@ const mockSupabase = {
           data: {
             category: "fitness",
             confidence: 0.99,
+            goal: "I want to exercise regularly",
             first_action: "Put on your shoes and walk out the door. No thinking.",
-            reflection: "You've been 'planning' this for months. Your body is a temple you've been neglecting while your mind builds elaborate monuments to 'tomorrow.' If you don't lock this in now, your potential will continue to be nothing more than a ghost of what could have been. Are you a runner, or just someone who owns expensive shoes?"
+            reflection: "You've been 'planning' this for months. Your body is a temple you've been neglecting while your mind builds elaborate monuments to 'tomorrow.' If you don't lock this in now, your potential will continue to be nothing more than a ghost of what could have been. Are you a runner, or just someone who owns expensive shoes?",
+            suggested_stake: 10
           },
           error: null
         };
@@ -80,10 +82,12 @@ const mockSupabase = {
       if (text.includes("write") || text.includes("novel") || text.includes("book") || text.includes("creative")) {
         return {
           data: {
-            category: "creative",
+            category: "work",
             confidence: 0.98,
+            goal: "I want to write and complete a creative project",
             first_action: "Write one sentence. The worst one you can think of.",
-            reflection: "The world doesn't need another person with a 'great idea' they never wrote down. You're suffocating your talent with perfectionism—which is just a high-end word for cowardice. You're terrified that if you actually try, you might fail. I have news for you: by not writing, you've already failed. Lock it in or admit you're just a dreamer."
+            reflection: "The world doesn't need another person with a 'great idea' they never wrote down. You're suffocating your talent with perfectionism—which is just a high-end word for cowardice. You're terrified that if you actually try, you might fail. I have news for you: by not writing, you've already failed. Lock it in or admit you're just a dreamer.",
+            suggested_stake: 20
           },
           error: null
         };
@@ -94,8 +98,10 @@ const mockSupabase = {
           data: {
             category: "consumption",
             confidence: 0.96,
+            goal: "I want to change my eating habits",
             first_action: "Throw away the one thing you know you shouldn't eat.",
-            reflection: "You treat your cravings like they're commands. They're not. They're just noise. Every time you give in, you're telling your brain that your temporary pleasure is worth more than your long-term respect. Is a moment on the tongue really worth the weight of another broken promise? Stop negotiating with your impulses."
+            reflection: "You treat your cravings like they're commands. They're not. They're just noise. Every time you give in, you're telling your brain that your temporary pleasure is worth more than your long-term respect. Is a moment on the tongue really worth the weight of another broken promise? Stop negotiating with your impulses.",
+            suggested_stake: 15
           },
           error: null
         };
@@ -104,10 +110,12 @@ const mockSupabase = {
       if (text.includes("money") || text.includes("save") || text.includes("spend") || text.includes("budget")) {
         return {
           data: {
-            category: "finance",
+            category: "growth",
             confidence: 0.94,
+            goal: "I want to improve my financial habits",
             first_action: "Check your bank balance and stare at it for 60 seconds.",
-            reflection: "You spend money to buy a version of yourself that you haven't actually earned yet. You're trading your future freedom for present-day trinkets. This isn't about math; it's about control. Do you own your money, or does your lifestyle own you? Put a real stake on the line and see how quickly your 'needs' become 'wants.'"
+            reflection: "You spend money to buy a version of yourself that you haven't actually earned yet. You're trading your future freedom for present-day trinkets. This isn't about math; it's about control. Do you own your money, or does your lifestyle own you? Put a real stake on the line and see how quickly your 'needs' become 'wants.'",
+            suggested_stake: 25
           },
           error: null
         };
@@ -118,8 +126,10 @@ const mockSupabase = {
           data: {
             category: "addiction",
             confidence: 0.97,
+            goal: "I want to quit a harmful habit",
             first_action: "Delete the app, throw out the pack, pour it down the drain. Now.",
-            reflection: "You're not addicted to the thing; you're addicted to avoiding yourself. Every time you reach for your escape, you're choosing numbness over presence. You're letting a chemical or a screen own the driver's seat of your life. This isn't about willpower—it's about whether you believe you deserve freedom. Do you?"
+            reflection: "You're not addicted to the thing; you're addicted to avoiding yourself. Every time you reach for your escape, you're choosing numbness over presence. You're letting a chemical or a screen own the driver's seat of your life. This isn't about willpower—it's about whether you believe you deserve freedom. Do you?",
+            suggested_stake: 50
           },
           error: null
         };
@@ -127,10 +137,12 @@ const mockSupabase = {
 
       return {
         data: {
-          category: "general",
+          category: "other",
           confidence: 0.85,
+          goal: body.raw_text || "Complete this goal",
           first_action: "Do the smallest possible version of this goal. Right now.",
-          reflection: "You've been thinking about this for how long? Every minute you spend 'preparing' is a minute you're not doing. The only difference between you and the person who succeeds is that they started before they felt ready. Lock this in, or keep living in the fantasy of 'someday.'"
+          reflection: "You've been thinking about this for how long? Every minute you spend 'preparing' is a minute you're not doing. The only difference between you and the person who succeeds is that they started before they felt ready. Lock this in, or keep living in the fantasy of 'someday.'",
+          suggested_stake: 10
         },
         error: null
       };
