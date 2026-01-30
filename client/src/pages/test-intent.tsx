@@ -27,6 +27,19 @@ export default function TestIntentPage() {
     checkSession();
   }, []);
 
+  const checkEnvVars = async () => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    setResult({
+      url: url ? `Set (length: ${url.length})` : "NOT SET",
+      key: key ? `Set (length: ${key.length})` : "NOT SET",
+      mode: isUsingRealSupabase ? "PRODUCTION" : "DEVELOPMENT (Mock)",
+      raw_url: url,
+      raw_key_first_20: key?.substring(0, 20) + "..." || "N/A"
+    });
+  };
+
   const testDirect = async () => {
     setLoading(true);
     setError("");
@@ -37,9 +50,7 @@ export default function TestIntentPage() {
       console.log("Using real Supabase:", isUsingRealSupabase);
       console.log("Input text:", text);
       
-      const { data, error: err } = await supabase.functions.invoke("analyze_intent", {
-        body: { raw_text: text },
-      });
+      const { data, error: err } = await supabase.functions.invoke("test-hello", {});
 
       console.log("Response data:", data);
       console.log("Response error:", err);
@@ -96,9 +107,12 @@ export default function TestIntentPage() {
 
         <div className="flex gap-4">
           <Button onClick={testDirect} disabled={loading}>
-            {loading ? "Testing..." : "Test Supabase Direct"}
+            {loading ? "Testing..." : "Test test-hello"}
           </Button>
-          <Button onClick={testAI} disabled={loading} variant="secondary">
+          <Button onClick={checkEnvVars} disabled={loading} variant="secondary">
+            Check Env Vars
+          </Button>
+          <Button onClick={testAI} disabled={loading} variant="outline">
             {loading ? "Testing..." : "Test AI Function"}
           </Button>
         </div>

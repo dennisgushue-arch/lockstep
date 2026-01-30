@@ -1,7 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-
 interface StructuredIntent {
   category: "fitness" | "work" | "growth" | "social" | "consumption" | "addiction" | "other";
   confidence: number;
@@ -10,6 +8,8 @@ interface StructuredIntent {
   reflection: string;
   suggested_stake: number;
 }
+
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 async function analyzeWithOpenAI(raw_text: string): Promise<StructuredIntent> {
   if (!OPENAI_API_KEY) {
@@ -103,13 +103,31 @@ function parseFallback(raw_text: string): StructuredIntent {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }
+    });
+  }
+
   try {
     const { raw_text } = await req.json();
 
     if (!raw_text || typeof raw_text !== "string" || raw_text.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: "Invalid intent text" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          } 
+        }
       );
     }
 
@@ -117,13 +135,24 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify(intent),
-      { headers: { "Content-Type": "application/json" } }
+      { 
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        } 
+      }
     );
   } catch (error) {
     console.error("[analyze_intent] Error:", error);
     return new Response(
       JSON.stringify({ error: "Failed to analyze intent" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        } 
+      }
     );
   }
 });
