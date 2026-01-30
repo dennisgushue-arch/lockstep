@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { format, addDays } from "date-fns";
-import { analyzeIntent as analyzeIntentAI } from "./ai";
+import { analyzeIntent as analyzeIntentAI, type StructuredIntent } from "./ai";
 
 // Types
 export type User = {
@@ -12,9 +12,11 @@ export type Intent = {
   id: string;
   text: string;
   category: string;
-  action: string;
+  goal: string;
+  first_action: string;
+  reflection: string;
   confidence: number;
-  reflection?: string;
+  suggested_stake: number;
 };
 
 export type Commitment = {
@@ -88,9 +90,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         id: Math.random().toString(36).substr(2, 9),
         text,
         category: result.category,
-        action: result.first_action || (text.toLowerCase().includes("run") ? "Put on running shoes" : "Open your laptop"),
+        goal: result.goal,
+        first_action: result.first_action,
+        reflection: result.reflection,
         confidence: result.confidence,
-        reflection: result.reflection
+        suggested_stake: result.suggested_stake
       };
       
       setCurrentIntent(mockAnalysis);

@@ -20,7 +20,8 @@ export default function LockInPage() {
   const stripe = useStripe();
   const elements = useElements();
   
-  const [stake, setStake] = useState<number>(5);
+  // Initialize stake with AI suggestion
+  const [stake, setStake] = useState<number>(currentIntent?.suggested_stake ?? 5);
   const [consequence, setConsequence] = useState<'money' | 'social' | 'escalate'>('money');
   const [date, setDate] = useState<Date | undefined>(addHours(new Date(), 24));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,6 +29,9 @@ export default function LockInPage() {
   useEffect(() => {
     if (!currentIntent) {
       setLocation("/capture");
+    } else if (stake === 5) {
+      // Update stake when intent changes (initial load)
+      setStake(currentIntent.suggested_stake);
     }
   }, [currentIntent, setLocation]);
 
