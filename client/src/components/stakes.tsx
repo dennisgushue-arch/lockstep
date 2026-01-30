@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DollarSign, Users } from "lucide-react";
 
@@ -13,6 +14,19 @@ interface StakesProps {
 }
 
 export function Stakes({ stake, setStake, consequence, setConsequence, commitmentId, onSuccess }: StakesProps) {
+  const [customAmount, setCustomAmount] = useState<string>("");
+  const presetAmounts = [5, 10, 20];
+  const isCustom = !presetAmounts.includes(stake);
+
+  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomAmount(value);
+    const num = parseFloat(value);
+    if (!isNaN(num) && num > 0) {
+      setStake(num);
+    }
+  };
+
   return (
     <div className="space-y-8 relative z-20">
       {commitmentId && (
@@ -38,22 +52,43 @@ export function Stakes({ stake, setStake, consequence, setConsequence, commitmen
         {/* Stake Amount */}
         <div className="space-y-4">
           <label className="text-base font-bold uppercase tracking-tight">Stake Amount</label>
-          <div className="grid grid-cols-3 gap-4">
-            {[5, 10, 20].map((amount) => (
-              <Button
-                key={amount}
-                variant={stake === amount ? "default" : "outline"}
-                className={cn(
-                  "h-24 text-2xl font-bold flex flex-col gap-1 rounded-none border-2 cursor-pointer",
-                  stake === amount ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-foreground"
-                )}
-                onClick={() => setStake(amount)}
-                data-testid={`button-stake-${amount}`}
-              >
-                ${amount}
-                <span className="text-xs font-normal opacity-70 uppercase">USD</span>
-              </Button>
-            ))}
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-4">
+              {presetAmounts.map((amount) => (
+                <Button
+                  key={amount}
+                  variant={stake === amount && !isCustom ? "default" : "outline"}
+                  className={cn(
+                    "h-24 text-2xl font-bold flex flex-col gap-1 rounded-none border-2 cursor-pointer",
+                    stake === amount && !isCustom ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-foreground"
+                  )}
+                  onClick={() => {
+                    setStake(amount);
+                    setCustomAmount("");
+                  }}
+                  data-testid={`button-stake-${amount}`}
+                >
+                  ${amount}
+                  <span className="text-xs font-normal opacity-70 uppercase">USD</span>
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground uppercase tracking-widest">Custom:</span>
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={isCustom && customAmount ? customAmount : (isCustom ? String(stake) : "")}
+                  onChange={handleCustomChange}
+                  className="pl-6 h-10 rounded-none border-2 border-border bg-zinc-900/50"
+                  min="0.01"
+                  step="0.01"
+                  data-testid="input-stake-custom"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
