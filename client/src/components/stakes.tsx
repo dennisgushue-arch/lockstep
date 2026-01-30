@@ -98,20 +98,20 @@ export function Stakes({ stake, setStake, consequence, setConsequence, commitmen
           <div className="flex flex-col gap-4">
             <div 
               className={cn(
-                "flex items-start space-x-3 border-2 p-4 cursor-pointer transition-colors", 
-                consequence === 'money' ? "border-primary bg-primary/5" : "border-border hover:border-foreground"
+                "flex items-start space-x-3 border-2 p-4 cursor-pointer transition-all", 
+                consequence === 'money' ? "border-white bg-white/10" : "border-border hover:border-foreground"
               )}
               onClick={() => setConsequence('money')}
               data-testid="card-consequence-money"
             >
               <div className="pt-1">
-                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", consequence === 'money' ? "border-primary" : "border-muted-foreground")}>
-                  {consequence === 'money' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors", consequence === 'money' ? "border-white bg-white" : "border-muted-foreground bg-transparent")}>
+                  {consequence === 'money' && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
                 </div>
               </div>
               <div>
                 <div className="font-bold flex items-center gap-2 uppercase tracking-tight">
-                  <DollarSign className="w-4 h-4 text-primary"/> Financial Forfeit
+                  <DollarSign className={cn("w-4 h-4", consequence === 'money' ? "text-white" : "text-primary")} /> Financial Forfeit
                 </div>
                 <div className="text-sm text-muted-foreground mt-1 leading-relaxed">
                   Money is donated to a charity you hate if you miss the deadline.
@@ -121,20 +121,20 @@ export function Stakes({ stake, setStake, consequence, setConsequence, commitmen
             
             <div 
               className={cn(
-                "flex items-start space-x-3 border-2 p-4 cursor-pointer transition-colors", 
-                consequence === 'social' ? "border-primary bg-primary/5" : "border-border hover:border-foreground"
+                "flex items-start space-x-3 border-2 p-4 cursor-pointer transition-all", 
+                consequence === 'social' ? "border-white bg-white/10" : "border-border hover:border-foreground"
               )}
               onClick={() => setConsequence('social')}
               data-testid="card-consequence-social"
             >
                <div className="pt-1">
-                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", consequence === 'social' ? "border-primary" : "border-muted-foreground")}>
-                  {consequence === 'social' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors", consequence === 'social' ? "border-white bg-white" : "border-muted-foreground bg-transparent")}>
+                  {consequence === 'social' && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
                 </div>
               </div>
               <div>
                 <div className="font-bold flex items-center gap-2 uppercase tracking-tight">
-                  <Users className="w-4 h-4 text-primary"/> Social Witness
+                  <Users className={cn("w-4 h-4", consequence === 'social' ? "text-white" : "text-primary")} /> Social Witness
                 </div>
                 <div className="text-sm text-muted-foreground mt-1 leading-relaxed">
                   We email your boss/partner that you failed to complete this task.
