@@ -14,30 +14,43 @@ export interface StructuredIntent {
 export async function analyzeIntent(raw_text: string): Promise<StructuredIntent> {
   console.log("[AI] Analyzing intent:", raw_text);
   
-  const { data, error } = await supabase.functions.invoke("analyze_intent", {
-    body: { raw_text },
-  });
+  try {
+    const { data, error } = await supabase.functions.invoke("analyze_intent", {
+      body: { raw_text },
+    });
 
-  console.log("[AI] Response:", { data, error });
+    console.log("[AI] Raw response:", JSON.stringify({ data, error }, null, 2));
 
-  if (error) {
-    console.error("[AI] Error from Supabase function:", error);
-    throw error;
+    if (error) {
+      console.error("[AI] Error from Supabase function:", JSON.stringify(error, null, 2));
+      throw new Error(`Supabase error: ${JSON.stringify(error)}`);
+    }
+
+    if (!data) {
+      console.error("[AI] No data returned from analyze_intent");
+      throw new Error("No data returned from analyze_intent");
+    }
+
+    // Validate the response has required fields
+    const intent = data as StructuredIntent;
+    console.log("[AI] Intent object:", JSON.stringify(intent, null, 2));
+    
+    if (!intent.category) {
+      console.error("[AI] Missing category in response:", intent);
+      throw new Error(`Missing category in response: ${JSON.stringify(intent)}`);
+    }
+    if (!intent.reflection) {
+      console.error("[AI] Missing reflection in response:", intent);
+      throw new Error(`Missing reflection in response: ${JSON.stringify(intent)}`);
+    }
+
+    console.log("[AI] Parsed intent successfully:", intent);
+    return intent;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
+    console.error("[AI] Full error caught:", errorMessage);
+    throw err;
   }
-
-  if (!data) {
-    console.error("[AI] No data returned from analyze_intent");
-    throw new Error("No data returned from analyze_intent");
-  }
-
-  // Validate the response has required fields
-  const intent = data as StructuredIntent;
-  if (!intent.category || !intent.reflection) {
-    throw new Error("Invalid intent response structure");
-  }
-
-  console.log("[AI] Parsed intent:", intent);
-  return intent;
 }
 
 export interface IntentAnalysis {
