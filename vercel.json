@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "cd client && npm run build || pnpm build",
   "outputDirectory": "public",
   "rewrites": [
     {
