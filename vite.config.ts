@@ -28,8 +28,9 @@ alias: {
 },
 root: path.resolve(import.meta.dirname, "client"),
 build: {
-outDir: path.resolve(import.meta.dirname, "dist/public"),
+outDir: path.resolve(import.meta.dirname, "public"),
 emptyOutDir: true,
+chunkSizeWarningLimit: 1000,
 },
 server: {
 host: "0.0.0.0",

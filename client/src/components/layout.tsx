@@ -1,11 +1,28 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { DetectionBadge } from "@/components/detection-notifications";
+import { PassiveIntentSuggestion } from "@/components/passive-intent-suggestion";
+import { Coins, Settings } from "lucide-react";
+import type { IntentPattern } from "@/lib/passive-detection";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { user, logout } = useApp();
+  const { user, logout, creditBalance, intentPatterns, dismissPattern, lockInPattern } = useApp();
+  const [activeSuggestion, setActiveSuggestion] = useState<IntentPattern | null>(null);
+  
+  // Watch for high-urgency patterns to show suggestion
+  useEffect(() => {
+    const highUrgencyPattern = intentPatterns.find(
+      (p) => p.status === "active" && p.occurrenceCount >= 3
+    );
+    
+    if (highUrgencyPattern && highUrgencyPattern.id !== activeSuggestion?.id) {
+      setActiveSuggestion(highUrgencyPattern);
+    }
+  }, [intentPatterns, activeSuggestion]);
   
   const isLanding = location === "/";
   const isAuth = location === "/auth";
@@ -33,10 +50,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     Dashboard
                   </span>
                 </Link>
+                <Link href="/detection">
+                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/detection' ? 'text-primary' : 'text-muted-foreground'}`}>
+                    Detection
+                  </span>
+                </Link>
+                <DetectionBadge />
                 <Link href="/capture">
                   <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
                     New Intent
                   </span>
+                </Link>
+                <Link href="/credits">
+                  <Badge variant="outline" className="gap-1 cursor-pointer hover:bg-yellow-500/10 border-yellow-500/50">
+                    <Coins className="w-3 h-3 text-yellow-500" />
+                    <span className="text-yellow-500 font-bold">{creditBalance}</span>
+                  </Badge>
+                </Link>
+                <Link href="/settings">
+                  <Button variant="ghost" size="icon" className="hover:text-primary">
+                    <Settings className="w-4 h-4" />
+                  </Button>
                 </Link>
                 <button 
                   onClick={logout}
@@ -77,6 +111,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
+
+      {/* Passive Intent Suggestion Modal */}
+      <PassiveIntentSuggestion
+        pattern={activeSuggestion}
+        onCapture={(pattern) => {
+          lockInPattern(pattern.id);
+          setActiveSuggestion(null);
+        }}
+        onDismiss={(pattern) => {
+          dismissPattern(pattern.id);
+          setActiveSuggestion(null);
+        }}
+      />
     </div>
   );
 }

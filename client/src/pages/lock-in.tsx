@@ -5,111 +5,189 @@ import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Stakes as StakeScreen } from "@/components/stakes";
-import { supabase } from "@/lib/supabase";
 import { format, addHours } from "date-fns";
-import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Coins, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "wouter";
+
+// Credit cost tiers based on stake amount
+const CREDIT_TIERS = [
+  { min: 0, max: 10, credits: 10 },
+  { min: 11, max: 25, credits: 20 },
+  { min: 26, max: 50, credits: 35 },
+  { min: 51, max: 100, credits: 60 },
+  { min: 101, max: 250, credits: 120 },
+  { min: 251, max: Infinity, credits: 200 },
+];
+
+function calculateCreditsRequired(stakeAmount: number): number {
+  const tier = CREDIT_TIERS.find(t => stakeAmount >= t.min && stakeAmount <= t.max);
+  return tier?.credits ?? 10;
+}
 
 export default function LockInPage() {
-  const { currentIntent, createCommitment } = useApp();
+  const { currentIntent, createCommitment, creditBalance, user } = useApp();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const stripe = useStripe();
-  const elements = useElements();
   
-  const [stake, setStake] = useState<number>(5);
+  // Initialize stake with AI suggestion
+  const [stake, setStake] = useState<number>(currentIntent?.suggested_stake ?? 5);
   const [consequence, setConsequence] = useState<'money' | 'social' | 'escalate'>('money');
   const [date, setDate] = useState<Date | undefined>(addHours(new Date(), 24));
+  const [refundOnCompletion, setRefundOnCompletion] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const creditsRequired = calculateCreditsRequired(stake);
+  const hasEnoughCredits = creditBalance >= creditsRequired;
 
   useEffect(() => {
     if (!currentIntent) {
       setLocation("/capture");
+    } else if (stake === 5) {
+      // Update stake when intent changes (initial load)
+      setStake(currentIntent.suggested_stake);
     }
   }, [currentIntent, setLocation]);
 
   if (!currentIntent) return null;
 
   const handleConfirm = async () => {
-    if (!date) return;
-    if (!stripe || !elements) return;
+    if (!date || !user) return;
     if (isSubmitting) return;
+    
+    if (!hasEnoughCredits) {
+      toast({
+        title: "Insufficient Credits",
+        description: `You need ${creditsRequired} credits but only have ${creditBalance}.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
 
-    let commitmentId: string | null = null;
-
     try {
-      // 1) Create commitment
-      const commitment = await createCommitment({
-        stakeAmount: stake,
+      await createCommitment({
+        creditsCost: creditsRequired,
         consequenceType: consequence,
         scheduledDate: date,
+        refundOnCompletion,
       });
-
-      commitmentId = commitment?.id ?? null;
-      if (!commitmentId) {
-        throw new Error("Commitment created but missing id.");
-      }
-
-      // 2) Create PaymentIntent (manual capture)
-      const amountCents = Math.round(stake * 100);
-
-      const { data: pi, error: piErr } = await supabase.functions.invoke("create_stake_intent", {
-        body: { amount_cents: amountCents, commitment_id: commitmentId },
-      }) as { data: { client_secret: string; payment_intent_id: string } | null; error: any };
-
-      if (piErr) throw piErr;
-      if (!pi?.client_secret || !pi?.payment_intent_id) {
-        throw new Error("Payment intent missing client_secret/payment_intent_id");
-      }
-
-      // 3) Confirm card payment (authorize)
-      const card = elements.getElement(CardElement);
-      if (!card) throw new Error("Card input not ready");
-
-      const result = await stripe.confirmCardPayment(pi.client_secret, {
-        payment_method: { card },
-      });
-
-      if (result.error) throw result.error;
-
+      
       toast({
         title: "LOCKED IN",
-        description: "Your card is authorized. Complete it or the stake is donated.",
+        description: `${creditsRequired} credits spent. ${refundOnCompletion ? "Complete it to get them back!" : "No refunds - make it count!"}`,
         variant: "default",
       });
-
+      
       setLocation("/dashboard");
     } catch (error: any) {
-      console.error(error);
-
+      console.error("Lock-in failed:", error);
       toast({
         title: "Error",
         description: error?.message || "Failed to lock in.",
         variant: "destructive",
       });
-
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="container max-w-3xl mx-auto px-4 py-8 pb-24 space-y-12">
+    <div className="container max-w-3xl mx-auto px-4 py-8 pb-24 space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl font-heading font-bold">DEFINE THE STAKES</h1>
         <p className="text-muted-foreground">Make it painful to fail.</p>
       </div>
 
-      <StakeScreen 
-        stake={stake} 
-        setStake={setStake} 
-        consequence={consequence} 
-        setConsequence={setConsequence} 
-      />
+      {/* Credit Balance Warning */}
+      {!hasEnoughCredits && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You need {creditsRequired} credits but only have {creditBalance}.{" "}
+            <Link href="/credits" className="underline font-semibold">
+              Purchase more credits
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Credit Info Card */}
+      <Card className="p-6 bg-muted/50">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Coins className="w-5 h-5 text-yellow-500" />
+              <h3 className="font-semibold">Your Credit Balance</h3>
+            </div>
+            <p className="text-3xl font-bold text-yellow-500">{creditBalance}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground mb-1">Cost to Lock In</p>
+            <p className="text-3xl font-bold">{creditsRequired}</p>
+            <Badge variant={hasEnoughCredits ? "default" : "destructive"} className="mt-2">
+              {hasEnoughCredits ? "Can Afford" : "Insufficient"}
+            </Badge>
+          </div>
+        </div>
+      </Card>
+
+      {/* Stake Amount Selector */}
+      <div className="space-y-4">
+        <Label className="text-base font-bold">SYMBOLIC STAKE AMOUNT</Label>
+        <p className="text-sm text-muted-foreground">
+          Choose a symbolic dollar amount. You'll spend {creditsRequired} credits (not actual money).
+        </p>
+        <div className="grid grid-cols-4 gap-3">
+          {[5, 10, 25, 50, 100, 250, 500, 1000].map((amount) => {
+            const cost = calculateCreditsRequired(amount);
+            return (
+              <Button
+                key={amount}
+                variant={stake === amount ? "default" : "outline"}
+                className="h-20 flex flex-col items-center justify-center"
+                onClick={() => setStake(amount)}
+              >
+                <span className="text-lg font-bold">${amount}</span>
+                <span className="text-xs text-muted-foreground">{cost} credits</span>
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Consequence Type */}
+      <div className="space-y-4">
+        <Label className="text-base font-bold">CONSEQUENCE TYPE</Label>
+        <div className="grid gap-3">
+          <Button
+            variant={consequence === 'money' ? "default" : "outline"}
+            className="h-16 justify-start"
+            onClick={() => setConsequence('money')}
+          >
+            💸 Lose Credits Forever
+          </Button>
+          <Button
+            variant={consequence === 'social' ? "default" : "outline"}
+            className="h-16 justify-start"
+            onClick={() => setConsequence('social')}
+          >
+            📢 Public Shame Post
+          </Button>
+          <Button
+            variant={consequence === 'escalate' ? "default" : "outline"}
+            className="h-16 justify-start"
+            onClick={() => setConsequence('escalate')}
+          >
+            ⚡ Double the Next Stake
+          </Button>
+        </div>
+      </div>
 
       {/* Schedule */}
       <div className="space-y-4">
@@ -119,7 +197,7 @@ export default function LockInPage() {
             <Button
               variant={"outline"}
               className={cn(
-                "w-full h-16 justify-start text-left font-normal text-lg rounded-none border-2",
+                "w-full h-16 justify-start text-left font-normal text-lg",
                 !date && "text-muted-foreground"
               )}
             >
@@ -139,54 +217,45 @@ export default function LockInPage() {
         </Popover>
       </div>
 
-      {/* Summary Confirmation */}
-      <div className="bg-zinc-950 border border-border p-6 space-y-4 mt-8">
-        <h3 className="text-lg font-bold font-heading">SUMMARY</h3>
-        <p className="text-xl leading-relaxed">
-          I will{" "}
-          <span className="text-white font-bold underline underline-offset-4">
-            {currentIntent.action}
-          </span>{" "}
-          by{" "}
-          <span className="text-white font-bold">
-            {date ? format(date, "PPP 'at' p") : "..."}
-          </span>
-          . If I fail, I lose{" "}
-          <span className="text-red-500 font-bold">${stake}</span> via {consequence} consequence.
-        </p>
-      </div>
-
-      <div className="pt-4 space-y-4">
-        <div className="border-2 border-zinc-800 p-4 bg-zinc-900/50">
-          <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 block">Secure Payment Authorization</Label>
-          <div className="p-4 bg-black border border-zinc-800 rounded-none">
-            <CardElement 
-              options={{
-                style: {
-                  base: {
-                    fontSize: '16px',
-                    color: '#ffffff',
-                    '::placeholder': {
-                      color: '#52525b',
-                    },
-                  },
-                },
-              }}
-            />
+      {/* Refund Option */}
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="refund"
+            checked={refundOnCompletion}
+            onCheckedChange={(checked) => setRefundOnCompletion(checked as boolean)}
+          />
+          <div className="flex-1">
+            <label
+              htmlFor="refund"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Refund credits on completion
+            </label>
+            <p className="text-sm text-muted-foreground mt-1">
+              {refundOnCompletion 
+                ? "Get your credits back if you complete the commitment." 
+                : "No refunds. Burn the credits either way - maximum commitment mode."}
+            </p>
           </div>
         </div>
+      </Card>
 
+      {/* Confirm Button */}
+      <div className="space-y-4">
         <Button 
           size="lg" 
-          className="w-full h-16 rounded-none text-xl font-bold bg-white text-black hover:bg-gray-200"
+          className="w-full h-16 text-xl font-bold"
           onClick={handleConfirm}
-          disabled={isSubmitting || !date || !stripe}
+          disabled={isSubmitting || !date || !hasEnoughCredits}
           data-testid="button-confirm-commitment"
         >
-          {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "CONFIRM COMMITMENT"}
+          {isSubmitting ? "Locking In..." : `LOCK IN (Spend ${creditsRequired} Credits)`}
         </Button>
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          Payment authorized via Stripe. Released upon completion. Captured upon failure.
+        <p className="text-center text-xs text-muted-foreground">
+          {refundOnCompletion 
+            ? `Credits will be refunded if you complete on time. Otherwise, they're gone forever.`
+            : `Credits will be spent regardless of outcome. No refunds.`}
         </p>
       </div>
     </div>

@@ -7,9 +7,20 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PatternSummaryWidget } from "@/components/detection-notifications";
 
 import { format } from "date-fns";
 import { AlertCircle, Plus } from "lucide-react";
+
+function StatusBadge({ status }: { status: 'scheduled' | 'completed' | 'missed' }) {
+  const variants: Record<typeof status, { label: string; className: string }> = {
+    scheduled: { label: 'Active', className: 'bg-blue-500/10 text-blue-500 border-blue-500/50' },
+    completed: { label: 'Complete', className: 'bg-green-500/10 text-green-500 border-green-500/50' },
+    missed: { label: 'Missed', className: 'bg-red-500/10 text-red-500 border-red-500/50' },
+  };
+  const { label, className } = variants[status];
+  return <Badge variant="outline" className={className}>{label}</Badge>;
+}
 
 export default function Dashboard() {
 const { commitments, completeCommitment } = useApp();
@@ -119,6 +130,9 @@ NEW INTENT
 </Link>
 </div>
 
+{/* Pattern Detection Widget */}
+<PatternSummaryWidget />
+
 {sortedCommitments.length === 0 ? (
 <div className="py-24 text-center border border-dashed border-border rounded-lg bg-zinc-900/20">
 <h3 className="text-xl font-heading font-semibold mb-2">No active commitments</h3>
@@ -186,64 +200,46 @@ return (
 <CardContent className="pb-4">
 <div className="text-sm text-muted-foreground space-y-1">
 <p>
-Stake:{" "}
-<span className="text-foreground font-mono font-bold">
-${commitment.stakeAmount}
-</span>
-</p>
-<p>Consequence: <span className="capitalize">{commitment.consequenceType}</span></p>
-<p>Due: {format(new Date(commitment.scheduledDate), "PPP 'at' p")}</p>
-</div>
+                    Credits Cost:{" "}
+                    <span className="text-yellow-500 font-bold">
+                      {commitment.creditsCost} credits
+                    </span>
+                    {commitment.refundOnCompletion && (
+                      <span className="text-xs ml-2 text-muted-foreground">(refundable)</span>
+                    )}
+                  </p>
+                  <p>Consequence: <span className="capitalize">{commitment.consequenceType}</span></p>
+                  <p>Due: {format(new Date(commitment.scheduledDate), "PPP 'at' p")}</p>
+                </div>
 
-{isOverdue && (
-<div className="mt-4 p-2 bg-red-900/20 border border-red-900/50 text-red-200 text-xs flex items-center gap-2">
-<AlertCircle className="w-4 h-4" />
-OVERDUE — STAKE AT RISK
-</div>
-)}
-</CardContent>
+                {isOverdue && (
+                  <div className="mt-4 p-2 bg-red-900/20 border border-red-900/50 text-red-200 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    OVERDUE — CREDITS LOST
+                  </div>
+                )}
+              </CardContent>
 
-<CardFooter className="flex flex-col gap-2">
-{isEligible && (
-<Button
-className="w-full rounded-none font-bold"
-variant="secondary"
-onClick={() => onComplete(commitment.id)}
-disabled={isCompleting}
->
-{isCompleting ? "RELEASING..." : "MARK COMPLETE"}
-</Button>
-)}
+              <CardFooter className="flex flex-col gap-2">
+                {isEligible && (
+                  <Button
+                    className="w-full rounded-none font-bold"
+                    variant="secondary"
+                    onClick={() => onComplete(commitment.id)}
+                    disabled={isCompleting}
+                  >
+                    {isCompleting ? "RELEASING..." : "MARK COMPLETE"}
+                  </Button>
+                )}
 
-{isOverdue && (
-<Button className="w-full rounded-none font-bold" variant="destructive" disabled>
-MISSED DEADLINE
-</Button>
-)}
-</CardFooter>
-</Card>
-);
-}
+                {isOverdue && (
+                  <Button className="w-full rounded-none font-bold" variant="destructive" disabled>
+                    MISSED DEADLINE
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          );
+        }
 
-function StatusBadge({ status }: { status: string }) {
-if (status === "completed") {
-return (
-<Badge className="bg-green-900/20 text-green-400 border-green-900 hover:bg-green-900/30">
-COMPLETED
-</Badge>
-);
-}
-if (status === "missed") {
-return (
-<Badge className="bg-red-900/20 text-red-400 border-red-900 hover:bg-red-900/30">
-MISSED
-</Badge>
-);
-}
-return (
-<Badge className="bg-yellow-900/20 text-yellow-400 border-yellow-900 hover:bg-yellow-900/30 animate-pulse">
-SCHEDULED
-</Badge>
-);
-}
 

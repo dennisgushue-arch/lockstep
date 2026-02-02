@@ -63,3 +63,17 @@ vite.config.ts.*
 # Archives
 *.tar.gz
 package.json.bak
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Supabase local development
+.branches
+.temp
+
+# Old backup files
+*-old.ts
+.vercel
+.env*.local
