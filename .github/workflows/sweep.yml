@@ -9,15 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Invoke Supabase sweep function
-        env:
-          SUPABASE_PROJECT_REF: your-project-ref-here
         run: |
-          SWEEP_URL="https://<project-ref>.functions.supabase.co/sweep_overdue_commitments"
-          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
-            echo "SUPABASE_SERVICE_ROLE_KEY secret is not set"
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
+            echo "SUPABASE_PROJECT_REF secret is not set"
             exit 1
           fi
+          if [ -z "${{ secrets.SWEEP_SECRET }}" ]; then
+            echo "SWEEP_SECRET secret is not set"
+            exit 1
+          fi
+          SWEEP_URL="https://${{ secrets.SUPABASE_PROJECT_REF }}.functions.supabase.co/sweep_overdue_commitments"
           curl -sS -X POST "$SWEEP_URL" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "x-sweep-secret: ${{ secrets.SWEEP_SECRET }}" \
             -H "Content-Type: application/json" \
             -d '{}' || exit 1

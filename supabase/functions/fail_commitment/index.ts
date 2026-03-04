@@ -11,11 +11,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   try {
-    const { commitmentId } = await req.json();
+    const body = await req.json();
+    const commitmentId = body.commitmentId ?? body.commitment_id;
 
     if (!commitmentId) {
       return new Response(
-        JSON.stringify({ error: "Missing commitmentId" }),
+        JSON.stringify({ error: "Missing commitmentId (or commitment_id)" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
