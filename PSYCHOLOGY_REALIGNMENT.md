@@ -226,3 +226,191 @@ To verify this messaging works, watch for:
 ✅ Higher completion rate than traditional motivation apps  
 
 The app should feel **uncomfortable** to people not ready for it, and **powerful** to people who are.
+
+---
+
+# Comprehensive Psychology Realignment Guide
+
+This section is the canonical reference for **why** the product uses hard-edged copy, **how** to apply it consistently, and **where** it must be constrained for safety, accessibility, and trust.
+
+## Goals (Non-Negotiable)
+
+1. **Truth over comfort**: The UI reflects reality, not reassurance.
+2. **Consequences are explicit**: Loss is concrete, immediate, and plainly stated.
+3. **Identity > motivation**: Language pushes identity-level decisions.
+4. **Binary choice**: Remove middle-ground outs.
+5. **Respect user autonomy**: No deception, no manipulation, no dark patterns.
+
+## Target User & Fit
+
+**This is not for everyone.** The product is intentionally polarizing:
+
+- Best fit: users seeking direct accountability and willing to stake money.
+- Poor fit: users wanting gentle coaching or gamification.
+
+If a user says “this feels too harsh,” the system should **not** soften the product; it should help them exit without friction.
+
+## Psychological Foundations (Short Form)
+
+1. **Loss Aversion**: Losses weigh more than equivalent gains.
+2. **Identity Commitment**: Actions follow identity statements.
+3. **Cognitive Dissonance**: Inconsistency creates change pressure.
+4. **Sunk Cost + Public Record**: Increases follow-through.
+5. **Immediate Feedback**: Timely consequences are more effective.
+
+These are **descriptive**, not prescriptive. We use them only to reflect choices users already made (e.g., staking money).
+
+## Language Guide
+
+### Voice Attributes
+
+- **Direct**: One clause sentences.
+- **Accurate**: Only say what is true.
+- **Non-judgmental**: Facts, not moralizing.
+- **Present tense**: The outcome has already occurred.
+
+### Replace/Keep Matrix
+
+| Replace | With | Reason |
+|---|---|---|
+| “Try” | “Do” | Removes optionality |
+| “Maybe” | “Decide” | Forces commitment |
+| “If you want” | “If you mean it” | Identity framing |
+| “Great job!” | “You did it.” | Truth, not praise |
+| “Don’t worry” | “It’s done.” | Consequence clarity |
+
+### Formatting Rules
+
+- **ALL CAPS** for consequences only.
+- **Bold** for identity statements only.
+- Avoid multiple exclamation points.
+- Avoid sarcasm and mockery.
+
+## UX Patterns (Where to Apply)
+
+### 1) Commitment Moments
+- Use direct, binary CTAs.
+- Reveal stake amount in the same viewport.
+- Ask for explicit confirmation: “I Mean It.”
+
+### 2) Failure Moments
+- Use blunt, present-tense statements.
+- Show factual breakdown: “You said X. You did Y.”
+- Don’t offer immediate re-commitment in the same view (avoid emotional reactivity).
+
+### 3) Reflection Moments
+- Prompt for concrete reasons and obstacles.
+- Avoid “what went well” unless the commitment was completed.
+
+### 4) Passive Detection
+- Make detection transparent and controllable.
+- Always show an **explain** link for why the modal appeared.
+
+## Safety, Ethics & Trust
+
+The product can be hard-edged without being harmful.
+
+### Boundaries
+
+- **No coercion**: Never imply threats beyond the stake.
+- **No shaming**: “You didn’t do it” is factual; avoid “You are lazy.”
+- **No deception**: No false scarcity, countdowns, or hidden fees.
+- **No irreversible traps**: Always allow cancellation before a stake is locked.
+
+### Mental Health Considerations
+
+- Provide a **soft off-ramp**: “This isn’t for me” with a gentle exit.
+- Avoid language that targets self-worth or diagnoses.
+- Include a short **help** link in failure flows for users in distress.
+
+## Accessibility Guidance
+
+- Red is meaningful; **never rely on color alone**. Pair with text.
+- Use accessible contrast ratios for red/white combinations.
+- Provide clear focus states for high-pressure CTAs.
+- Avoid flashing or aggressive animations in failure states.
+
+## Localization Guidance
+
+When localizing, maintain **directness** but avoid idioms that could become insulting. Replace literal phrases with culturally equivalent statements of consequence.
+
+## Information Architecture
+
+This system should appear consistently in:
+
+- Landing
+- Capture
+- Passive Intent Modal
+- Reflection
+- Missed/Failure
+- Settings/Privacy
+- History (public or private)
+
+If any surface deviates, the product feels inconsistent and loses credibility.
+
+## Implementation Checklist
+
+**Copy**
+- [ ] Remove softeners (“maybe”, “try”, “encourage”)
+- [ ] Ensure consequence statements are factual
+- [ ] Use identity language only at commitment moments
+
+**Design**
+- [ ] Red reserved for stakes/failure only
+- [ ] Neutral tones for informational content
+- [ ] Strong typographic hierarchy for “fact” statements
+
+**Behavior**
+- [ ] Failure flow requires acknowledgment
+- [ ] Reflection is required within 24 hours (configurable)
+- [ ] Detection can be paused in Settings
+
+## Measurement & Signals
+
+Track outcomes that indicate **productive discomfort** rather than churn:
+
+- **Commitment conversion rate** (post-modal)
+- **Completion rate** vs. baseline
+- **Re-commit rate after failure** (7–14 days)
+- **Exit feedback**: “too harsh” should be common but not dominant
+
+Avoid optimizing for vanity metrics like time-on-page in failure flows.
+
+## QA Scenarios
+
+1. **First-time user** sees intent modal → understands consequence.
+2. **Failure** triggers → factual, not insulting.
+3. **Cancel** before stake locked → immediate and respected.
+4. **Accessibility**: high-contrast mode still conveys stakes.
+5. **Localization**: language remains direct but not abusive.
+
+## Anti-Patterns (Do Not Add)
+
+- “You’re a failure.” (identity attack)
+- “Do it or else.” (threat)
+- Hidden fees or ambiguous stakes
+- Forced sharing or forced social exposure
+- Humor or sarcasm in failure moments
+
+## FAQ
+
+**Q: Why so harsh?**  
+A: Because the product is about measurable stakes and truth. It reflects decisions the user already made.
+
+**Q: Isn’t this shaming?**  
+A: The language is factual and non-judgmental. It describes actions, not character.
+
+**Q: Can we add positive reinforcement?**  
+A: Only when completion is verified. Keep it factual: “You did it.”
+
+**Q: What about legal/finance disclosures?**  
+A: They must be clear, visible, and separate from persuasive copy.
+
+## Versioning
+
+- Maintain changes to this document alongside copy updates.
+- Each copy change should map to a principle in this guide.
+
+---
+
+If a new feature doesn’t fit these principles, it should be redesigned or rejected.

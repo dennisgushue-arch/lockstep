@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         normalized_intent: normalized,
         category,
         confidence: confidence.toString(),
-        processed: "true",
+        processed: true,
       })
       .select()
       .single();

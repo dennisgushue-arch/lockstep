@@ -1,245 +1,378 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
-import { supabase } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
-
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { PatternSummaryWidget } from "@/components/detection-notifications";
+import { cn } from "@/lib/utils";
+import {
+  differenceInMinutes,
+  formatDistanceToNowStrict,
+  isBefore,
+} from "date-fns";
 
-import { format } from "date-fns";
-import { AlertCircle, Plus } from "lucide-react";
+type CommitmentCard = {
+  id: string;
+  scheduled_at: string;
+  status: "active" | "completed" | "failed";
+  stake_amount: number | null;
+  consequence_type: string | null;
+  action?: string | null;
+};
 
-function StatusBadge({ status }: { status: 'scheduled' | 'completed' | 'missed' }) {
-  const variants: Record<typeof status, { label: string; className: string }> = {
-    scheduled: { label: 'Active', className: 'bg-blue-500/10 text-blue-500 border-blue-500/50' },
-    completed: { label: 'Complete', className: 'bg-green-500/10 text-green-500 border-green-500/50' },
-    missed: { label: 'Missed', className: 'bg-red-500/10 text-red-500 border-red-500/50' },
-  };
-  const { label, className } = variants[status];
-  return <Badge variant="outline" className={className}>{label}</Badge>;
+function badgeFor(c: CommitmentCard) {
+  const now = Date.now();
+  const due = new Date(c.scheduled_at).getTime();
+  const mins = Math.floor((due - now) / 60000);
+
+  if (c.status === "completed") {
+    return { label: "COMPLETED", cls: "border-green-500 text-green-300" };
+  }
+  if (c.status === "failed") {
+    return { label: "FAILED", cls: "border-red-500 text-red-300" };
+  }
+  if (mins < 0) return { label: "OVERDUE", cls: "border-red-500 text-red-300" };
+  if (mins <= 180) {
+    return { label: "DUE SOON", cls: "border-yellow-500 text-yellow-300" };
+  }
+  return { label: "ACTIVE", cls: "border-zinc-600 text-zinc-300" };
 }
 
 export default function Dashboard() {
-const { commitments, completeCommitment } = useApp();
-const { toast } = useToast();
-const [, setLocation] = useLocation();
+  const { commitments, completeCommitment, markMissed } = useApp();
+  const [, setLocation] = useLocation();
 
-const [isCompleting, setIsCompleting] = useState<string | null>(null);
-const [isFailing, setIsFailing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+  const [loadingFail, setLoadingFail] = useState(false);
 
-const sortedCommitments = useMemo(() => {
-return [...commitments].sort(
-(a, b) =>
-new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
-);
-}, [commitments]);
+  const cards = useMemo<CommitmentCard[]>(() => {
+    return commitments.map((c) => {
+      const status = c.status === "scheduled"
+        ? "active"
+        : c.status === "missed"
+          ? "failed"
+          : "completed";
 
-// ✅ MVP: Auto-detect overdue and trigger fail -> redirect to /missed
-useEffect(() => {
-if (isFailing) return;
+      return {
+        id: c.id,
+        scheduled_at: c.scheduledDate,
+        status,
+        stake_amount: c.creditsCost ?? 0,
+        consequence_type: c.consequenceType ?? null,
+        action: c.intent?.goal ?? c.intent?.text ?? "Pact",
+      };
+    });
+  }, [commitments]);
 
-const overdue = sortedCommitments.find((c) => {
-const deadlineMs = new Date(c.scheduledDate).getTime();
-return c.status === "scheduled" && deadlineMs <= Date.now();
-});
+  const sortedCards = useMemo(() => {
+    return [...cards].sort(
+      (a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at)
+    );
+  }, [cards]);
 
-if (!overdue) return;
+  useEffect(() => {
+    if (!selectedId && sortedCards[0]?.id) {
+      setSelectedId(sortedCards[0].id);
+    }
+  }, [selectedId, sortedCards]);
 
-(async () => {
-try {
-setIsFailing(true);
+  const selected = useMemo(
+    () => sortedCards.find((c) => c.id === selectedId) ?? null,
+    [sortedCards, selectedId]
+  );
 
-const { error } = await supabase.functions.invoke("fail_commitment", {
-body: { commitment_id: overdue.id },
-// If your function requires a secret header, we can add it later.
-});
+  const nextUp = useMemo(() => {
+    const active = sortedCards.filter((c) => c.status === "active");
+    return (
+      active.sort(
+        (a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at)
+      )[0] ?? null
+    );
+  }, [sortedCards]);
 
-if (error) throw error;
+  const stats = useMemo(() => {
+    const now = new Date();
+    const active = sortedCards.filter((c) => c.status === "active");
+    const overdue = active.filter((c) => isBefore(new Date(c.scheduled_at), now));
+    const dueSoon = active.filter((c) => {
+      const mins = differenceInMinutes(new Date(c.scheduled_at), now);
+      return mins >= 0 && mins <= 180;
+    });
 
-toast({
-title: "Commitment missed",
-description: "Delay was a decision.",
-variant: "destructive",
-});
+    const totalStaked = sortedCards.reduce((sum, c) => {
+      return sum + (c.stake_amount ?? 0);
+    }, 0);
 
-// Optional: update local mock UI if your mock-data supports it.
-// If completeCommitment only marks completed, ignore this.
-// We'll still redirect to /missed regardless.
-} catch (e: any) {
-console.error(e);
-toast({
-title: "Could not process missed commitment",
-description: e?.message || "Fail function error.",
-variant: "destructive",
-});
-setIsFailing(false);
-return;
-}
+    const completedLast7 = sortedCards.filter((c) => {
+      if (c.status !== "completed") return false;
+      const minsAgo = differenceInMinutes(now, new Date(c.scheduled_at));
+      return minsAgo <= 7 * 24 * 60;
+    }).length;
 
-setLocation("/missed");
-})();
-}, [sortedCommitments, isFailing, setLocation, toast]);
+    return {
+      activeCount: active.length,
+      overdueCount: overdue.length,
+      dueSoonCount: dueSoon.length,
+      totalStaked,
+      completedLast7,
+    };
+  }, [sortedCards]);
 
-const handleMarkComplete = async (commitmentId: string) => {
-if (isCompleting) return;
+  async function markCompleted(commitmentId: string) {
+    await completeCommitment(commitmentId);
+  }
 
-try {
-setIsCompleting(commitmentId);
+  async function markFailed(commitmentId: string) {
+    await markMissed(commitmentId);
+  }
 
-const { error } = await supabase.functions.invoke("complete_commitment", {
-body: { commitment_id: commitmentId },
-});
+  return (
+    <div className="relative">
+      <div className="noise-bg" />
 
-if (error) throw error;
+      <div className="container max-w-6xl mx-auto px-4 py-8 space-y-6">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-heading font-bold text-glow">
+              DASHBOARD
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Next pact due:{" "}
+              <span className="text-white font-semibold">
+                {nextUp
+                  ? formatDistanceToNowStrict(new Date(nextUp.scheduled_at), {
+                      addSuffix: true,
+                    })
+                  : "none"}
+              </span>
+            </p>
+          </div>
 
-toast({
-title: "Completed",
-description: "Stake released.",
-});
+          <Button
+            className="rounded-none h-12 px-6 text-lg font-bold"
+            onClick={() => setLocation("/capture")}
+          >
+            + NEW PACT
+          </Button>
+        </div>
 
-// Update local (mock) UI immediately
-completeCommitment(commitmentId);
-} catch (e: any) {
-console.error(e);
-toast({
-title: "Error",
-description: e?.message || "Could not mark complete.",
-variant: "destructive",
-});
-} finally {
-setIsCompleting(null);
-}
-};
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="glass-panel p-4 brutal-shadow">
+            <div className="text-xs uppercase tracking-widest opacity-60">
+              Active Pacts
+            </div>
+            <div className="text-3xl font-bold">{stats.activeCount}</div>
+          </div>
 
-return (
-<div className="container mx-auto px-4 py-8 space-y-8">
-<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-<div>
-<h1 className="text-3xl font-heading font-bold">DASHBOARD</h1>
-<p className="text-muted-foreground">Delay is a decision.</p>
-</div>
+          <div className="glass-panel p-4 brutal-shadow">
+            <div className="text-xs uppercase tracking-widest opacity-60">
+              At Risk
+            </div>
+            <div className="text-3xl font-bold text-yellow-300">
+              {stats.dueSoonCount}
+            </div>
+            <div className="text-xs opacity-60 mt-1">
+              Overdue:{" "}
+              <span className="text-red-300 font-semibold">
+                {stats.overdueCount}
+              </span>
+            </div>
+          </div>
 
-<Link href="/capture">
-<Button size="lg" className="gap-2 rounded-none font-bold">
-<Plus className="w-4 h-4" />
-NEW INTENT
-</Button>
-</Link>
-</div>
+          <div className="glass-panel p-4 brutal-shadow">
+            <div className="text-xs uppercase tracking-widest opacity-60">
+              Streak (7d)
+            </div>
+            <div className="text-3xl font-bold">{stats.completedLast7}</div>
+            <div className="text-xs opacity-60 mt-1">completed pacts</div>
+          </div>
 
-{/* Pattern Detection Widget */}
-<PatternSummaryWidget />
+          <div className="glass-panel p-4 brutal-shadow">
+            <div className="text-xs uppercase tracking-widest opacity-60">
+              Total Staked
+            </div>
+            <div className="text-3xl font-bold">${stats.totalStaked}</div>
+          </div>
+        </div>
 
-{sortedCommitments.length === 0 ? (
-<div className="py-24 text-center border border-dashed border-border rounded-lg bg-zinc-900/20">
-<h3 className="text-xl font-heading font-semibold mb-2">No active commitments</h3>
-<p className="text-muted-foreground mb-6">You are drifting. Set an anchor.</p>
-<Link href="/capture">
-<Button variant="secondary">Create Commitment</Button>
-</Link>
-</div>
-) : (
-<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-{sortedCommitments.map((c) => (
-<CommitmentCard
-key={c.id}
-commitment={c}
-onComplete={handleMarkComplete}
-isCompleting={isCompleting === c.id}
-/>
-))}
-</div>
-)}
-</div>
-);
-}
+        <div className="grid lg:grid-cols-[1fr_380px] gap-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-widest opacity-60">
+                Pact Timeline
+              </div>
+            </div>
 
-function CommitmentCard({
-commitment,
-onComplete,
-isCompleting,
-}: {
-commitment: any;
-onComplete: (id: string) => void;
-isCompleting: boolean;
-}) {
-const deadlineMs = new Date(commitment.scheduledDate).getTime();
-const nowMs = Date.now();
-
-const isScheduled = commitment.status === "scheduled";
-const isEligible = isScheduled && deadlineMs > nowMs;
-const isOverdue = isScheduled && deadlineMs <= nowMs;
-
-const borderClass =
-commitment.status === "completed"
-? "border-l-green-500"
-: commitment.status === "missed"
-? "border-l-red-500"
-: isOverdue
-? "border-l-red-500"
-: "border-l-yellow-500";
-
-return (
-<Card className={`border-l-4 ${borderClass} bg-card hover:bg-zinc-900/50 transition-colors`}>
-<CardHeader className="pb-2">
-<div className="flex justify-between items-start">
-<Badge variant="outline" className="font-mono text-xs uppercase tracking-wider">
-{commitment.intent?.category ?? "intent"}
-</Badge>
-<StatusBadge status={commitment.status} />
-</div>
-
-<CardTitle className="text-xl font-heading mt-2 leading-tight">
-{commitment.intent?.action ?? "—"}
-</CardTitle>
-</CardHeader>
-
-<CardContent className="pb-4">
-<div className="text-sm text-muted-foreground space-y-1">
-<p>
-                    Credits Cost:{" "}
-                    <span className="text-yellow-500 font-bold">
-                      {commitment.creditsCost} credits
+            {sortedCards.map((c) => {
+              const b = badgeFor(c);
+              const isSelected = selectedId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedId(c.id)}
+                  className={cn(
+                    "w-full text-left glass-panel p-5 border border-zinc-800 hover:border-zinc-600 transition brutal-shadow",
+                    isSelected && "border-white"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xl font-bold">
+                      {c.action ?? "Pact"}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] px-2 py-1 border rounded-none",
+                        b.cls
+                      )}
+                    >
+                      {b.label}
                     </span>
-                    {commitment.refundOnCompletion && (
-                      <span className="text-xs ml-2 text-muted-foreground">(refundable)</span>
-                    )}
-                  </p>
-                  <p>Consequence: <span className="capitalize">{commitment.consequenceType}</span></p>
-                  <p>Due: {format(new Date(commitment.scheduledDate), "PPP 'at' p")}</p>
+                  </div>
+
+                  <div className="text-sm opacity-80 mt-2">
+                    Deadline{" "}
+                    <span className="underline underline-offset-4">
+                      {formatDistanceToNowStrict(new Date(c.scheduled_at), {
+                        addSuffix: true,
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="text-xs opacity-60 mt-2">
+                    Stake: {c.stake_amount ? `$${c.stake_amount}` : "$0"} ·{" "}
+                    {c.consequence_type ?? "money"}
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="secondary"
+                      className="rounded-none"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setLocation(`/journal?commitment_id=${c.id}`);
+                      }}
+                    >
+                      CHECK-IN
+                    </Button>
+
+                    <Button
+                      className="rounded-none"
+                      disabled={c.status === "completed"}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setLoadingComplete(true);
+                        try {
+                          await markCompleted(c.id);
+                        } finally {
+                          setLoadingComplete(false);
+                        }
+                      }}
+                    >
+                      {loadingComplete ? "…" : "COMPLETE"}
+                    </Button>
+                  </div>
+                </button>
+              );
+            })}
+
+            {!sortedCards.length && (
+              <div className="glass-panel p-6 opacity-70">
+                No pacts yet. Create your first intent.
+              </div>
+            )}
+          </div>
+
+          <div className="glass-panel p-6 space-y-4 brutal-shadow">
+            <div className="text-xs uppercase tracking-widest opacity-60">
+              Focus Panel
+            </div>
+
+            {!selected ? (
+              <div className="opacity-70">Select a pact.</div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  {selected.action ?? "Pact"}
                 </div>
 
-                {isOverdue && (
-                  <div className="mt-4 p-2 bg-red-900/20 border border-red-900/50 text-red-200 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    OVERDUE — CREDITS LOST
+                <div className="text-sm opacity-80">
+                  Deadline{" "}
+                  <span className="underline underline-offset-4">
+                    {formatDistanceToNowStrict(new Date(selected.scheduled_at), {
+                      addSuffix: true,
+                    })}
+                  </span>
+                </div>
+
+                <div className="border border-zinc-800 p-4 bg-black/30">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Today’s move
                   </div>
-                )}
-              </CardContent>
+                  <div className="text-sm mt-2">
+                    Do the smallest step that makes this real. No excuses.
+                  </div>
+                </div>
 
-              <CardFooter className="flex flex-col gap-2">
-                {isEligible && (
+                <div className="border border-zinc-800 p-4 bg-black/30">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Proof prompt
+                  </div>
+                  <div className="text-sm mt-2">
+                    What can you show by tonight that proves you moved?
+                  </div>
+                </div>
+
+                <div className="border border-zinc-800 p-4 bg-black/30">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Stakes
+                  </div>
+                  <div className="text-lg mt-2">
+                    Lose{" "}
+                    <span className="text-red-400 font-bold">
+                      ${selected.stake_amount ?? 0}
+                    </span>{" "}
+                    via{" "}
+                    <span className="font-semibold">
+                      {selected.consequence_type ?? "money"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
                   <Button
-                    className="w-full rounded-none font-bold"
                     variant="secondary"
-                    onClick={() => onComplete(commitment.id)}
-                    disabled={isCompleting}
+                    className="rounded-none h-12"
+                    onClick={() => setLocation(`/journal?commitment_id=${selected.id}`)}
                   >
-                    {isCompleting ? "RELEASING..." : "MARK COMPLETE"}
+                    CHECK-IN
                   </Button>
-                )}
 
-                {isOverdue && (
-                  <Button className="w-full rounded-none font-bold" variant="destructive" disabled>
-                    MISSED DEADLINE
+                  <Button
+                    variant="destructive"
+                    className="rounded-none h-12"
+                    disabled={loadingFail || selected.status === "failed"}
+                    onClick={async () => {
+                      setLoadingFail(true);
+                      try {
+                        await markFailed(selected.id);
+                      } finally {
+                        setLoadingFail(false);
+                      }
+                    }}
+                  >
+                    {loadingFail ? "…" : "FAIL"}
                   </Button>
-                )}
-              </CardFooter>
-            </Card>
-          );
-        }
+                </div>
+              </>
+            )}
 
-
+            <div className="pt-4 text-xs italic opacity-60">
+              “Delay is a decision.”
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

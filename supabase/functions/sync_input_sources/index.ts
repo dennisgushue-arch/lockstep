@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { user_id } = await req.json();
+    const { user_id, source_type } = await req.json();
 
     if (!user_id) {
       return new Response(
@@ -52,19 +52,24 @@ Deno.serve(async (req) => {
         : await query.eq("user_id", user_id);
 
       if (!error && data) {
-        sources = data.map((row) => ({
-          source_type: row.source_type,
-          user_id: row.user_id,
-        }));
+        sources = data
+          .map((row) => ({
+            source_type: row.source_type,
+            user_id: row.user_id,
+          }))
+          .filter((row) => !source_type || row.source_type === source_type);
       }
     }
 
     if (sources.length === 0) {
       const fallbackUserId = user_id === "all" ? "test-user-123" : user_id;
-      sources = [
+      const fallbackSources = [
         { source_type: "message", user_id: fallbackUserId },
         { source_type: "calendar", user_id: fallbackUserId },
       ];
+      sources = source_type
+        ? fallbackSources.filter((row) => row.source_type === source_type)
+        : fallbackSources;
     }
 
     let signals_created = 0;
@@ -134,7 +139,7 @@ Deno.serve(async (req) => {
           }
         }
       } catch (error) {
-        console.error(`Error syncing ${source.type}:`, error);
+        console.error(`Error syncing ${source.source_type}:`, error);
         // Continue with other sources
       }
     }

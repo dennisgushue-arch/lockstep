@@ -40,6 +40,7 @@ export type Commitment = {
   id: string;
   intentId: string;
   intent: Intent;
+  actionText: string | null;
   creditsCost: number; // Changed from stakeAmount
   consequenceType: 'money' | 'social' | 'escalate';
   scheduledDate: string;
@@ -198,6 +199,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) throw new Error("No user logged in");
     if (user.creditBalance < creditsCost) throw new Error("Insufficient credits");
     
+    // Validate scheduled date is in the future
+    const scheduledTime = scheduledDate.getTime();
+    const now = new Date().getTime();
+    if (scheduledTime <= now) {
+      throw new Error("Scheduled date must be in the future");
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
     
     // Deduct credits
@@ -216,6 +224,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: Math.random().toString(36).substr(2, 9),
       intentId: currentIntent.id,
       intent: currentIntent,
+      actionText: currentIntent?.first_action ?? currentIntent?.goal ?? currentIntent?.text ?? null,
       creditsCost,
       consequenceType,
       scheduledDate: scheduledDate.toISOString(),

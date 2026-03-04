@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Coins, Zap, TrendingUp, Shield } from "lucide-react";
-import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
+import { useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcElement } from "@stripe/react-stripe-js";
 import { supabase } from "@/lib/supabase";
 
 const CREDIT_PACKAGES = [
@@ -64,21 +64,25 @@ export default function CreditsPage() {
     setError(null);
 
     try {
-      const cardElement = elements.getElement(CardElement);
+      const cardElement = elements.getElement(CardNumberElement);
       if (!cardElement) throw new Error("Card element not found");
 
       // Create payment intent via Edge Function
+      const userId = user?.id || `user_${Date.now()}`;
       const { data: pi, error: piErr } = await supabase.functions.invoke("purchase_credits", {
         body: {
           amount: selectedPackage.price * 100, // Convert to cents
           credits: selectedPackage.credits,
-          userId: user.id,
+          userId: userId,
         },
       }) as { data: { clientSecret: string; paymentIntentId: string } | null; error: any };
 
-      if (piErr) throw piErr;
+      if (piErr) {
+        console.error("Edge function error:", piErr);
+        throw new Error(piErr.message || "Failed to create payment intent");
+      }
       if (!pi?.clientSecret || !pi?.paymentIntentId) {
-        throw new Error("Payment intent creation failed");
+        throw new Error("Payment intent creation failed - no client secret returned");
       }
 
       // Confirm the payment
@@ -86,27 +90,34 @@ export default function CreditsPage() {
         payment_method: {
           card: cardElement,
           billing_details: {
-            email: user.email,
+            email: user?.email || "user@example.com",
           },
         },
       });
 
       if (result.error) {
+        console.error("Stripe payment error:", result.error);
         throw new Error(result.error.message);
       }
+
+      console.log("Payment successful:", result.paymentIntent);
 
       // Add credits to user account (mock mode handles this automatically)
       await purchaseCredits(selectedPackage.credits, pi.paymentIntentId);
 
       // In production mode, also confirm via Edge Function
       if (import.meta.env.VITE_SUPABASE_URL) {
-        await supabase.functions.invoke("confirm_credit_purchase", {
+        const { error: confirmErr } = await supabase.functions.invoke("confirm_credit_purchase", {
           body: {
-            userId: user.id,
+            userId: userId,
             credits: selectedPackage.credits,
             paymentIntentId: pi.paymentIntentId,
           },
         });
+        
+        if (confirmErr) {
+          console.error("Credit confirmation error:", confirmErr);
+        }
       }
 
       setSelectedPackage(null);
@@ -232,24 +243,80 @@ export default function CreditsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 border rounded-lg">
-                <CardElement
-                  options={{
-                    style: {
-                      base: {
-                        fontSize: "16px",
-                        color: "#424770",
-                        "::placeholder": {
-                          color: "#aab7c4",
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Card Number</label>
+                  <div className="p-4 border rounded-lg bg-white">
+                    <CardNumberElement
+                      options={{
+                        style: {
+                          base: {
+                            fontSize: "18px",
+                            color: "#1a1a1a",
+                            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+                            "::placeholder": {
+                              color: "#9ca3af",
+                            },
+                          },
+                          invalid: {
+                            color: "#ef4444",
+                            iconColor: "#ef4444",
+                          },
                         },
-                      },
-                      invalid: {
-                        color: "#9e2146",
-                      },
-                    },
-                  }}
-                />
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Expiry Date</label>
+                    <div className="p-4 border rounded-lg bg-white">
+                      <CardExpiryElement
+                        options={{
+                          style: {
+                            base: {
+                              fontSize: "18px",
+                              color: "#1a1a1a",
+                              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+                              "::placeholder": {
+                                color: "#9ca3af",
+                              },
+                            },
+                            invalid: {
+                              color: "#ef4444",
+                            },
+                          },
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">CVC</label>
+                    <div className="p-4 border rounded-lg bg-white">
+                      <CardCvcElement
+                        options={{
+                          style: {
+                            base: {
+                              fontSize: "18px",
+                              color: "#1a1a1a",
+                              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+                              "::placeholder": {
+                                color: "#9ca3af",
+                              },
+                            },
+                            invalid: {
+                              color: "#ef4444",
+                            },
+                          },
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Your payment is secured by Stripe. We never store your card details.
+              </p>
               {error && (
                 <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
                   {error}

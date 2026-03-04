@@ -11,3 +11,11 @@
 body {
 @apply bg-black text-white font-sans antialiased;
 }
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 0px rgba(255,0,0,0.15); }
+  50% { box-shadow: 0 0 28px rgba(255,0,0,0.35); }
+}
+
+.glow-danger {
+  animation: pulseGlow 2.6s ease-in-out infinite;
+}

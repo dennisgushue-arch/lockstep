@@ -9,13 +9,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Check if we're in production mode with real Supabase credentials
 const USE_REAL_SUPABASE = Boolean(supabaseUrl && supabaseAnonKey);
 
-console.log("[Supabase] Init check:", {
-  URL_SET: !!supabaseUrl,
-  KEY_SET: !!supabaseAnonKey,
-  USE_REAL: USE_REAL_SUPABASE,
-  url_value: supabaseUrl,
-  key_first_20: supabaseAnonKey?.substring(0, 20)
-});
+if (import.meta.env.DEV) {
+  console.log("[Supabase] Init check:", {
+    URL_SET: !!supabaseUrl,
+    KEY_SET: !!supabaseAnonKey,
+    USE_REAL: USE_REAL_SUPABASE,
+  });
+}
 
 // Real Supabase client
 const realSupabase = USE_REAL_SUPABASE 
@@ -260,4 +260,6 @@ export const supabase = USE_REAL_SUPABASE ? realSupabase! : mockSupabase as any;
 // Helper to check which mode we're in
 export const isUsingRealSupabase = USE_REAL_SUPABASE;
 
-console.log(`[Supabase] Mode: ${USE_REAL_SUPABASE ? 'PRODUCTION (Real)' : 'DEVELOPMENT (Mock)'}`);
+if (import.meta.env.DEV) {
+  console.log(`[Supabase] Mode: ${USE_REAL_SUPABASE ? 'PRODUCTION (Real)' : 'DEVELOPMENT (Mock)'}`);
+}

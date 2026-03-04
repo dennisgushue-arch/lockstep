@@ -82,6 +82,7 @@ Or follow the detailed guide in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - Full deployment guide
 - [README_FUNCTIONS.md](./README_FUNCTIONS.md) - Edge Functions documentation
+- [APP_STORE_RELEASE.md](./APP_STORE_RELEASE.md) - iOS/Android release checklist via Capacitor
 
 ## 🧪 Development Modes
 

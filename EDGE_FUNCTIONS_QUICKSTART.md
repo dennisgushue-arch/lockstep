@@ -112,6 +112,11 @@ OPENAI_API_KEY=sk-...                    # For analyze_intent
 STRIPE_SECRET_KEY=sk_live_...            # For payment functions
 SWEEP_SECRET=random-secret-string        # For cron job protection
 SUPABASE_SERVICE_ROLE_KEY=...            # Auto-provided by Supabase
+TOKEN_ENCRYPTION_KEY=base64-32-byte-key  # For encrypting OAuth tokens (generate via node scripts/generate_token_key.mjs)
+GOOGLE_CLIENT_ID=...                     # Google OAuth
+GOOGLE_CLIENT_SECRET=...                 # Google OAuth
+GOOGLE_REDIRECT_URI=...                  # Google OAuth
+ANTHROPIC_API_KEY=sk-...                 # For extract_intent_from_voice
 ```
 
 ## Cron Job Setup (15-minute sync)

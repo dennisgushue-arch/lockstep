@@ -33,6 +33,14 @@ export interface CalendarMetadata {
   eventTime?: string;
 }
 
+type JournalCheckIn = {
+  id: string;
+  commitmentId: string;
+  note: string;
+  proof: string;
+  createdAt: string;
+};
+
 /**
  * Voice Note Integration (Mock for now)
  */
@@ -194,10 +202,17 @@ export class CalendarSource {
  * Journal Integration (Mock for now)
  */
 export class JournalSource {
+  private storageKey = "intent_checkins";
+  private lastSyncKey = "intent_checkins_last_sync";
+
   /**
    * Parse journal entries for intent signals
    */
-  async parseEntry(userId: string, entryText: string): Promise<IntentSignal[]> {
+  async parseEntry(
+    userId: string,
+    entryText: string,
+    sourceId?: string
+  ): Promise<IntentSignal[]> {
     console.log("[Journal] Parsing entry for intents...");
     
     // In production: Use NLP to extract intent sentences
@@ -219,6 +234,7 @@ export class JournalSource {
           id: `signal_journal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           userId,
           sourceType: "journal",
+          sourceId,
           rawText: line.trim(),
           detectedAt: new Date().toISOString(),
           processed: false,
@@ -227,6 +243,54 @@ export class JournalSource {
     }
     
     return signals;
+  }
+
+  /**
+   * Sync local check-ins as journal signals (browser-only)
+   */
+  async syncCheckIns(userId: string): Promise<IntentSignal[]> {
+    if (typeof window === "undefined" || !window.localStorage) return [];
+
+    const raw = window.localStorage.getItem(this.storageKey);
+    if (!raw) return [];
+
+    const lastSyncRaw = window.localStorage.getItem(this.lastSyncKey);
+    const lastSync = lastSyncRaw ? new Date(lastSyncRaw) : null;
+
+    let entries: JournalCheckIn[] = [];
+    try {
+      const parsed = JSON.parse(raw) as JournalCheckIn[];
+      entries = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+
+    const newSignals: IntentSignal[] = [];
+    let latestSeen: Date | null = lastSync;
+
+    for (const entry of entries) {
+      const createdAt = new Date(entry.createdAt);
+      if (lastSync && createdAt <= lastSync) continue;
+
+      const combined = [entry.note?.trim(), entry.proof?.trim()]
+        .filter(Boolean)
+        .join("\n");
+
+      if (!combined) continue;
+
+      const signals = await this.parseEntry(userId, combined, entry.id);
+      newSignals.push(...signals);
+
+      if (!latestSeen || createdAt > latestSeen) {
+        latestSeen = createdAt;
+      }
+    }
+
+    if (latestSeen) {
+      window.localStorage.setItem(this.lastSyncKey, latestSeen.toISOString());
+    }
+
+    return newSignals;
   }
 
   /**
@@ -291,6 +355,9 @@ export class InputSourceManager {
     ]);
     
     signals.push(...messages, ...calendar);
+
+    const journalSignals = await this.journalSource.syncCheckIns(userId);
+    signals.push(...journalSignals);
     
     return signals;
   }

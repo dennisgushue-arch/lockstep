@@ -14,9 +14,44 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
 
     if (!supabaseUrl || !supabaseKey) {
       throw new Error("Supabase credentials not configured");
+    }
+
+    if (!stripeSecretKey) {
+      throw new Error("Stripe credentials not configured");
+    }
+
+    const paymentIntentResponse = await fetch(
+      `https://api.stripe.com/v1/payment_intents/${paymentIntentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${stripeSecretKey}`,
+        },
+      }
+    );
+
+    if (!paymentIntentResponse.ok) {
+      const stripeError = await paymentIntentResponse.text();
+      throw new Error(`Stripe validation failed: ${stripeError}`);
+    }
+
+    const paymentIntent = await paymentIntentResponse.json();
+    const intentStatus = paymentIntent?.status;
+    const metadata = paymentIntent?.metadata ?? {};
+
+    if (intentStatus !== "succeeded") {
+      throw new Error(`Payment not completed: ${intentStatus}`);
+    }
+
+    if (metadata?.user_id && metadata.user_id !== userId) {
+      throw new Error("Payment intent user mismatch");
+    }
+
+    if (metadata?.credits && Number(metadata.credits) !== Number(credits)) {
+      throw new Error("Payment intent credits mismatch");
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);

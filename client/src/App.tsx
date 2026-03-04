@@ -22,6 +22,13 @@ import DetectionPage from "@/pages/detection";
 import SettingsPage from "@/pages/settings";
 import { Stakes as StakeScreen } from "@/components/stakes";
 import AdminPage from "@/pages/admin";
+import { VoiceNotesPage } from "@/pages/voice-notes";
+import { HistoryPage } from "@/pages/history";
+import ConnectedSourcesPage from "@/pages/connected-sources";
+import { RecommendationsPage } from "@/pages/recommendations";
+import JournalPage from "@/pages/journal";
+
+const isDev = import.meta.env.DEV;
 
 function Router() {
   return (
@@ -37,19 +44,26 @@ function Router() {
         <Route path="/credits" component={CreditsPage} />
         <Route path="/stakes" component={StakesPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/voice-notes" component={VoiceNotesPage} />
+        <Route path="/history" component={HistoryPage} />
+        <Route path="/connected-sources" component={ConnectedSourcesPage} />
+        <Route path="/recommendations" component={RecommendationsPage} />
+        <Route path="/journal" component={JournalPage} />
         <Route path="/missed" component={Missed} />
-        <Route path="/test-intent" component={TestIntentPage} />
-        <Route path="/debug" component={DebugPage} />
-        <Route path="/stake-test">
-          <StakeScreen 
-            stake={5} 
-            setStake={() => {}} 
-            consequence="money" 
-            setConsequence={() => {}} 
-            commitmentId="test-commitment-id"
-            onSuccess={() => alert("Authorized !")}
-          />
-        </Route>
+        {isDev && <Route path="/test-intent" component={TestIntentPage} />}
+        {isDev && <Route path="/debug" component={DebugPage} />}
+        {isDev && (
+          <Route path="/stake-test">
+            <StakeScreen 
+              stake={5} 
+              setStake={() => {}} 
+              consequence="money" 
+              setConsequence={() => {}} 
+              commitmentId="test-commitment-id"
+              onSuccess={() => alert("Authorized !")}
+            />
+          </Route>
+        )}
         <Route path="/admin" component={AdminPage} />
         <Route component={NotFound} />
       </Switch>

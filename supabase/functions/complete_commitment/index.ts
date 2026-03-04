@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { handleCommitmentCompleted } from "../_shared/user-stats.ts";
+import { StructuredLogger, generateRequestId, auditLog } from "../_shared/logging.ts";
 
 /**
  * Complete Commitment Function
@@ -9,12 +11,19 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  */
 
 Deno.serve(async (req) => {
+  const requestId = generateRequestId();
+  const logger = new StructuredLogger(requestId, "complete_commitment");
+
   try {
     const { commitmentId, userId } = await req.json();
 
     if (!commitmentId || !userId) {
+      logger.error("Missing commitmentId or userId");
       return new Response(
-        JSON.stringify({ error: "Missing commitmentId or userId" }),
+        JSON.stringify({ 
+          error: "Missing commitmentId or userId",
+          requestId
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -39,13 +48,20 @@ Deno.serve(async (req) => {
     if (fetchError) throw fetchError;
     if (!commitment) throw new Error("Commitment not found");
 
+    const statusBefore = commitment.status;
+
     // Update commitment status
     const { error: updateError } = await supabase
       .from("commitments")
-      .update({ status: "completed" })
+      .update({ 
+        status: "completed",
+        completed_at: new Date().toISOString()
+      })
       .eq("id", commitmentId);
 
     if (updateError) throw updateError;
+
+    let creditsRefunded = 0;
 
     // Refund credits if enabled
     if (commitment.refund_on_completion) {
@@ -59,7 +75,9 @@ Deno.serve(async (req) => {
       if (userError) throw userError;
 
       const currentBalance = parseInt(user.credit_balance || "0");
-      const newBalance = currentBalance + parseInt(commitment.credits_cost || "0");
+      const refundAmount = parseInt(commitment.credits_cost || "0");
+      const newBalance = currentBalance + refundAmount;
+      creditsRefunded = refundAmount;
 
       // Update user balance
       const { error: balanceError } = await supabase
@@ -83,15 +101,54 @@ Deno.serve(async (req) => {
 
       if (txnError) throw txnError;
 
-      console.log(`Refunded ${commitment.credits_cost} credits to user ${userId}`);
+      logger.info("commitment_credits_refunded", {
+        commitmentId,
+        creditsRefunded: refundAmount,
+        newBalance,
+      });
+    }
+
+    logger.logCommitment(commitmentId, statusBefore, "completed", {
+      creditsRefunded,
+      refundEnabled: commitment.refund_on_completion,
+    });
+
+    // Update user stats
+    try {
+      await handleCommitmentCompleted(supabase, userId, commitmentId, creditsRefunded);
+    } catch (statsError: any) {
+      // Log error but don't fail the request
+      logger.warn("user_stats_update_failed", {
+        error: statsError?.message,
+        commitmentId,
+      });
+    }
+
+    // Audit log
+    try {
+      await auditLog(
+        supabase,
+        commitmentId,
+        userId,
+        requestId,
+        "complete",
+        statusBefore,
+        "completed",
+        undefined,
+        { creditsRefunded }
+      );
+    } catch (auditError: any) {
+      logger.warn("audit_log_failed", { error: auditError?.message });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "Commitment completed",
+        commitmentId,
+        requestId,
         refunded: commitment.refund_on_completion,
-        creditsRefunded: commitment.refund_on_completion ? parseInt(commitment.credits_cost) : 0,
+        creditsRefunded,
       }),
       {
         status: 200,
@@ -99,11 +156,13 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error completing commitment:", error);
+    logger.error("commitment_complete_error", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ 
+        error: error.message || "Internal server error",
+        requestId
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 });
-
