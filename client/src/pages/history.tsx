@@ -145,7 +145,7 @@ export function HistoryPage() {
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="flex-1">
                         <h3 className="font-bold text-white text-lg">
-                          {commitment.intent?.action ?? "Pact"}
+                          {commitment.intent?.first_action ?? commitment.intent?.text ?? "Pact"}
                         </h3>
                         <p className="text-sm text-zinc-400 mt-1">
                           Due: {format(new Date(commitment.scheduledDate), "PPP 'at' p")}
