@@ -164,33 +164,79 @@ const mockSupabase = {
   from: (table: string) => {
     return {
       select: (columns = "*") => {
-        return {
+        const state: {
+          filters: Array<(row: MockRow) => boolean>;
+          orderBy: { column: string; ascending: boolean } | null;
+          limit: number | null;
+        } = {
+          filters: [],
+          orderBy: null,
+          limit: null,
+        };
+
+        const run = () => {
+          let rows = [...(mockDatabase[table] || [])];
+
+          for (const filter of state.filters) {
+            rows = rows.filter(filter);
+          }
+
+          if (state.orderBy) {
+            const { column, ascending } = state.orderBy;
+            rows.sort((a, b) => {
+              if (a[column] === b[column]) return 0;
+              if (a[column] == null) return 1;
+              if (b[column] == null) return -1;
+              return ascending
+                ? (a[column] > b[column] ? 1 : -1)
+                : (a[column] < b[column] ? 1 : -1);
+            });
+          }
+
+          if (typeof state.limit === "number") {
+            rows = rows.slice(0, state.limit);
+          }
+
+          return rows;
+        };
+
+        const result = () => {
+          const rows = run();
+          console.log(`[Mock Supabase] SELECT ${columns} FROM ${table} -> ${rows.length} row(s)`);
+          return { data: rows, error: null };
+        };
+
+        const builder: any = {
           eq: (column: string, value: any) => {
-            return {
-              single: async () => {
-                console.log(`[Mock Supabase] SELECT ${columns} FROM ${table} WHERE ${column}=${value}`);
-                const rows = mockDatabase[table] || [];
-                const row = rows.find((r) => r[column] === value);
-                return { data: row, error: null };
-              }
-            };
+            state.filters.push((row) => row?.[column] === value);
+            return builder;
+          },
+          is: (column: string, value: any) => {
+            if (value === null) {
+              state.filters.push((row) => row?.[column] == null);
+            } else {
+              state.filters.push((row) => row?.[column] === value);
+            }
+            return builder;
           },
           order: (column: string, options: { ascending: boolean }) => {
-            return {
-              execute: async () => {
-                console.log(`[Mock Supabase] SELECT ${columns} FROM ${table} ORDER BY ${column} ${options.ascending ? 'ASC' : 'DESC'}`);
-                const rows = mockDatabase[table] || [];
-                const sorted = [...rows].sort((a, b) => {
-                  if (options.ascending) {
-                    return a[column] > b[column] ? 1 : -1;
-                  }
-                  return a[column] < b[column] ? 1 : -1;
-                });
-                return { data: sorted, error: null };
-              }
-            };
-          }
+            state.orderBy = { column, ascending: options?.ascending ?? true };
+            return builder;
+          },
+          limit: (count: number) => {
+            state.limit = count;
+            return builder;
+          },
+          single: async () => {
+            const rows = run();
+            const row = rows.length > 0 ? rows[0] : null;
+            return { data: row, error: null };
+          },
+          execute: async () => result(),
+          then: (resolve: any, reject?: any) => Promise.resolve(result()).then(resolve, reject),
         };
+
+        return builder;
       },
       insert: (rows: MockRow | MockRow[]) => {
         const rowsArray = Array.isArray(rows) ? rows : [rows];
