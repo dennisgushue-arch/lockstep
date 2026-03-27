@@ -1,186 +1,139 @@
 import React from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import LiveOutcomeStrip from "@/components/live-outcome-strip";
+import WhoItsFor from "@/components/who-its-for";
+import WhatLockstepNotices from "@/components/what-lockstep-notices";
+import BeforeAfter from "@/components/before-after";
+import DemoIntent from "@/components/demo-intent";
 import heroImage from "@assets/generated_images/minimalist_abstract_concrete_architecture,_dramatic_lighting,_black_and_white.png";
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-black text-white pb-20 sm:pb-0">
       {/* Hero Section */}
-      <section className="relative h-screen flex flex-col justify-center items-center text-center px-4 overflow-hidden border-b border-border">
+      <section className="relative min-h-[88svh] flex items-center overflow-hidden border-b border-border">
         <div className="absolute inset-0 z-0">
-           <img 
-            src={heroImage} 
-            alt="Abstract Architecture" 
-            className="w-full h-full object-cover opacity-30 grayscale contrast-125"
+          <img
+            src={heroImage}
+            alt="Abstract Architecture"
+            className="w-full h-full object-cover opacity-20 grayscale contrast-125"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/70 to-black" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(120,80,255,0.12),transparent_55%)]" />
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto space-y-8">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-5xl md:text-8xl font-heading font-bold tracking-tighter leading-tight"
-          >
-            STOP SAYING <br/>
-            <span className="text-muted-foreground">"I SHOULD"</span>
-          </motion.h1>
-          
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-            className="text-xl md:text-2xl text-muted-foreground font-light max-w-2xl mx-auto"
-          >
-            You're lying to yourself. <br/>
-            Lockstep makes that expensive.
-          </motion.p>
+        <div className="relative z-10 w-full px-5 py-16">
+          <div className="space-y-6 text-center max-w-md mx-auto">
+            <div className="text-[10px] uppercase tracking-[0.3em] text-red-400">Lockstep</div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400, damping: 10 }}
-          >
+            <h1 className="text-4xl sm:text-5xl font-heading font-bold leading-[0.95] tracking-tight">
+              YOU SAID YOU WOULD
+            </h1>
+
+            <p className="text-lg text-zinc-300">You didn&apos;t. Lockstep makes you pay.</p>
+
+            <p className="text-sm text-zinc-500">
+              AI turns your repeated flinch into a pact, then asks for proof.
+            </p>
+
+            <div className="flex flex-col gap-3">
             <Link href="/auth">
-              <Button size="lg" className="rounded-none h-20 px-12 text-2xl font-black bg-red-600 text-white hover:bg-red-700 shadow-[8px_8px_0px_0px_rgba(220,38,38,0.3)] hover:shadow-none transition-all">
+                <Button className="w-full sm:w-auto sm:self-center rounded-none h-14 px-8 text-base font-black bg-red-600 text-white hover:bg-red-700">
                 PROVE YOU MEAN IT
               </Button>
             </Link>
-          </motion.div>
-        </div>
-      </section>
 
-      {/* Problem Section */}
-      <section className="py-24 px-4 bg-background border-b border-border">
-        <div className="max-w-3xl mx-auto space-y-12">
-          <h2 className="text-3xl md:text-4xl font-heading font-bold">THE PROBLEM</h2>
-          <div className="space-y-6 text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
-            <p>
-              <span className="text-foreground font-medium">You say you'll do something. You don't.</span> Not because you can't. Because there's no cost to failing.
-            </p>
-            <p>
-              Every productivity app lets you fail quietly. You snooze, reschedule, and move on. No shame. No consequence. No change.
-            </p>
-            <p>
-              Lockstep is for people who are ready to stop lying to themselves.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works */}
-      <section className="py-24 px-4 bg-zinc-900/30 border-b border-border">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-heading font-bold mb-16 text-center">HOW IT WORKS</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {[
-              { step: "01", title: "Say It", desc: "Text your friend. Voice note. Calendar entry. Journal. We're listening everywhere." },
-              { step: "02", title: "We Detect", desc: "AI catches patterns. Said it 3 times? Time to commit. Automatic intent extraction." },
-              { step: "03", title: "You Lock In", desc: "Put credits on the line. Complete it, get them back. Fail? They're gone forever." }
-            ].map((item) => (
-              <div key={item.step} className="border-l-2 border-border pl-6 space-y-4">
-                <span className="text-4xl font-mono text-muted-foreground/30 font-bold">{item.step}</span>
-                <h3 className="text-2xl font-bold font-heading">{item.title}</h3>
-                <p className="text-muted-foreground">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Key Feature: Passive Detection */}
-      <section className="py-24 px-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-b border-border">
-        <div className="max-w-5xl mx-auto space-y-12">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl md:text-5xl font-heading font-bold">
-              NO PLANNING REQUIRED
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              The app that listens to your life and converts casual thoughts into structured commitments
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="p-6 bg-background/50 border border-border">
-                <h3 className="text-xl font-bold mb-3">🎙️ Voice Notes</h3>
-                <p className="text-muted-foreground">
-                  "I really need to start working out more" → Automatically captured, categorized, and tracked
-                </p>
-              </div>
-
-              <div className="p-6 bg-background/50 border border-border">
-                <h3 className="text-xl font-bold mb-3">💬 Messages</h3>
-                <p className="text-muted-foreground">
-                  Text your friend: "Should finally call mom this weekend" → We see it, we remember it
-                </p>
-              </div>
-
-              <div className="p-6 bg-background/50 border border-border">
-                <h3 className="text-xl font-bold mb-3">📅 Calendar</h3>
-                <p className="text-muted-foreground">
-                  Meeting titled "Finally launch side project" → Pattern detected across 3 weeks
-                </p>
-              </div>
-
-              <div className="p-6 bg-background/50 border border-border">
-                <h3 className="text-xl font-bold mb-3">📔 Journal</h3>
-                <p className="text-muted-foreground">
-                  Write: "Thinking about quitting social media" → We track how often you mention it
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col justify-center p-8 bg-gradient-to-br from-primary/10 to-purple-500/10 border-2 border-primary/30">
-              <h3 className="text-2xl font-bold mb-6">The Magic: Pattern Detection</h3>
-              <div className="space-y-4 text-muted-foreground">
-                <p>
-                  ✨ <strong>Day 1:</strong> You mention "start running" in a voice note
-                </p>
-                <p>
-                  ✨ <strong>Day 3:</strong> Text a friend "really should start running"
-                </p>
-                <p>
-                  ✨ <strong>Day 7:</strong> Journal entry: "need to get back into running"
-                </p>
-                <div className="pt-4 border-t border-border">
-                  <p className="text-foreground font-bold text-lg">
-                    → App prompts: "You've said this 3 times in 7 days. Time to put money on it."
-                  </p>
-                </div>
-              </div>
+              <a href="#demo" className="w-full sm:w-auto sm:self-center">
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto rounded-none h-14 px-8 text-base border border-zinc-700 bg-transparent hover:bg-zinc-900"
+                >
+                  SEE THE SYSTEM
+                </Button>
+              </a>
             </div>
           </div>
         </div>
       </section>
+
+      <DemoIntent onLockReal={() => setLocation("/auth")} />
+
+      <WhatLockstepNotices />
+
+      <BeforeAfter />
+
+      {/* Why Lockstep Wins */}
+      <section className="py-20 px-5 border-b border-border bg-zinc-950/30">
+        <div className="max-w-6xl mx-auto space-y-10">
+          <div className="space-y-3 text-center max-w-2xl mx-auto">
+            <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">Why Lockstep Wins</div>
+            <h2 className="text-3xl md:text-5xl font-heading font-bold">Why the flinch gets penalized</h2>
+            <p className="text-sm md:text-base text-zinc-400">
+              Willpower is cheap. Penalty isn&apos;t.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+            <div className="border border-zinc-800 bg-black/30 p-5 md:p-6 space-y-3">
+              <h3 className="text-xl md:text-2xl font-bold">It sees you flinch early</h3>
+              <p className="text-sm md:text-base text-zinc-400">
+                The flinch starts before the miss.
+              </p>
+            </div>
+
+            <div className="border border-zinc-800 bg-black/30 p-5 md:p-6 space-y-3">
+              <h3 className="text-xl md:text-2xl font-bold">It adds penalty to the flinch</h3>
+              <p className="text-sm md:text-base text-zinc-400">
+                Miss the pact. Take the penalty.
+              </p>
+            </div>
+
+            <div className="border border-zinc-800 bg-black/30 p-5 md:p-6 space-y-3">
+              <h3 className="text-xl md:text-2xl font-bold">It asks for proof</h3>
+              <p className="text-sm md:text-base text-zinc-400">
+                Effort without proof is noise.
+              </p>
+            </div>
+
+            <div className="border border-zinc-800 bg-black/30 p-5 md:p-6 space-y-3">
+              <h3 className="text-xl md:text-2xl font-bold">It ends the inner bargaining</h3>
+              <p className="text-sm md:text-base text-zinc-400">
+                Proof or penalty.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <LiveOutcomeStrip />
+      <WhoItsFor />
 
       {/* Pricing */}
-      <section className="py-24 px-4 bg-background">
+      <section className="py-20 px-5 bg-black border-b border-border">
         <div className="max-w-4xl mx-auto text-center space-y-12">
           <h2 className="text-3xl md:text-4xl font-heading font-bold">PRICING</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-             <div className="p-8 border border-border bg-card/50">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto">
+             <div className="p-5 md:p-6 border border-border bg-zinc-950/50">
                <h3 className="text-xl font-bold font-heading mb-2">Free</h3>
                <p className="text-4xl font-bold mb-6">$0</p>
                <ul className="text-left space-y-2 mb-8 text-sm text-muted-foreground">
-                 <li>• 3 Active Commitments</li>
-                 <li>• Basic Reflection AI</li>
-                 <li>• Manual Verification</li>
+                 <li>• 3 Active Pacts</li>
+                 <li>• Basic AI Reflection</li>
+                 <li>• Manual Proof</li>
                </ul>
              </div>
-             <div className="p-8 border border-foreground bg-foreground text-background relative">
+             <div className="p-5 md:p-6 border border-foreground bg-foreground text-background relative">
                <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs px-2 py-1 font-bold">POPULAR</div>
                <h3 className="text-xl font-bold font-heading mb-2">Pro</h3>
                <p className="text-4xl font-bold mb-6">$12<span className="text-lg font-normal opacity-70">/mo</span></p>
                <ul className="text-left space-y-2 mb-8 text-sm opacity-80">
-                 <li>• Unlimited Commitments</li>
-                 <li>• Advanced Reflection AI</li>
-                 <li>• Social Witnesses</li>
-                 <li>• Hard Mode (Auto-Escalation)</li>
+                 <li>• Unlimited Pacts</li>
+                 <li>• Advanced AI Reflection</li>
+                 <li>• Social Proof</li>
+                 <li>• Auto-Escalation</li>
                </ul>
              </div>
           </div>
@@ -188,16 +141,24 @@ export default function Landing() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-32 px-4 text-center border-t border-border bg-zinc-950">
+      <section className="py-20 px-5 text-center border-t border-border bg-zinc-950">
         <h2 className="text-4xl md:text-6xl font-heading font-bold mb-8">
-          ENOUGH TALK.
+          YOU KNOW WHERE YOU KEEP FLINCHING.
         </h2>
         <Link href="/auth">
-          <Button size="lg" className="rounded-none h-16 px-12 text-xl font-bold bg-white text-black hover:bg-gray-200">
-            JOIN THE WAITLIST
+          <Button size="lg" className="w-full sm:w-auto rounded-none h-14 px-8 text-base sm:text-xl font-bold bg-white text-black hover:bg-gray-200">
+            PROOF OR PENALTY
           </Button>
         </Link>
       </section>
+
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-black/95 p-3 sm:hidden">
+        <Link href="/auth">
+          <Button className="w-full rounded-none h-12 text-sm font-black bg-red-600 text-white hover:bg-red-700">
+            PROVE YOU MEAN IT
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }
