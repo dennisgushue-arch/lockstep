@@ -1,0 +1,101 @@
+Lockstep — FINAL Google Play Data Safety Submission (Conservative)
+Prepared: 2026-03-26
+Variant selected: Conservative / Over-disclosure
+
+URL profile applied
+- Privacy Policy URL: https://lockstep.app/privacy.html
+- Data Deletion URL: https://lockstep.app/data-deletion.html
+- Terms URL: https://lockstep.app/terms.html
+
+NOTE
+This file is ready to paste into Play Console. It assumes your hosted legal pages use the lockstep.app URLs above.
+
+============================================================
+A) HIGH-LEVEL DATA SAFETY QUESTIONS
+============================================================
+1) Does your app collect or share any required user data types?
+Answer: YES
+
+2) Is all user data collected by your app encrypted in transit?
+Answer: YES
+
+3) Do you provide a way for users to request that their data is deleted?
+Answer: YES
+Method: Email request to support@lockstep.app (verified deletion workflow; target processing time 30 days)
+Public URL to provide in Console: https://lockstep.app/data-deletion.html
+
+4) Is your app directed to children under 13?
+Answer: NO
+
+============================================================
+B) DATA TYPES — CONSERVATIVE DECLARATIONS
+============================================================
+1) Personal info → Email address
+- Collected: YES
+- Shared: YES
+- Required or optional: Required for account features
+- Purposes: App functionality, account management, security/fraud prevention
+
+2) User-generated content → Commitments, reflections, journal entries, preferences
+- Collected: YES
+- Shared: YES
+- Required or optional: Required after account use
+- Purposes: App functionality
+
+3) Audio files → Voice notes
+- Collected: YES (user-initiated)
+- Shared: YES
+- Required or optional: Optional
+- Purposes: App functionality
+
+4) Financial info → Purchase history / transaction metadata
+- Collected: YES (for paid/stake features)
+- Shared: YES
+- Required or optional: Optional
+- Purposes: App functionality, payments, fraud prevention/compliance
+
+5) App activity → In-app interactions
+- Collected: YES
+- Shared: YES
+- Required or optional: Mixed
+- Purposes: App functionality, analytics, security/fraud prevention
+
+6) App info and performance → Diagnostics/logs
+- Collected: YES
+- Shared: YES
+- Required or optional: Mixed
+- Purposes: App stability, analytics, security
+
+7) Connected source metadata (e.g., calendar)
+- Collected: YES (when user enables integration)
+- Shared: YES
+- Required or optional: Optional
+- Purposes: App functionality
+
+============================================================
+C) THIRD PARTIES TO LIST CONSISTENTLY
+============================================================
+- Supabase (auth, database, storage, serverless functions)
+- Stripe (payments)
+- OpenAI API (voice transcription/analysis)
+- Google APIs (Calendar OAuth/sync when user connects)
+
+============================================================
+D) ACCOUNT DELETION FIELD (COPY/PASTE)
+============================================================
+Users can request account and personal data deletion by emailing support@lockstep.app with subject line "Data Deletion Request - Lockstep" and their account email/User ID. Requests are identity-verified and processed within 30 days (or sooner where legally required). Public deletion instructions: https://lockstep.app/data-deletion.html.
+
+============================================================
+E) PLAY CONSOLE URL FIELDS
+============================================================
+- Privacy Policy URL: https://lockstep.app/privacy.html
+- Data Deletion URL: https://lockstep.app/data-deletion.html
+- Terms URL (recommended): https://lockstep.app/terms.html
+
+============================================================
+F) FINAL PRE-SUBMIT GATE
+============================================================
+[ ] Confirm these exact URLs are live and publicly reachable
+[ ] Confirm data deletion page exists and includes request steps
+[ ] Confirm Data Safety selections match policy wording exactly
+[ ] Confirm no new SDKs/features changed data behavior since drafting

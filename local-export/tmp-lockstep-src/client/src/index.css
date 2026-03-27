@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App dark theme */
+:root {
+--background: 240 10% 3.9%;
+--foreground: 0 0% 98%;
+}
+
+body {
+@apply bg-black text-white font-sans antialiased;
+}
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 0px rgba(255,0,0,0.15); }
+  50% { box-shadow: 0 0 28px rgba(255,0,0,0.35); }
+}
+
+.glow-danger {
+  animation: pulseGlow 2.6s ease-in-out infinite;
+}

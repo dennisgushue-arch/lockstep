@@ -1,0 +1,91 @@
+Lockstep — Google Play Data Safety (STRICT / MINIMAL COLLECTION VARIANT)
+Last prepared: 2026-03-26
+Use this only if production build behavior matches every assumption below.
+
+ASSUMPTIONS REQUIRED FOR THIS VARIANT
+- Optional features are OFF unless user explicitly enables them (voice, calendar, paid/stake flows).
+- No ad SDKs and no cross-app tracking.
+- No analytics/error tooling sends personal data to external processors beyond required app-operation providers.
+- Data categories are limited to what is strictly necessary for enabled features.
+
+============================================================
+A) HIGH-LEVEL DATA SAFETY QUESTIONS
+============================================================
+1) Does your app collect or share any required user data types?
+Answer: YES
+
+2) Is all user data collected by your app encrypted in transit?
+Answer: YES
+
+3) Do you provide a way for users to request that their data is deleted?
+Answer: YES
+Method: Email request to support@lockstep.app (verified deletion workflow; target processing time 30 days)
+Public URL to provide in Console: [INSERT_DATA_DELETION_URL]
+
+4) Is your app directed to children under 13?
+Answer: NO
+
+============================================================
+B) DATA TYPES — MINIMAL DECLARATIONS
+============================================================
+1) Personal info → Email address
+- Collected: YES
+- Shared: NO (use NO only if no non-exempt third-party sharing under Play definitions)
+- Required or optional: Required for account features
+- Purposes: App functionality, account management, security/fraud prevention
+
+2) User-generated content → Commitments, reflections, journal entries, preferences
+- Collected: YES
+- Shared: NO (use NO only if no non-exempt third-party sharing)
+- Required or optional: Required after account use
+- Purposes: App functionality
+
+3) Audio files → Voice notes
+- Collected: YES (only when user initiates recording/upload)
+- Shared: NO for default build; YES if transcription/provider transfer occurs
+- Required or optional: Optional
+- Purposes: App functionality
+
+4) Financial info → Purchase history / transaction metadata
+- Collected: YES only if paid/stake features enabled in production
+- Shared: YES if payment processor is used for live transactions
+- Required or optional: Optional
+- Purposes: App functionality, payments, fraud prevention/compliance
+
+5) App activity → In-app interactions
+- Collected: YES (operational telemetry only)
+- Shared: NO (unless sent to non-exempt third parties)
+- Required or optional: Mixed
+- Purposes: App functionality, security
+
+6) App info and performance → Diagnostics/logs
+- Collected: YES
+- Shared: NO (unless external crash/diagnostic processor is active)
+- Required or optional: Mixed
+- Purposes: App stability, security
+
+7) Connected source metadata (e.g., calendar)
+- Collected: YES only if user enables integration
+- Shared: YES to authorized integration provider(s)
+- Required or optional: Optional
+- Purposes: App functionality
+
+============================================================
+C) ACCOUNT DELETION FIELD (COPY/PASTE)
+============================================================
+Users can request account and personal data deletion by emailing support@lockstep.app with subject line "Data Deletion Request - Lockstep" and their account email/User ID. Requests are identity-verified and processed within 30 days (or sooner where legally required). Public deletion instructions: [INSERT_DATA_DELETION_URL].
+
+============================================================
+D) URLS TO ADD BEFORE SUBMIT
+============================================================
+- Privacy Policy URL: [INSERT_PRIVACY_POLICY_URL]
+- Data Deletion URL: [INSERT_DATA_DELETION_URL]
+- Terms URL (recommended): [INSERT_TERMS_URL]
+
+============================================================
+E) STRICT VARIANT SAFETY CHECK (REQUIRED)
+============================================================
+[ ] Engineering sign-off confirms all "Shared: NO" entries are valid under Play definitions
+[ ] Production feature flags match this sheet
+[ ] No newly added SDKs or background collectors
+[ ] QA confirms no optional data is collected before user opt-in

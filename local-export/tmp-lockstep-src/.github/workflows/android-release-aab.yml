@@ -1,0 +1,111 @@
+name: Android Signed AAB
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build-signed-aab:
+    name: Build signed Android App Bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      JAVA_VERSION: '21'
+      NODE_VERSION: '20.x'
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/signing/upload-keystore.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Validate required signing secrets
+        run: |
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Missing secret: ANDROID_KEYSTORE_BASE64"
+            exit 1
+          fi
+          if [ -z "${ANDROID_KEYSTORE_PASSWORD}" ]; then
+            echo "Missing secret: ANDROID_KEYSTORE_PASSWORD"
+            exit 1
+          fi
+          if [ -z "${ANDROID_KEY_ALIAS}" ]; then
+            echo "Missing secret: ANDROID_KEY_ALIAS"
+            exit 1
+          fi
+          if [ -z "${ANDROID_KEY_PASSWORD}" ]; then
+            echo "Missing secret: ANDROID_KEY_PASSWORD"
+            exit 1
+          fi
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Restore upload keystore from secret
+        run: |
+          mkdir -p "$(dirname "$ANDROID_KEYSTORE_PATH")"
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          chmod 600 "$ANDROID_KEYSTORE_PATH"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure Android project exists
+        run: |
+          if [ ! -d "android" ]; then
+            pnpm mobile:add:android
+          fi
+
+      - name: Build web assets and sync Capacitor
+        run: pnpm mobile:build
+
+      - name: Build signed AAB
+        run: |
+          cd android
+          ./gradlew --no-daemon bundleRelease
+
+      - name: Upload signed AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach AAB to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/bundle/release/*.aab
+
+      - name: Cleanup signing files
+        if: always()
+        run: |
+          rm -f "$ANDROID_KEYSTORE_PATH"

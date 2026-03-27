@@ -1,0 +1,27 @@
+Play Console Data Safety Variant Selector (Lockstep)
+
+Files
+- PLAY_CONSOLE_DATA_SAFETY_STRICT_MINIMAL.txt
+- PLAY_CONSOLE_DATA_SAFETY_CONSERVATIVE.txt
+- PLAY_CONSOLE_DATA_SAFETY_ANSWER_SHEET.txt (balanced baseline)
+
+When to use each
+
+1) Strict / Minimal
+Use PLAY_CONSOLE_DATA_SAFETY_STRICT_MINIMAL.txt only if engineering can prove:
+- optional features are true opt-in,
+- no hidden collection paths exist,
+- all "Shared: NO" answers satisfy current Google Play definitions.
+
+2) Conservative / Over-disclosure
+Use PLAY_CONSOLE_DATA_SAFETY_CONSERVATIVE.txt when unsure.
+This is generally safer for avoiding mismatch-based policy issues, but may disclose more than technically required.
+
+3) Baseline (Balanced)
+Use PLAY_CONSOLE_DATA_SAFETY_ANSWER_SHEET.txt for middle-ground interpretation based on currently documented behavior.
+
+Final gate before submit
+- Confirm policy URLs are live and public.
+- Confirm Data Deletion URL is entered.
+- Confirm policy text and Data Safety selections match exactly.
+- Recheck after any SDK, permission, or feature-flag changes.

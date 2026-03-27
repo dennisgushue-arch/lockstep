@@ -1,0 +1,149 @@
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { DollarSign, Users } from "lucide-react";
+
+interface StakesProps {
+  stake: number;
+  setStake: (stake: number) => void;
+  consequence: 'money' | 'social' | 'escalate';
+  setConsequence: (v: 'money' | 'social' | 'escalate') => void;
+  commitmentId?: string;
+  onSuccess?: () => void;
+}
+
+export function Stakes({ stake, setStake, consequence, setConsequence, commitmentId, onSuccess }: StakesProps) {
+  const [customAmount, setCustomAmount] = useState<string>("");
+  const presetAmounts = [5, 10, 20];
+  const isCustom = !presetAmounts.includes(stake);
+
+  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomAmount(value);
+    const num = parseFloat(value);
+    if (!isNaN(num) && num > 0) {
+      setStake(num);
+    }
+  };
+
+  return (
+    <div className="space-y-8 relative z-20">
+      {commitmentId && (
+        <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-none flex justify-between items-center">
+          <div>
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Tracking Reference</p>
+            <p className="text-sm font-mono text-primary font-bold">{commitmentId}</p>
+          </div>
+          {onSuccess && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 rounded-none text-[10px] font-bold uppercase tracking-widest border-primary/50 hover:bg-primary hover:text-primary-foreground"
+              onClick={onSuccess}
+            >
+              Authorize
+            </Button>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-8 md:grid-cols-2">
+        {/* Stake Amount */}
+        <div className="space-y-4">
+          <label className="text-base font-bold uppercase tracking-tight">Stake Amount</label>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-4">
+              {presetAmounts.map((amount) => (
+                <Button
+                  key={amount}
+                  variant={stake === amount && !isCustom ? "default" : "outline"}
+                  className={cn(
+                    "h-24 text-2xl font-bold flex flex-col gap-1 rounded-none border-2 cursor-pointer",
+                    stake === amount && !isCustom ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-foreground"
+                  )}
+                  onClick={() => {
+                    setStake(amount);
+                    setCustomAmount("");
+                  }}
+                  data-testid={`button-stake-${amount}`}
+                >
+                  ${amount}
+                  <span className="text-xs font-normal opacity-70 uppercase">USD</span>
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground uppercase tracking-widest">Custom:</span>
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={isCustom && customAmount ? customAmount : (isCustom ? String(stake) : "")}
+                  onChange={handleCustomChange}
+                  className="pl-6 h-10 rounded-none border-2 border-border bg-zinc-900/50"
+                  min="0.01"
+                  step="0.01"
+                  data-testid="input-stake-custom"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Consequence Type */}
+        <div className="space-y-4">
+          <label className="text-base font-bold uppercase tracking-tight">Consequence Type</label>
+          <div className="flex flex-col gap-4">
+            <div 
+              className={cn(
+                "flex items-start space-x-3 border-2 p-4 cursor-pointer transition-all", 
+                consequence === 'money' ? "border-white bg-white/10" : "border-border hover:border-foreground"
+              )}
+              onClick={() => setConsequence('money')}
+              data-testid="card-consequence-money"
+            >
+              <div className="pt-1">
+                <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors", consequence === 'money' ? "border-white bg-white" : "border-muted-foreground bg-transparent")}>
+                  {consequence === 'money' && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
+                </div>
+              </div>
+              <div>
+                <div className="font-bold flex items-center gap-2 uppercase tracking-tight">
+                  <DollarSign className={cn("w-4 h-4", consequence === 'money' ? "text-white" : "text-primary")} /> Financial Forfeit
+                </div>
+                <div className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  Money is donated to a charity you hate if you miss the deadline.
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={cn(
+                "flex items-start space-x-3 border-2 p-4 cursor-pointer transition-all", 
+                consequence === 'social' ? "border-white bg-white/10" : "border-border hover:border-foreground"
+              )}
+              onClick={() => setConsequence('social')}
+              data-testid="card-consequence-social"
+            >
+               <div className="pt-1">
+                <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors", consequence === 'social' ? "border-white bg-white" : "border-muted-foreground bg-transparent")}>
+                  {consequence === 'social' && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
+                </div>
+              </div>
+              <div>
+                <div className="font-bold flex items-center gap-2 uppercase tracking-tight">
+                  <Users className={cn("w-4 h-4", consequence === 'social' ? "text-white" : "text-primary")} /> Social Witness
+                </div>
+                <div className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  We email your boss/partner that you failed to complete this task.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

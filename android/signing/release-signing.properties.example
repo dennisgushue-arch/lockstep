@@ -1,0 +1,8 @@
+# Copy this file to release-signing.properties and fill in real values.
+# This file is read by android/app/build.gradle for release signing.
+# You can also set equivalent ANDROID_* environment variables instead.
+
+storeFile=/absolute/path/to/your/upload-keystore.jks
+storePassword=REPLACE_ME
+keyAlias=upload
+keyPassword=REPLACE_ME

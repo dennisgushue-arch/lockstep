@@ -1,0 +1,108 @@
+Lockstep — Google Play Data Safety Copy/Paste Answer Sheet
+Last prepared: 2026-03-26
+Based on: legal/PRIVACY_POLICY.md + legal/DATA_DELETION_POLICY.md + legal/GOOGLE_PLAY_LEGAL_CHECKLIST.md
+
+IMPORTANT
+- This sheet is prefilled from your current legal docs and code evidence.
+- Confirm production behavior before final submit (especially analytics toggles and any newly added SDKs).
+
+============================================================
+A) HIGH-LEVEL DATA SAFETY QUESTIONS
+============================================================
+1) Does your app collect or share any required user data types?
+Answer: YES
+
+2) Is all user data collected by your app encrypted in transit?
+Answer: YES
+
+3) Do you provide a way for users to request that their data is deleted?
+Answer: YES
+Method: Email request to support@lockstep.app (verified deletion workflow; target processing time 30 days)
+Public URL to provide in Console: [INSERT_DATA_DELETION_URL]
+
+4) Is your app directed to children under 13?
+Answer: NO
+
+============================================================
+B) DATA TYPES — RECOMMENDED DECLARATIONS
+============================================================
+Use these as your per-category selections in Play Console.
+
+1) Personal info → Email address
+- Collected: YES
+- Shared: YES (service providers used to operate account/auth stack)
+- Required or optional: Required for account features
+- Purposes: App functionality, account management, security/fraud prevention
+
+2) Financial info → Purchase history / transaction info (metadata)
+- Collected: YES (payment status, transaction IDs, credit/stake metadata)
+- Shared: YES (payment processor)
+- Required or optional: Optional (only for paid/stake features)
+- Purposes: App functionality, payments, fraud prevention/compliance
+- Note: Full card data is not stored by Lockstep
+
+3) Audio files → Voice notes
+- Collected: YES (only when user initiates recording/upload)
+- Shared: YES (transcription/AI processing provider and storage provider)
+- Required or optional: Optional (voice features only)
+- Purposes: App functionality
+
+4) App activity → In-app interactions
+- Collected: YES
+- Shared: YES (infrastructure/processing providers)
+- Required or optional: Required for service operation/reliability
+- Purposes: App functionality, analytics, fraud prevention/security
+
+5) App info and performance → Diagnostics/logs
+- Collected: YES
+- Shared: YES (infrastructure/processing providers)
+- Required or optional: Required for reliability/security
+- Purposes: Analytics, fraud prevention/security, app stability
+
+6) User-generated content → Commitments, reflections, journal entries, preferences
+- Collected: YES
+- Shared: YES (storage/processing providers)
+- Required or optional: Required for core app behavior once account is used
+- Purposes: App functionality
+
+7) Other user content / connected source metadata (e.g., calendar integration)
+- Collected: YES (only if user enables integration)
+- Shared: YES (authorized integration partners + infrastructure providers)
+- Required or optional: Optional
+- Purposes: App functionality
+
+============================================================
+C) DATA HANDLING FLAGS (PER DATA TYPE WHERE APPLICABLE)
+============================================================
+- Is this data processed ephemerally? -> NO (stored for account/service operation unless deleted/expired)
+- Is collection required for app functionality? -> Mixed (see each category)
+- Can users choose whether this data is collected? -> YES for optional features (voice, calendar, stake/payment)
+
+============================================================
+D) THIRD PARTIES TO KEEP CONSISTENT ACROSS FORMS/POLICY
+============================================================
+- Supabase (auth, database, storage, serverless functions)
+- Stripe (payments)
+- OpenAI API (voice transcription/analysis)
+- Google APIs (Calendar OAuth/sync when user connects)
+
+============================================================
+E) COPY/PASTE TEXT FOR 'ACCOUNT DELETION' FIELD (if shown)
+============================================================
+Users can request account and personal data deletion by emailing support@lockstep.app with subject line "Data Deletion Request - Lockstep" and their account email/User ID. Requests are identity-verified and processed within 30 days (or sooner where legally required). Public deletion instructions: [INSERT_DATA_DELETION_URL].
+
+============================================================
+F) URLS TO ADD BEFORE SUBMIT
+============================================================
+- Privacy Policy URL: [INSERT_PRIVACY_POLICY_URL]
+- Data Deletion URL: [INSERT_DATA_DELETION_URL]
+- Terms URL (recommended): [INSERT_TERMS_URL]
+
+============================================================
+G) FINAL PRE-SUBMIT QUICK CHECK
+============================================================
+[ ] Data Safety categories exactly match privacy-policy wording
+[ ] Any newly added SDKs are reflected in both policy + Data Safety
+[ ] Deletion URL is public and reachable without login
+[ ] support@lockstep.app inbox is monitored
+[ ] Legal address/jurisdiction placeholders are filled in legal docs

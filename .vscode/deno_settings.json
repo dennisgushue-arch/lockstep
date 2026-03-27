@@ -1,12 +1,20 @@
 {
   "deno.enable": true,
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
   "deno.lint": true,
   "deno.unstable": false,
   "deno.importMap": "./supabase/functions/deno.json",
   "deno.codeLens.implementations": true,
   "deno.codeLens.referencesAllFunctions": true,
+  "deno.disablePaths": [
+    "client",
+    "server",
+    "shared",
+    "scripts"
+  ],
   "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true
   },
   "[json]": {

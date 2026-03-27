@@ -16,11 +16,17 @@
     "cron",
     "kv",
     "ffi",
+      "deno.enablePaths": [
+        "supabase/functions"
+      ],
+      "deno.disablePaths": [
+        "client",
+        "server",
+        "shared",
+        "scripts"
+      ],
     "fs",
     "http",
     "net"
   ],
   "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  }
-}

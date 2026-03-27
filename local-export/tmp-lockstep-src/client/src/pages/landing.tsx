@@ -1,0 +1,203 @@
+import React from "react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import heroImage from "@assets/generated_images/minimalist_abstract_concrete_architecture,_dramatic_lighting,_black_and_white.png";
+
+export default function Landing() {
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Hero Section */}
+      <section className="relative h-screen flex flex-col justify-center items-center text-center px-4 overflow-hidden border-b border-border">
+        <div className="absolute inset-0 z-0">
+           <img 
+            src={heroImage} 
+            alt="Abstract Architecture" 
+            className="w-full h-full object-cover opacity-30 grayscale contrast-125"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+        </div>
+
+        <div className="relative z-10 max-w-4xl mx-auto space-y-8">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-5xl md:text-8xl font-heading font-bold tracking-tighter leading-tight"
+          >
+            STOP SAYING <br/>
+            <span className="text-muted-foreground">"I SHOULD"</span>
+          </motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.8 }}
+            className="text-xl md:text-2xl text-muted-foreground font-light max-w-2xl mx-auto"
+          >
+            You're lying to yourself. <br/>
+            Lockstep makes that expensive.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <Link href="/auth">
+              <Button size="lg" className="rounded-none h-20 px-12 text-2xl font-black bg-red-600 text-white hover:bg-red-700 shadow-[8px_8px_0px_0px_rgba(220,38,38,0.3)] hover:shadow-none transition-all">
+                PROVE YOU MEAN IT
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Problem Section */}
+      <section className="py-24 px-4 bg-background border-b border-border">
+        <div className="max-w-3xl mx-auto space-y-12">
+          <h2 className="text-3xl md:text-4xl font-heading font-bold">THE PROBLEM</h2>
+          <div className="space-y-6 text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
+            <p>
+              <span className="text-foreground font-medium">You say you'll do something. You don't.</span> Not because you can't. Because there's no cost to failing.
+            </p>
+            <p>
+              Every productivity app lets you fail quietly. You snooze, reschedule, and move on. No shame. No consequence. No change.
+            </p>
+            <p>
+              Lockstep is for people who are ready to stop lying to themselves.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* How it Works */}
+      <section className="py-24 px-4 bg-zinc-900/30 border-b border-border">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-heading font-bold mb-16 text-center">HOW IT WORKS</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            {[
+              { step: "01", title: "Say It", desc: "Text your friend. Voice note. Calendar entry. Journal. We're listening everywhere." },
+              { step: "02", title: "We Detect", desc: "AI catches patterns. Said it 3 times? Time to commit. Automatic intent extraction." },
+              { step: "03", title: "You Lock In", desc: "Put credits on the line. Complete it, get them back. Fail? They're gone forever." }
+            ].map((item) => (
+              <div key={item.step} className="border-l-2 border-border pl-6 space-y-4">
+                <span className="text-4xl font-mono text-muted-foreground/30 font-bold">{item.step}</span>
+                <h3 className="text-2xl font-bold font-heading">{item.title}</h3>
+                <p className="text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Key Feature: Passive Detection */}
+      <section className="py-24 px-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-b border-border">
+        <div className="max-w-5xl mx-auto space-y-12">
+          <div className="text-center space-y-4">
+            <h2 className="text-3xl md:text-5xl font-heading font-bold">
+              NO PLANNING REQUIRED
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              The app that listens to your life and converts casual thoughts into structured commitments
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="p-6 bg-background/50 border border-border">
+                <h3 className="text-xl font-bold mb-3">🎙️ Voice Notes</h3>
+                <p className="text-muted-foreground">
+                  "I really need to start working out more" → Automatically captured, categorized, and tracked
+                </p>
+              </div>
+
+              <div className="p-6 bg-background/50 border border-border">
+                <h3 className="text-xl font-bold mb-3">💬 Messages</h3>
+                <p className="text-muted-foreground">
+                  Text your friend: "Should finally call mom this weekend" → We see it, we remember it
+                </p>
+              </div>
+
+              <div className="p-6 bg-background/50 border border-border">
+                <h3 className="text-xl font-bold mb-3">📅 Calendar</h3>
+                <p className="text-muted-foreground">
+                  Meeting titled "Finally launch side project" → Pattern detected across 3 weeks
+                </p>
+              </div>
+
+              <div className="p-6 bg-background/50 border border-border">
+                <h3 className="text-xl font-bold mb-3">📔 Journal</h3>
+                <p className="text-muted-foreground">
+                  Write: "Thinking about quitting social media" → We track how often you mention it
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-center p-8 bg-gradient-to-br from-primary/10 to-purple-500/10 border-2 border-primary/30">
+              <h3 className="text-2xl font-bold mb-6">The Magic: Pattern Detection</h3>
+              <div className="space-y-4 text-muted-foreground">
+                <p>
+                  ✨ <strong>Day 1:</strong> You mention "start running" in a voice note
+                </p>
+                <p>
+                  ✨ <strong>Day 3:</strong> Text a friend "really should start running"
+                </p>
+                <p>
+                  ✨ <strong>Day 7:</strong> Journal entry: "need to get back into running"
+                </p>
+                <div className="pt-4 border-t border-border">
+                  <p className="text-foreground font-bold text-lg">
+                    → App prompts: "You've said this 3 times in 7 days. Time to put money on it."
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-24 px-4 bg-background">
+        <div className="max-w-4xl mx-auto text-center space-y-12">
+          <h2 className="text-3xl md:text-4xl font-heading font-bold">PRICING</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+             <div className="p-8 border border-border bg-card/50">
+               <h3 className="text-xl font-bold font-heading mb-2">Free</h3>
+               <p className="text-4xl font-bold mb-6">$0</p>
+               <ul className="text-left space-y-2 mb-8 text-sm text-muted-foreground">
+                 <li>• 3 Active Commitments</li>
+                 <li>• Basic Reflection AI</li>
+                 <li>• Manual Verification</li>
+               </ul>
+             </div>
+             <div className="p-8 border border-foreground bg-foreground text-background relative">
+               <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs px-2 py-1 font-bold">POPULAR</div>
+               <h3 className="text-xl font-bold font-heading mb-2">Pro</h3>
+               <p className="text-4xl font-bold mb-6">$12<span className="text-lg font-normal opacity-70">/mo</span></p>
+               <ul className="text-left space-y-2 mb-8 text-sm opacity-80">
+                 <li>• Unlimited Commitments</li>
+                 <li>• Advanced Reflection AI</li>
+                 <li>• Social Witnesses</li>
+                 <li>• Hard Mode (Auto-Escalation)</li>
+               </ul>
+             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-32 px-4 text-center border-t border-border bg-zinc-950">
+        <h2 className="text-4xl md:text-6xl font-heading font-bold mb-8">
+          ENOUGH TALK.
+        </h2>
+        <Link href="/auth">
+          <Button size="lg" className="rounded-none h-16 px-12 text-xl font-bold bg-white text-black hover:bg-gray-200">
+            JOIN THE WAITLIST
+          </Button>
+        </Link>
+      </section>
+    </div>
+  );
+}

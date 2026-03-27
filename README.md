@@ -6,6 +6,8 @@ A commitment accountability platform with Supabase Edge Functions.
 
 ### Local Development
 
+Set up your development environment:
+
 ```bash
 # Install dependencies
 pnpm install
@@ -18,9 +20,13 @@ pnpm build
 
 # Type check
 pnpm check
+
+# Full quality verification (type check + production build)
+pnpm verify
 ```
 
 The app runs in **mock mode** by default (no Supabase needed). To use real Supabase locally:
+
 
 1. Copy `.env.example` to `.env`
 2. Add your Supabase credentials
@@ -39,7 +45,10 @@ Or follow the detailed guide in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### Manual Deployment
 
+Deploy to Supabase and Vercel manually:
+
 1. **Deploy Edge Functions to Supabase**:
+
    ```bash
    supabase functions deploy analyze_intent
    supabase functions deploy complete_commitment
@@ -48,6 +57,7 @@ Or follow the detailed guide in [DEPLOYMENT.md](./DEPLOYMENT.md).
    ```
 
 2. **Deploy to Vercel**:
+
    ```bash
    vercel --prod
    ```
@@ -58,7 +68,7 @@ Or follow the detailed guide in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## 🏗️ Project Structure
 
-```
+```text
 ├── client/              # React frontend
 │   └── src/
 │       ├── components/  # UI components
@@ -83,13 +93,15 @@ Or follow the detailed guide in [DEPLOYMENT.md](./DEPLOYMENT.md).
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - Full deployment guide
 - [README_FUNCTIONS.md](./README_FUNCTIONS.md) - Edge Functions documentation
 - [APP_STORE_RELEASE.md](./APP_STORE_RELEASE.md) - iOS/Android release checklist via Capacitor
+- [PRIVACY_POLICY.md](./PRIVACY_POLICY.md) - Privacy policy and data handling practices
+- [TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md) - Terms of service and user agreement
 
 ## 🧪 Development Modes
 
-| Mode | When | Behavior |
-|------|------|----------|
-| **Mock** | No `VITE_SUPABASE_URL` | Simulated backend, no real API calls |
-| **Real** | `VITE_SUPABASE_URL` set | Calls real Supabase Edge Functions |
+| Mode      | When                          | Behavior                                       |
+|-----------|-------------------------------|------------------------------------------------|
+| **Mock**  | No `VITE_SUPABASE_URL`        | Simulated backend, no real API calls           |
+| **Real**  | `VITE_SUPABASE_URL` set       | Calls real Supabase Edge Functions             |
 
 ## 🛠️ Tech Stack
 

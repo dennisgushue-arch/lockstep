@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": "20.x"
+    "node": ">=20 <25"
   },
   "license": "MIT",
   "scripts": {
@@ -12,6 +12,9 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0 --port 5000",
     "build": "vite build --config vite.config.ts",
     "preview": "vite preview --config vite.config.ts --host 0.0.0.0 --port 5000",
+    "verify": "pnpm check && pnpm build",
+    "verify:routes": "node test-routes.js",
+    "verify:all": "pnpm verify",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
@@ -114,6 +117,7 @@
     "autoprefixer": "^10.4.23",
     "drizzle-kit": "^0.31.8",
     "esbuild": "^0.25.0",
+    "playwright": "1.52.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
