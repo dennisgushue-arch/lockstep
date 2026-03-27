@@ -73,7 +73,7 @@ export default function LiveOutcomeStrip() {
                   {item.label}
                 </div>
 
-                <div className="text-xl md:text-3xl font-bold mt-2">{item.value}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold mt-2">{item.value}</div>
 
                 <div className={`text-xs mt-2 font-medium ${toneClass(item.tone)}`}>
                   {item.delta}

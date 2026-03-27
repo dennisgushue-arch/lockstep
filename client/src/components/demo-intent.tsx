@@ -109,19 +109,19 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
             <br />
             See a pact appear.
           </h2>
-          <p className="text-zinc-300 text-base md:text-lg">
+          <p className="text-base sm:text-lg text-zinc-300 max-w-xl">
             See the stake, the proof bar, and the penalty in seconds.
           </p>
 
           <div className="space-y-3">
-            <div className="text-sm text-zinc-500">Type the flinch you keep repeating.</div>
+            <div className="text-sm text-zinc-500">Type one thing you keep saying.</div>
 
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={4}
               placeholder={placeholder}
-              className="w-full min-h-[96px] bg-transparent text-white text-base outline-none resize-none placeholder:text-zinc-600 border border-zinc-700 p-4"
+              className="w-full min-h-[96px] bg-transparent text-white text-base sm:text-lg outline-none resize-none placeholder:text-zinc-600 border border-zinc-700 p-4"
             />
 
             <div className="flex flex-wrap gap-3">
@@ -178,7 +178,7 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
 
           {result ? (
             <Button
-              className="w-full sm:w-auto rounded-none h-14 px-8 bg-white text-black hover:bg-zinc-200"
+              className="w-full sm:w-auto rounded-none bg-white text-black hover:bg-zinc-200 font-bold"
               onClick={onLockReal}
             >
               ATTACH A PENALTY
