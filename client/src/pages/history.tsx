@@ -2,8 +2,9 @@ import React, { useMemo } from "react";
 import { Link } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNowStrict, format } from "date-fns";
-import { ArrowLeft, TrendingUp, Award, Target, AlertCircle } from "lucide-react";
+import { ArrowLeft, TrendingUp, Award, Target, AlertCircle, Brain, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function badgeFor(commitment: any) {
@@ -23,7 +24,7 @@ function badgeFor(commitment: any) {
 }
 
 export function HistoryPage() {
-  const { commitments } = useApp();
+  const { commitments, behaviorProfile } = useApp();
 
   const stats = useMemo(() => {
     const completed = commitments.filter(c => c.status === "completed").length;
@@ -115,6 +116,40 @@ export function HistoryPage() {
             <p className="text-xs text-zinc-500">{stats.failed} failures</p>
           </div>
         </div>
+
+        {/* Identity Summary — Psych Engine */}
+        {behaviorProfile && behaviorProfile.identitySummary.length > 0 && (
+          <div className="border border-purple-900/40 bg-gradient-to-br from-purple-950/30 to-black rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="w-5 h-5 text-purple-400" />
+              <span className="text-xs uppercase tracking-[0.22em] text-purple-400 font-bold">Identity Summary</span>
+              {behaviorProfile.strongestCategory && (
+                <Badge variant="outline" className="ml-auto text-xs border-purple-600/50 text-purple-300">
+                  Strongest: {behaviorProfile.strongestCategory}
+                </Badge>
+              )}
+              {behaviorProfile.weakestCategory && behaviorProfile.weakestCategory !== behaviorProfile.strongestCategory && (
+                <Badge variant="outline" className="text-xs border-red-700/50 text-red-400">
+                  Weakest: {behaviorProfile.weakestCategory}
+                </Badge>
+              )}
+            </div>
+            <ul className="space-y-2">
+              {behaviorProfile.identitySummary.map((line, i) => (
+                <li key={i} className="flex gap-3 text-sm text-purple-100">
+                  <Flame className="w-3.5 h-3.5 text-purple-500 mt-0.5 shrink-0" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            {behaviorProfile.bestTimeOfDay && (
+              <p className="mt-4 text-xs text-zinc-500">
+                Peak execution window:{" "}
+                <span className="text-emerald-400 font-semibold">{behaviorProfile.bestTimeOfDay}</span>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Contract history */}
         <div className="border border-zinc-800/50 rounded-xl bg-gradient-to-b from-zinc-900/30 to-black overflow-hidden backdrop-blur-sm">

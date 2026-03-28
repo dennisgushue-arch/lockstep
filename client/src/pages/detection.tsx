@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Bell, X, TrendingUp, Calendar, MessageSquare, Mic, BookOpen, Zap, 
   ArrowRight, Sparkles, Brain, AlertCircle, CheckCircle2, Clock,
-  Flame, Target, Volume2, StopCircle
+  Flame, Target, Volume2, StopCircle, ShieldAlert
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import type { IntentPattern } from "@/lib/passive-detection";
@@ -25,7 +25,9 @@ export default function DetectionPage() {
     lockInPattern,
     captureSignal,
     loadDemoData,
-    syncInputSources 
+    syncInputSources,
+    behaviorProfile,
+    psychProfile,
   } = useApp();
   const [, setLocation] = useLocation();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -304,6 +306,33 @@ export default function DetectionPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Bluff Pattern Alert — from Psych Engine */}
+      {behaviorProfile && behaviorProfile.bluffTopics.length > 0 && (
+        <Card className="border border-amber-600/40 bg-amber-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-amber-300 flex items-center gap-2 text-base">
+              <ShieldAlert className="w-4 h-4" />
+              Bluff Pattern Detected
+            </CardTitle>
+            <CardDescription className="text-amber-200/60">
+              These topics appear repeatedly in your signals but have never been committed to.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {behaviorProfile.bluffTopics.map((topic) => (
+                <Badge key={topic} variant="outline" className="border-amber-600/60 text-amber-300 text-xs">
+                  {topic}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xs text-amber-200/70 italic">
+              {psychProfile?.pattern_warning ?? behaviorProfile.psych.pattern_warning}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detected Patterns */}
       {activePatterns.length > 0 && (

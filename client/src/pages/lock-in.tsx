@@ -6,7 +6,7 @@ import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { format, addHours } from "date-fns";
-import { CalendarIcon, Coins, AlertCircle } from "lucide-react";
+import { CalendarIcon, Coins, AlertCircle, Brain, ShieldAlert, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
@@ -31,14 +31,26 @@ function calculateCreditsRequired(stakeAmount: number): number {
 }
 
 export default function LockInPage() {
-  const { currentIntent, createCommitment, creditBalance, user } = useApp();
+  const { currentIntent, createCommitment, creditBalance, user, behaviorProfile, psychProfile } = useApp();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const pactSizeBadge =
+    currentIntent?.pact_size_level === "tiny"
+      ? "border-yellow-500/50 text-yellow-300 bg-yellow-500/10"
+      : currentIntent?.pact_size_level === "small"
+        ? "border-sky-500/50 text-sky-300 bg-sky-500/10"
+        : currentIntent?.pact_size_level === "expanded"
+          ? "border-emerald-500/50 text-emerald-300 bg-emerald-500/10"
+          : "border-zinc-700 text-zinc-300 bg-zinc-900/50";
+  const parsedIntentDeadline = currentIntent?.deadline ? new Date(currentIntent.deadline) : null;
+  const initialDeadline = parsedIntentDeadline && !Number.isNaN(parsedIntentDeadline.getTime())
+    ? parsedIntentDeadline
+    : addHours(new Date(), 24);
   
   // Initialize stake with AI suggestion
   const [stake, setStake] = useState<number>(currentIntent?.suggested_stake ?? 5);
   const [consequence, setConsequence] = useState<'money' | 'social' | 'escalate'>('money');
-  const [date, setDate] = useState<Date | undefined>(addHours(new Date(), 24));
+  const [date, setDate] = useState<Date | undefined>(initialDeadline);
   const [refundOnCompletion, setRefundOnCompletion] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -240,6 +252,53 @@ export default function LockInPage() {
           </div>
         </div>
       </Card>
+
+      {/* Pre-Failure Psych Signal */}
+      {(psychProfile || behaviorProfile) && ((psychProfile?.pattern_warning || behaviorProfile?.psych.pattern_warning) || (psychProfile?.next_pressure_line || behaviorProfile?.psych.next_pressure_line)) && (
+        <Card className="border border-amber-500/40 bg-amber-950/20 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-amber-400" />
+            <span className="text-xs uppercase tracking-widest text-amber-400 font-bold">Psych Engine</span>
+            {behaviorProfile.completionRate > 0 && (
+              <Badge variant="outline" className="ml-auto text-xs border-amber-600/50 text-amber-400">
+                {Math.round(behaviorProfile.completionRate * 100)}% honor rate
+              </Badge>
+            )}
+          </div>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <ShieldAlert className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-200">{psychProfile?.pattern_warning ?? behaviorProfile.psych.pattern_warning}</p>
+            </div>
+            <div className="flex gap-3">
+              <Zap className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
+              <p className="text-sm text-sky-200">{psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line}</p>
+            </div>
+            {currentIntent?.pact_size_reason && (
+              <div className="space-y-2">
+                <span className={`inline-flex items-center px-2 py-0.5 text-[10px] uppercase tracking-widest border ${pactSizeBadge}`}>
+                  Pact Size: {currentIntent.pact_size_level ?? "standard"}
+                </span>
+                <div className="text-xs text-zinc-300">{currentIntent.pact_size_reason}</div>
+              </div>
+            )}
+            {currentIntent?.pact_size_level === "tiny" && (
+              <div className="text-sm text-yellow-400">
+                This was reduced to make sure you actually start.
+              </div>
+            )}
+          </div>
+          {behaviorProfile.riskPatterns.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {behaviorProfile.riskPatterns.map((risk) => (
+                <Badge key={risk} variant="outline" className="text-xs border-red-700/50 text-red-400">
+                  {risk}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Confirm Button */}
       <div className="space-y-4">

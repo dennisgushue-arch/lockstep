@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { analyzeIntent, type StructuredIntent } from "@/lib/ai";
+import { hydrateBehaviorProfileFromLocalStorage } from "@/lib/behavior-profile";
 
 type DemoIntentProps = {
   onLockReal: () => void;
@@ -40,7 +41,9 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
     setError(null);
 
     try {
-      const data = await analyzeIntent(text.trim());
+      const data = await analyzeIntent(text.trim(), {
+        behaviorProfile: hydrateBehaviorProfileFromLocalStorage(text.trim()),
+      });
       setResult(data);
     } catch {
       setResult(fallbackDemoResult(text.trim()));

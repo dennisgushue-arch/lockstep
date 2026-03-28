@@ -1,10 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { format, addDays } from "date-fns";
-import { analyzeIntent as analyzeIntentAI, type StructuredIntent } from "./ai";
+import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { analyzeIntent as analyzeIntentAI } from "./ai";
 import type { IntentSignal, IntentPattern, DetectionResult } from "./passive-detection";
-import { processNewSignal, shouldPromptCommitment } from "./passive-detection";
+import { processNewSignal } from "./passive-detection";
 import { inputManager, type SourceType } from "./input-sources";
 import { keystrokeMonitor } from "./keystroke-monitor";
+import { buildUserBehaviorProfile, type UserBehaviorProfile } from "./behavior-profile";
+import { buildPsychProfile, type PsychProfile, type BehaviorMemoryLike } from "./psych-engine";
+import { savePsychProfile, getPsychProfile } from "./psych-storage";
+import { calculateAdaptiveDeadline } from "./adaptive-deadlines";
+import { calculateAdaptivePactSize } from "./adaptive-pact-size";
 
 // Types
 export type User = {
@@ -34,6 +38,10 @@ export type Intent = {
   reflection: string;
   confidence: number;
   suggested_stake: number;
+  deadline?: string | null;
+  deadline_reason?: string | null;
+  pact_size_reason?: string | null;
+  pact_size_level?: string | null;
 };
 
 export type Commitment = {
@@ -52,6 +60,10 @@ type AppContextType = {
   user: User | null;
   login: (email: string) => Promise<void>;
   logout: () => void;
+
+  behaviorProfile: UserBehaviorProfile;
+  psychProfile: PsychProfile | null;
+  refreshPsychProfile: () => void;
   
   currentIntent: Intent | null;
   analyzeIntent: (text: string) => Promise<void>;
@@ -88,12 +100,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentIntent, setCurrentIntent] = useState<Intent | null>(null);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
+  const [psychProfile, setPsychProfile] = useState<PsychProfile | null>(null);
   
   // Passive detection state
   const [intentSignals, setIntentSignals] = useState<IntentSignal[]>([]);
   const [intentPatterns, setIntentPatterns] = useState<IntentPattern[]>([]);
 
   const creditBalance = user?.creditBalance ?? 0;
+
+  const behaviorProfile = useMemo(
+    () =>
+      buildUserBehaviorProfile({
+        commitments,
+        intentPatterns,
+        intentSignals,
+      }),
+    [commitments, intentPatterns, intentSignals]
+  );
+
+  const behaviorMemory = useMemo<BehaviorMemoryLike>(() => {
+    const categoryRates: Record<string, number> = {};
+    behaviorProfile.categories.forEach((c) => {
+      categoryRates[c.category] = c.completion_rate;
+    });
+
+    const mapTime = (value: string | null | undefined): "morning" | "afternoon" | "evening" | "unknown" => {
+      if (value === "morning" || value === "afternoon" || value === "evening") return value;
+      return "unknown";
+    };
+
+    return {
+      summary: {
+        strongestCategory: behaviorProfile.strongestCategory,
+        weakestCategory: behaviorProfile.weakestCategory,
+        bestTimeOfDay: mapTime(behaviorProfile.bestTimeOfDay),
+        worstTimeOfDay: mapTime(behaviorProfile.worstTimeOfDay),
+        commonFailureReason: behaviorProfile.commonFailureReason,
+        bluffTopics: behaviorProfile.bluffTopics,
+      },
+      raw: {
+        completionRate: behaviorProfile.completionRate,
+        totalCompleted: behaviorProfile.stats.completed_commitments,
+        totalMissed: behaviorProfile.stats.missed_commitments,
+        categoryRates,
+      },
+      insights: behaviorProfile.identitySummary,
+    };
+  }, [behaviorProfile]);
+
+  const integrityScore = useMemo(() => Math.round((behaviorProfile.completionRate ?? 0) * 100), [behaviorProfile.completionRate]);
 
   // Initialize with some dummy data if we want, or clean slate
   useEffect(() => {
@@ -106,6 +161,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         parsed.email = 'user@example.com';
       }
       setUser(parsed);
+    } else {
+      // Demo-mode convenience: seed a guest user so flows work without email login
+      const guestUser: User = {
+        id: 'guest_demo_user',
+        email: 'guest@lockstep.demo',
+        creditBalance: 100,
+      };
+      setUser(guestUser);
+      localStorage.setItem('intent_mock_user', JSON.stringify(guestUser));
     }
     
     const storedCommitments = localStorage.getItem('intent_mock_commitments');
@@ -119,6 +183,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const storedPatterns = localStorage.getItem('intent_mock_patterns');
     if (storedPatterns) setIntentPatterns(JSON.parse(storedPatterns));
+
+    const storedPsychProfile = getPsychProfile();
+    if (storedPsychProfile) setPsychProfile(storedPsychProfile);
   }, []);
 
   useEffect(() => {
@@ -142,6 +209,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem('intent_mock_patterns', JSON.stringify(intentPatterns));
   }, [intentPatterns]);
+
+  const refreshPsychProfile = () => {
+    const profile = buildPsychProfile({
+      behaviorMemory,
+      commitments,
+      integrityScore,
+    });
+
+    setPsychProfile(profile);
+    savePsychProfile(profile);
+  };
+
+  useEffect(() => {
+    const profile = buildPsychProfile({
+      behaviorMemory,
+      commitments,
+      integrityScore,
+    });
+
+    setPsychProfile(profile);
+    savePsychProfile(profile);
+  }, [behaviorMemory, commitments, integrityScore]);
 
   const login = async (email: string) => {
     // Simulate magic link delay
@@ -184,17 +273,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const analyzeIntent = async (text: string) => {
     try {
-      const result = await analyzeIntentAI(text);
+      const profileForRequest = buildUserBehaviorProfile({
+        commitments,
+        intentPatterns,
+        intentSignals,
+        currentIntentText: text,
+      });
+
+      const result = await analyzeIntentAI(text, {
+        behaviorProfile: profileForRequest,
+        psychProfile,
+      });
+
+      // Heuristic difficulty (1-5) derived from stake pressure.
+      const difficulty = Math.max(1, Math.min(5, Math.round((result.suggested_stake ?? 10) / 20) || 1));
+
+      // Lightweight calendar pressure proxy from recent calendar signals.
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const recentCalendarSignals = intentSignals.filter(
+        (s) => s.sourceType === "calendar" && new Date(s.detectedAt).getTime() >= sevenDaysAgo
+      ).length;
+
+      const calendarRiskLevel: "low" | "medium" | "high" =
+        recentCalendarSignals >= 8 ? "high" : recentCalendarSignals >= 3 ? "medium" : "low";
+
+      const adaptiveDeadline = calculateAdaptiveDeadline({
+        baseDeadline: null,
+        difficulty,
+        integrityScore,
+        bestTimeOfDay: behaviorMemory?.summary?.bestTimeOfDay,
+        worstTimeOfDay: behaviorMemory?.summary?.worstTimeOfDay,
+        calendarRiskLevel,
+      });
+
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const recentMissCount = commitments.filter(
+        (c) => c.status === "missed" && new Date(c.scheduledDate).getTime() >= thirtyDaysAgo
+      ).length;
+
+      const pactSize = calculateAdaptivePactSize({
+        action: result.first_action || result.goal,
+        category: result.category,
+        difficulty,
+        integrityScore,
+        weakestCategory: behaviorMemory?.summary?.weakestCategory,
+        strongestCategory: behaviorMemory?.summary?.strongestCategory,
+        recentMisses: recentMissCount,
+      });
+
+      const mergedReflection = result.reflection || "Pact structure reviewed.";
       
       const mockAnalysis: Intent = {
         id: Math.random().toString(36).substr(2, 9),
         text,
         category: result.category,
-        goal: result.goal,
-        first_action: result.first_action,
-        reflection: result.reflection,
+        goal: pactSize.adjustedAction,
+        first_action: result.first_action || `Start: ${pactSize.adjustedAction}`,
+        reflection: `${mergedReflection} Task size adjusted because ${pactSize.reason.toLowerCase()} Deadline set because ${adaptiveDeadline.reason.toLowerCase()}`,
         confidence: result.confidence,
-        suggested_stake: result.suggested_stake
+        suggested_stake: result.suggested_stake,
+        deadline: new Date(adaptiveDeadline.suggestedDeadline).toLocaleString(),
+        deadline_reason: adaptiveDeadline.reason,
+        pact_size_reason: pactSize.reason,
+        pact_size_level: pactSize.sizeLevel,
       };
       
       setCurrentIntent(mockAnalysis);
@@ -533,6 +674,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user,
       login,
       logout,
+      behaviorProfile,
+      psychProfile,
+      refreshPsychProfile,
       currentIntent,
       analyzeIntent,
       clearCurrentIntent,

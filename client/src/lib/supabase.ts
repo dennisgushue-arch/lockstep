@@ -28,6 +28,38 @@ const mockDatabase: Record<string, MockRow[]> = {
   commitments: []
 };
 
+function clamp(min: number, value: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function buildProfileAwareReflection(base: string, behaviorProfile?: any): string {
+  if (!behaviorProfile?.psych) return base;
+
+  const snippets = [
+    behaviorProfile.psych.pattern_warning,
+    behaviorProfile.psych.best_leverage_point,
+    behaviorProfile.psych.next_pressure_line,
+  ].filter(Boolean);
+
+  if (!snippets.length) return base;
+  return `${base} ${snippets[0]}`;
+}
+
+function applyProfileStake(baseStake: number, behaviorProfile?: any): number {
+  const stats = behaviorProfile?.stats;
+  if (!stats) return baseStake;
+
+  const completionRate = Number(stats.completion_rate ?? 0);
+  const overdue = Number(stats.active_overdue_count ?? 0);
+
+  let adjusted = baseStake;
+  if (completionRate < 0.45) adjusted += 5;
+  if (completionRate > 0.75) adjusted -= 2;
+  if (overdue > 0) adjusted += 3;
+
+  return clamp(5, adjusted, 100);
+}
+
 const mockSupabase = {
   functions: {
     invoke: async (name: string, { body }: { body: any }): Promise<{ data: any; error: any }> => {
@@ -121,6 +153,7 @@ const mockSupabase = {
       };
 
       // Parse intent from raw text
+      const behaviorProfile = body?.behavior_profile;
       const text = (body.raw_text || "").toLowerCase();
       let category: keyof typeof templates = "other";
       let confidence = 0.85;
@@ -147,6 +180,8 @@ const mockSupabase = {
       const goal = typeof tmpl.goal === "function" ? tmpl.goal(body.raw_text) : tmpl.goal;
       const first_action = typeof tmpl.first_action === "function" ? tmpl.first_action(body.raw_text) : tmpl.first_action;
       const reflection = typeof tmpl.reflection === "function" ? tmpl.reflection(body.raw_text) : tmpl.reflection;
+      const profileAwareReflection = buildProfileAwareReflection(reflection, behaviorProfile);
+      const profileAwareStake = applyProfileStake(tmpl.suggested_stake, behaviorProfile);
 
       return {
         data: {
@@ -154,8 +189,8 @@ const mockSupabase = {
           confidence,
           goal,
           first_action,
-          reflection,
-          suggested_stake: tmpl.suggested_stake
+          reflection: profileAwareReflection,
+          suggested_stake: profileAwareStake
         },
         error: null
       };

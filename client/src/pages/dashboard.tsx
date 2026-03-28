@@ -37,7 +37,7 @@ function badgeFor(c: CommitmentCard) {
 }
 
 export default function Dashboard() {
-  const { commitments, completeCommitment, markMissed } = useApp();
+  const { commitments, completeCommitment, markMissed, behaviorProfile, psychProfile } = useApp();
   const [, setLocation] = useLocation();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -336,6 +336,42 @@ export default function Dashboard() {
                     <span className="font-semibold">
                       {selected.consequence_type ?? "money"}
                     </span>
+                  </div>
+                </div>
+
+                <div className="border border-zinc-800 p-4 bg-black/30 space-y-2">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Pattern warning
+                  </div>
+                  <div className="text-sm">
+                    {psychProfile?.pattern_warning ?? behaviorProfile.psych.pattern_warning}
+                  </div>
+                </div>
+
+                <div className="border border-zinc-800 p-4 bg-black/30 space-y-2">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Best leverage point
+                  </div>
+                  <div className="text-sm">
+                    {psychProfile?.best_leverage_point ?? behaviorProfile.psych.best_leverage_point}
+                  </div>
+                </div>
+
+                <div className="border border-zinc-800 p-4 bg-black/30 space-y-2">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Identity risk
+                  </div>
+                  <div className="text-sm">
+                    {psychProfile?.identity_risk ?? behaviorProfile.psych.identity_risk}
+                  </div>
+                </div>
+
+                <div className="border border-zinc-800 p-4 bg-black/30 space-y-2">
+                  <div className="text-xs uppercase tracking-widest opacity-60">
+                    Next pressure line
+                  </div>
+                  <div className="text-sm">
+                    {psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line}
                   </div>
                 </div>
 
