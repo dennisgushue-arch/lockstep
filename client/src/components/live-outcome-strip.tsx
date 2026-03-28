@@ -82,6 +82,10 @@ export default function LiveOutcomeStrip() {
             );
           })}
         </div>
+
+        <p className="mt-3 text-[11px] text-zinc-500">
+          Metrics shown are illustrative demo values.
+        </p>
       </div>
     </section>
   );

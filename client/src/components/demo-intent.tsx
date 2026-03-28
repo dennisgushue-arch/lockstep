@@ -1,68 +1,30 @@
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { analyzeIntent } from "@/lib/ai";
-import type { AnalyzeIntentResult } from "@/types/intent";
+import { analyzeIntent, type StructuredIntent } from "@/lib/ai";
 
 type DemoIntentProps = {
   onLockReal: () => void;
 };
 
-function formatProofMethod(proof: AnalyzeIntentResult["parsed_intent"]["proof_method"]) {
-  switch (proof) {
-    case "check_in":
-      return "Check-in";
-    case "photo":
-      return "Photo";
-    case "location":
-      return "Location";
-    case "calendar":
-      return "Calendar";
-    case "manual":
-      return "Manual";
-    default:
-      return "Check-in";
-  }
-}
-
-function fallbackDemoResult(text: string): AnalyzeIntentResult {
+function fallbackDemoResult(text: string): StructuredIntent {
   const lower = text.toLowerCase();
   const running = lower.includes("run") || lower.includes("running") || lower.includes("jog");
 
   return {
-    parsed_intent: {
-      raw_text: text,
-      action: running ? "Run 3 miles" : "Complete one concrete action",
-      category: running ? "health" : "personal",
-      metric: {
-        type: running ? "distance" : null,
-        target: running ? 3 : null,
-        unit: running ? "miles" : null,
-      },
-      deadline_at: null,
-      proof_method: "check_in",
-      difficulty: 3,
-      confidence: 0.76,
-    },
-    risk: {
-      score: 0.7,
-      level: "high",
-      reasons: ["Morning schedule overloaded"],
-      at_risk_warning: "Morning schedule overloaded.",
-    },
-    recommendation: {
-      rewrite: running ? "Run 3 miles" : "Define one specific, measurable action",
-      suggested_stake: 10,
-      suggested_first_step: "Prepare tonight so execution is frictionless tomorrow morning.",
-      should_ask_followup: false,
-      followup_question: null,
-    },
-    reflection_message: "You follow through more often when the action is specific and scheduled.",
+    category: running ? "fitness" : "other",
+    confidence: 0.76,
+    goal: running ? "Run 3 miles" : "Complete one concrete action",
+    first_action: running ? "Lay out your shoes tonight" : "Define the first measurable step",
+    reflection: running
+      ? "You follow through more when the action is specific."
+      : "You follow through more when the action is concrete.",
+    suggested_stake: 10,
   };
 }
 
 export default function DemoIntent({ onLockReal }: DemoIntentProps) {
   const [text, setText] = useState("");
-  const [result, setResult] = useState<AnalyzeIntentResult | null>(null);
+  const [result, setResult] = useState<StructuredIntent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,16 +50,11 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
     }
   }
 
-  const action = result?.recommendation.rewrite || result?.parsed_intent.action || "Run 3 miles";
-  const deadline = result?.parsed_intent.deadline_at
-    ? new Date(result.parsed_intent.deadline_at).toLocaleString()
-    : "Tomorrow 7:00 AM";
-  const stake = result?.recommendation.suggested_stake ?? 10;
-  const proof = result ? formatProofMethod(result.parsed_intent.proof_method) : "Check-in";
-  const risk =
-    result?.risk.at_risk_warning ||
-    result?.risk.reasons?.[0] ||
-    "Morning schedule overloaded";
+  const action = result?.goal || "Run 3 miles";
+  const deadline = "Tomorrow 7:00 AM";
+  const stake = result?.suggested_stake ?? 10;
+  const proof = "Check-in";
+  const reflection = result?.reflection || "This matters more when the action is concrete.";
 
   return (
     <section id="demo" className="container max-w-6xl mx-auto px-5 py-16 border-b border-zinc-800">
@@ -156,7 +113,7 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
             </div>
 
             <div className="border border-zinc-800 p-3">
-              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Deadline</div>
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Target Window</div>
               <div className="text-sm md:text-base font-bold mt-1 truncate">{deadline}</div>
             </div>
 
@@ -166,14 +123,18 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
             </div>
 
             <div className="border border-zinc-800 p-3">
-              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Proof</div>
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Proof Method</div>
               <div className="text-sm md:text-base font-bold mt-1">{proof}</div>
             </div>
           </div>
 
+          <p className="text-xs text-zinc-500">
+            Target window and proof method are demo defaults.
+          </p>
+
           <div className="border border-orange-700/40 bg-orange-950/20 p-4">
-            <div className="text-xs uppercase tracking-widest text-orange-400">Main Risk</div>
-            <div className="mt-2 text-sm text-orange-100">{risk}</div>
+            <div className="text-xs uppercase tracking-widest text-orange-400">Why It Matters</div>
+            <div className="mt-2 text-sm text-orange-100">{reflection}</div>
           </div>
 
           {result ? (

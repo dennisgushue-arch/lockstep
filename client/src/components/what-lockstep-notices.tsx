@@ -32,6 +32,10 @@ export default function WhatLockstepNotices() {
           ))}
         </div>
 
+        <p className="text-center text-xs text-zinc-500">
+          Example lines are illustrative composites.
+        </p>
+
         <div className="text-center pt-6">
           <div className="text-xl md:text-2xl font-bold">
             Lockstep turns flinching into stakes.
