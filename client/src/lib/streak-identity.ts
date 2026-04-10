@@ -1,4 +1,4 @@
-type CommitmentLike = {
+     type CommitmentLike = {
   status: "scheduled" | "completed" | "missed";
   scheduledDate: string;
 };

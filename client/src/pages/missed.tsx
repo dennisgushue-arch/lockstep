@@ -43,12 +43,14 @@ export default function MissedPage() {
     return Math.round((totalCompleted / total) * 100);
   }, [behaviorProfile, totalMissed, totalCompleted]);
 
-  const integrityIdentity = useMemo(() => getIntegrityIdentity(score), [score]);
+  const safeScore = typeof score === "number" ? score : 0;
+
+  const integrityIdentity = useMemo(() => getIntegrityIdentity(safeScore), [safeScore]);
   const identityPressureLine = useMemo(
-    () => getIntegrityIdentityPressureLine(score),
-    [score]
+    () => behaviorProfile.psych.next_pressure_line,
+    [behaviorProfile.psych.next_pressure_line]
   );
-  const recoveryPlan = useMemo(() => getRecoveryPlan(score), [score]);
+  const recoveryPlan = useMemo(() => getRecoveryPlan(safeScore), [safeScore]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-red-950/20 to-black">

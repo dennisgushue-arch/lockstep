@@ -44,6 +44,10 @@ export type Intent = {
   deadline_reason?: string | null;
   pact_size_reason?: string | null;
   pact_size_level?: string | null;
+  parsed_intent?: {
+    category?: string;
+    proof_method?: string;
+  };
 };
 
 export type Commitment = {
@@ -56,6 +60,12 @@ export type Commitment = {
   scheduledDate: string;
   status: 'scheduled' | 'completed' | 'missed';
   refundOnCompletion: boolean; // Whether to refund credits if completed
+  witness?: {
+    name: string;
+    contact?: string | null;
+    relationship?: string | null;
+  } | null;
+  ai_plan?: any;
 };
 
 type AppContextType = {
@@ -77,7 +87,7 @@ type AppContextType = {
   purchaseCredits: (amount: number, paymentIntentId: string) => Promise<void>;
   
   commitments: Commitment[];
-  createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean }) => Promise<Commitment>;
+  createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: string | null; aiPlan?: any; witness?: Commitment["witness"]; }) => Promise<Commitment>;
   completeCommitment: (id: string) => Promise<void>;
   markMissed: (id: string) => Promise<void>;
   
@@ -89,7 +99,8 @@ type AppContextType = {
   getActivePatterns: () => IntentPattern[];
   dismissPattern: (patternId: string) => void;
   lockInPattern: (patternId: string) => void;
-  syncInputSources: () => Promise<void>;
+  syncInputSources: () => Promise<number>;
+  syncInputSource: (sourceType: SourceType) => Promise<number>;
   
   // Debug
   runMissCheck: () => Promise<string>;
@@ -379,7 +390,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const clearCurrentIntent = () => setCurrentIntent(null);
 
-  const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean }) => {
+  const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true, actionText, stakeAmount, proofMethod, aiPlan, witness, }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: string | null; aiPlan?: any; witness?: Commitment["witness"]; }) => {
     if (!currentIntent) throw new Error("No intent found");
     if (!user) throw new Error("No user logged in");
     if (user.creditBalance < creditsCost) throw new Error("Insufficient credits");
@@ -415,6 +426,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       scheduledDate: scheduledDate.toISOString(),
       status: 'scheduled',
       refundOnCompletion,
+      witness: witness ?? null,
     };
     
     spendTransaction.relatedCommitmentId = newCommitment.id;
@@ -480,18 +492,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   const captureSignal = async (text: string, sourceType: SourceType = "manual"): Promise<DetectionResult | null> => {
     if (!user) throw new Error("User not logged in");
-    
+
     // Create new signal
     const signal = await inputManager.captureManualSignal(user.id, text);
     signal.sourceType = sourceType;
-    
+
     try {
-      // Process through detection algorithm
-      const { updatedPattern, detectionResult } = processNewSignal(signal, intentPatterns);
-      
+      // Process through detection algorithm (now async)
+      const { updatedPattern, detectionResult } = await processNewSignal(signal, intentPatterns);
+
       // Update state
       setIntentSignals(prev => [...prev, signal]);
-      
+
       // Update or add pattern
       setIntentPatterns(prev => {
         const existingIndex = prev.findIndex(p => p.id === updatedPattern.id);
@@ -502,7 +514,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
         return [...prev, updatedPattern];
       });
-      
+
       return detectionResult;
     } catch (error) {
       console.log("Signal processing skipped:", error);
@@ -649,16 +661,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
   
   const syncInputSources = async () => {
-    if (!user) return;
-    
+    if (!user) return 0;
+
     // Sync all connected sources
     const newSignals = await inputManager.syncAllSources(user.id);
-    
-    // Process each signal
+
+    // Process each signal (async)
     for (const signal of newSignals) {
       try {
-        const { updatedPattern } = processNewSignal(signal, intentPatterns);
-        
+        const { updatedPattern } = await processNewSignal(signal, intentPatterns);
+
         setIntentPatterns(prev => {
           const existingIndex = prev.findIndex(p => p.id === updatedPattern.id);
           if (existingIndex >= 0) {
@@ -672,18 +684,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.log("Signal processing skipped:", error);
       }
     }
-    
+
     setIntentSignals(prev => [...prev, ...newSignals]);
+    return newSignals.length;
+  };
+
+  const syncInputSource = async (sourceType: SourceType) => {
+    if (!user) return 0;
+
+    const newSignals = await inputManager.syncSource(user.id, sourceType);
+
+    for (const signal of newSignals) {
+      try {
+        const { updatedPattern } = await processNewSignal(signal, intentPatterns);
+
+        setIntentPatterns(prev => {
+          const existingIndex = prev.findIndex(p => p.id === updatedPattern.id);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = updatedPattern;
+            return updated;
+          }
+          return [...prev, updatedPattern];
+        });
+      } catch (error) {
+        console.log("Signal processing skipped:", error);
+      }
+    }
+
+    setIntentSignals(prev => [...prev, ...newSignals]);
+    return newSignals.length;
   };
 
   // Initialize keystroke monitor when user is logged in and passive detection is enabled
   useEffect(() => {
     const passiveDetectionEnabled = localStorage.getItem("passiveDetectionEnabled") === "true";
-    
+
     if (user && passiveDetectionEnabled) {
       console.log("[AppProvider] Initializing keystroke monitor for user:", user.id);
-      
-      // Set up handler for detected keystroke sessions
+
+      // Set up handler for detected keystroke sessions (now fully async)
       keystrokeMonitor.enable(async (session, text) => {
         console.log("[AppProvider] Keystroke session detected, capturing signal");
         try {
@@ -727,6 +767,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dismissPattern,
       lockInPattern,
       syncInputSources,
+      syncInputSource,
       runMissCheck
     }}>
       {children}

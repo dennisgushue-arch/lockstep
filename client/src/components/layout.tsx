@@ -9,9 +9,10 @@ import { Coins, Settings } from "lucide-react";
 import type { IntentPattern } from "@/lib/passive-detection";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logout, creditBalance, intentPatterns, dismissPattern, lockInPattern } = useApp();
   const [activeSuggestion, setActiveSuggestion] = useState<IntentPattern | null>(null);
+  const ONBOARDING_STORAGE_KEY = "onboarding_completed_v1";
   const isDemoUser = Boolean(user && (user.id === "guest_demo_user" || user.email === "guest@lockstep.demo"));
   
   // Watch for high-urgency patterns to show suggestion
@@ -24,6 +25,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       setActiveSuggestion(highUrgencyPattern);
     }
   }, [intentPatterns, activeSuggestion]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (location === "/" || location === "/auth" || location === "/onboarding") return;
+
+    const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
+    if (!completed) {
+      setLocation("/onboarding");
+    }
+  }, [user, location, setLocation]);
   
   const isLanding = location === "/";
   const isAuth = location === "/auth";

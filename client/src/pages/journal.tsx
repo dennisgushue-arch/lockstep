@@ -38,7 +38,7 @@ function saveCheckIns(entries: CheckInEntry[]) {
 
 export default function JournalPage() {
   const [location, setLocation] = useLocation();
-  const { commitments, captureSignal } = useApp();
+  const { commitments, captureSignal, behaviorProfile } = useApp();
   const { toast } = useToast();
 
   const [note, setNote] = useState("");
@@ -74,8 +74,8 @@ export default function JournalPage() {
   );
 
   const identityPressureLine = useMemo(
-    () => getIntegrityIdentityPressureLine(integrityScore),
-    [integrityScore]
+    () => behaviorProfile.psych.next_pressure_line,
+    [behaviorProfile.psych.next_pressure_line]
   );
 
   const handleSave = async () => {

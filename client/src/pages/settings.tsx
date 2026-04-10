@@ -74,6 +74,13 @@ export default function SettingsPage() {
               </AlertDescription>
             </Alert>
 
+            {/* AI Disclaimer */}
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-900">
+                <strong>AI disclaimer:</strong> AI responses are for informational purposes only and may not be accurate.
+              </AlertDescription>
+            </Alert>
+
             {/* Main Toggle */}
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex-1">
@@ -148,7 +155,15 @@ export default function SettingsPage() {
             <CardTitle>Other Preferences</CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground">
-            <p>Additional settings coming soon...</p>
+            <p className="mb-3">Additional settings coming soon...</p>
+            <div className="flex gap-2 flex-wrap">
+              <a href="/privacy.html" target="_blank" rel="noreferrer">
+                <Button variant="outline" size="sm">Privacy Policy</Button>
+              </a>
+              <a href="/terms.html" target="_blank" rel="noreferrer">
+                <Button variant="outline" size="sm">Terms of Service</Button>
+              </a>
+            </div>
           </CardContent>
         </Card>
       </div>

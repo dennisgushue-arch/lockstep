@@ -63,8 +63,8 @@ export default function Dashboard() {
   );
 
   const identityPressureLine = useMemo(
-    () => getIntegrityIdentityPressureLine(integrityScore),
-    [integrityScore]
+    () => behaviorProfile.psych.next_pressure_line,
+    [behaviorProfile.psych.next_pressure_line]
   );
 
   const recoveryPlan = useMemo(() => getRecoveryPlan(integrityScore), [integrityScore]);

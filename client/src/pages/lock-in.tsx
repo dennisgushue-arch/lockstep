@@ -3,7 +3,6 @@ import { Calendar } from "@/components/ui/calendar";
 import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
-import { getIntegrityIdentityPressureLine } from "@/lib/integrity-identity";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { format, addHours } from "date-fns";
@@ -55,20 +54,21 @@ export default function LockInPage() {
   const [refundOnCompletion, setRefundOnCompletion] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Witness state
+  const [witnessEnabled, setWitnessEnabled] = useState(false);
+  const [witnessName, setWitnessName] = useState("");
+  const [witnessRelationship, setWitnessRelationship] = useState("");
+  const [witnessContact, setWitnessContact] = useState("");
+
   const integrityScore = useMemo(
     () => Math.round((behaviorProfile.completionRate ?? 0) * 100),
     [behaviorProfile.completionRate]
   );
 
-  const identityPressureLine = useMemo(
-    () => getIntegrityIdentityPressureLine(integrityScore),
-    [integrityScore]
-  );
-
   const composedPressureLine = useMemo(() => {
     const base = psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line;
-    return base ? `${base} ${identityPressureLine}` : identityPressureLine;
-  }, [psychProfile?.next_pressure_line, behaviorProfile.psych.next_pressure_line, identityPressureLine]);
+    return base || "";
+  }, [psychProfile?.next_pressure_line, behaviorProfile.psych.next_pressure_line]);
 
   const creditsRequired = calculateCreditsRequired(stake);
   const hasEnoughCredits = creditBalance >= creditsRequired;
@@ -97,6 +97,16 @@ export default function LockInPage() {
       return;
     }
 
+    // Validate witness for social consequence
+    if (consequence === "social" && (!witnessEnabled || !witnessName.trim())) {
+      toast({
+        title: "Witness Required",
+        description: "A witness is required for social consequence mode.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -105,6 +115,14 @@ export default function LockInPage() {
         consequenceType: consequence,
         scheduledDate: date,
         refundOnCompletion,
+        witness:
+          witnessEnabled && witnessName.trim()
+            ? {
+                name: witnessName.trim(),
+                relationship: witnessRelationship.trim() || null,
+                contact: witnessContact.trim() || null,
+              }
+            : null,
       });
       
       toast({
@@ -268,6 +286,61 @@ export default function LockInPage() {
           </div>
         </div>
       </Card>
+
+      {/* Witness Mode */}
+      <div className="border border-zinc-800 bg-zinc-950/40 p-4 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-zinc-500">
+              Witness Mode
+            </div>
+            <div className="text-sm text-zinc-300 mt-1">
+              If you miss, this person becomes part of the consequence.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setWitnessEnabled((v) => !v)}
+            className={`px-3 py-2 border text-sm ${
+              witnessEnabled
+                ? "border-red-700 bg-red-950/20 text-red-300"
+                : "border-zinc-700 bg-black/20 text-zinc-400"
+            }`}
+          >
+            {witnessEnabled ? "ON" : "OFF"}
+          </button>
+        </div>
+
+        {witnessEnabled && (
+          <div className="grid gap-3">
+            <input
+              value={witnessName}
+              onChange={(e) => setWitnessName(e.target.value)}
+              placeholder="Witness name"
+              className="w-full bg-black/20 border border-zinc-800 px-3 py-3 text-white outline-none"
+            />
+
+            <input
+              value={witnessRelationship}
+              onChange={(e) => setWitnessRelationship(e.target.value)}
+              placeholder="Relationship (friend, partner, coach)"
+              className="w-full bg-black/20 border border-zinc-800 px-3 py-3 text-white outline-none"
+            />
+
+            <input
+              value={witnessContact}
+              onChange={(e) => setWitnessContact(e.target.value)}
+              placeholder="Optional contact info"
+              className="w-full bg-black/20 border border-zinc-800 px-3 py-3 text-white outline-none"
+            />
+
+            <div className="text-xs text-zinc-500">
+              Start simple: name is enough. Contact can be added later.
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Pre-Failure Psych Signal */}
       {(psychProfile || behaviorProfile) && ((psychProfile?.pattern_warning || behaviorProfile?.psych.pattern_warning) || (psychProfile?.next_pressure_line || behaviorProfile?.psych.next_pressure_line)) && (

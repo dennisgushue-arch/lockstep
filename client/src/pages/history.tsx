@@ -59,8 +59,8 @@ export function HistoryPage() {
   );
 
   const identityPressureLine = useMemo(
-    () => getIntegrityIdentityPressureLine(stats.honourRate),
-    [stats.honourRate]
+    () => behaviorProfile.psych.next_pressure_line,
+    [behaviorProfile.psych.next_pressure_line]
   );
 
   const sortedByDate = useMemo(() => {
