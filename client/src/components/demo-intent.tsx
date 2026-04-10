@@ -3,6 +3,15 @@ import { Button } from "@/components/ui/button";
 import { analyzeIntent } from "@/lib/ai";
 import type { AnalyzeIntentResult } from "@/types/intent";
 
+type StructuredIntentLike = {
+  category: string;
+  confidence?: number;
+  goal?: string;
+  first_action?: string;
+  reflection?: string;
+  suggested_stake?: number;
+};
+
 type DemoIntentProps = {
   onLockReal: () => void;
 };
@@ -60,6 +69,50 @@ function fallbackDemoResult(text: string): AnalyzeIntentResult {
   };
 }
 
+function normalizeDemoResult(
+  input: AnalyzeIntentResult | StructuredIntentLike,
+  rawText: string,
+): AnalyzeIntentResult {
+  if ((input as AnalyzeIntentResult)?.parsed_intent) {
+    return input as AnalyzeIntentResult;
+  }
+
+  const structured = input as StructuredIntentLike;
+  return {
+    parsed_intent: {
+      raw_text: rawText,
+      action: structured.goal || "Complete one concrete action",
+      category: structured.category || "personal",
+      metric: {
+        type: null,
+        target: null,
+        unit: null,
+      },
+      deadline_at: null,
+      proof_method: "check_in",
+      difficulty: 3,
+      confidence: structured.confidence ?? 0.75,
+    },
+    risk: {
+      score: 0.6,
+      level: "medium",
+      reasons: ["Execution risk rises without a concrete start time"],
+      at_risk_warning: "Execution risk rises without a concrete start time.",
+    },
+    recommendation: {
+      rewrite: structured.goal || rawText,
+      suggested_stake: structured.suggested_stake ?? 10,
+      suggested_first_step:
+        structured.first_action || "Take one concrete first step right now.",
+      should_ask_followup: false,
+      followup_question: null,
+    },
+    reflection_message:
+      structured.reflection ||
+      "Intent is strongest when your first action is immediate and measurable.",
+  };
+}
+
 export default function DemoIntent({ onLockReal }: DemoIntentProps) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<AnalyzeIntentResult | null>(null);
@@ -72,16 +125,25 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
   );
 
   async function runDemo() {
-    if (!text.trim()) return;
+    const demoText = text.trim() || placeholder;
+
+    if (!text.trim()) {
+      setText(placeholder);
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await analyzeIntent(text.trim());
-      setResult(data);
+      const data = await Promise.race([
+        analyzeIntent(demoText),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Demo analysis timed out")), 5000),
+        ),
+      ]);
+      setResult(normalizeDemoResult(data as AnalyzeIntentResult | StructuredIntentLike, demoText));
     } catch {
-      setResult(fallbackDemoResult(text.trim()));
+      setResult(fallbackDemoResult(demoText));
       setError("Live analysis unavailable right now — showing a realistic demo output.");
     } finally {
       setLoading(false);
@@ -128,7 +190,7 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
               <Button
                 className="w-full sm:w-auto rounded-none h-14 px-8 bg-red-600 text-white hover:bg-red-700"
                 onClick={runDemo}
-                disabled={loading || !text.trim()}
+                disabled={loading}
               >
                 {loading ? "ANALYZING..." : "RUN DEMO"}
               </Button>
@@ -141,6 +203,10 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
                 USE A COMMON FLINCH
               </Button>
             </div>
+
+            <p className="text-xs text-zinc-500">
+              No input? We&apos;ll run a default demo.
+            </p>
 
             {error ? <p className="text-sm text-orange-300">{error}</p> : null}
           </div>
