@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { supabase } from '@/lib/supabase';
+import { hydrateBehaviorProfileFromLocalStorage, type UserBehaviorProfile } from '@/lib/behavior-profile';
 import {
   detectCalendarPatterns,
   getUpcomingEvents,
@@ -31,6 +32,92 @@ interface Recommendation {
   riskLevel: 'low' | 'medium' | 'high';
   reasoning: string;
   confidenceScore: number;
+  behaviorAdjusted?: boolean;
+  behaviorAdjustmentNote?: string;
+}
+
+function clamp(min: number, value: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function inferIntentCategory(intent: string): string {
+  const lower = intent.toLowerCase();
+
+  if (/\b(workout|exercise|run|gym|fitness|health|diet|walk|sleep)\b/.test(lower)) return 'fitness';
+  if (/\b(work|business|project|career|launch|build|ship)\b/.test(lower)) return 'work';
+  if (/\b(learn|study|read|course|skill|practice)\b/.test(lower)) return 'growth';
+  if (/\b(family|friend|relationship|call|visit|date)\b/.test(lower)) return 'social';
+  if (/\b(scroll|screen|phone|social media|drink|smoke)\b/.test(lower)) return 'consumption';
+
+  return 'other';
+}
+
+function escalateRisk(base: Recommendation['riskLevel'], steps: number): Recommendation['riskLevel'] {
+  const order: Recommendation['riskLevel'][] = ['low', 'medium', 'high'];
+  const currentIndex = order.indexOf(base);
+  const nextIndex = clamp(0, currentIndex + steps, order.length - 1);
+  return order[nextIndex];
+}
+
+function applyBehaviorProfileToRecommendation(
+  recommendation: Recommendation,
+  behaviorProfile: UserBehaviorProfile | null
+): Recommendation {
+  if (!behaviorProfile) return recommendation;
+
+  const completionRate = Number(behaviorProfile.stats.completion_rate ?? 0);
+  const overdueCount = Number(behaviorProfile.stats.active_overdue_count ?? 0);
+  const category = inferIntentCategory(recommendation.intent);
+  const categoryPerf = behaviorProfile.categories.find((c) => c.category === category);
+
+  let stakeDelta = 0;
+  let riskEscalation = 0;
+
+  if (completionRate > 0 && completionRate < 0.45) {
+    stakeDelta += 3;
+    riskEscalation += 1;
+  }
+
+  if (overdueCount > 0) {
+    stakeDelta += 2;
+    riskEscalation += 1;
+  }
+
+  if (categoryPerf && categoryPerf.total >= 2 && categoryPerf.completion_rate < 0.5) {
+    stakeDelta += 2;
+    riskEscalation += 1;
+  }
+
+  // Calendar overload recommendations should stay low-friction by design
+  if (recommendation.source === 'calendar_analysis') {
+    stakeDelta = Math.max(0, stakeDelta - 2);
+    riskEscalation = Math.max(0, riskEscalation - 1);
+  }
+
+  const adjustedStake = clamp(3, recommendation.suggestedStake + stakeDelta, 50);
+  const adjustedRisk = escalateRisk(recommendation.riskLevel, clamp(0, riskEscalation, 2));
+  const stakeChanged = adjustedStake !== recommendation.suggestedStake;
+  const riskChanged = adjustedRisk !== recommendation.riskLevel;
+  const behaviorAdjusted = stakeChanged || riskChanged;
+
+  const behaviorLine = recommendation.source === 'calendar_analysis'
+    ? behaviorProfile.psych.pattern_warning
+    : behaviorProfile.psych.next_pressure_line;
+
+  const adjustedReasoning = `${recommendation.reasoning} ${behaviorLine}`.trim();
+  const adjustedConfidence = clamp(40, recommendation.confidenceScore + (stakeDelta > 0 ? 5 : 0), 95);
+
+  return {
+    ...recommendation,
+    suggestedStake: adjustedStake,
+    riskLevel: adjustedRisk,
+    reasoning: adjustedReasoning,
+    confidenceScore: adjustedConfidence,
+    behaviorAdjusted,
+    behaviorAdjustmentNote: behaviorAdjusted
+      ? 'Stake/risk adjusted from your behavior profile'
+      : undefined,
+  };
 }
 
 export function RecommendationsPage() {
@@ -76,6 +163,7 @@ export function RecommendationsPage() {
   }
 
   async function loadRecommendations(): Promise<Recommendation[]> {
+    const behaviorProfile = hydrateBehaviorProfileFromLocalStorage();
     const recommendations: Recommendation[] = [];
 
     const extractJournalIntents = (text: string): string[] => {
@@ -173,7 +261,9 @@ export function RecommendationsPage() {
       }
     }
 
-    return recommendations;
+    return recommendations.map((recommendation) =>
+      applyBehaviorProfileToRecommendation(recommendation, behaviorProfile)
+    );
   }
 
   async function acceptRecommendation(rec: Recommendation) {
@@ -331,6 +421,24 @@ export function RecommendationsPage() {
                       <h3 className="text-lg font-semibold text-white">
                         {rec.intent}
                       </h3>
+                      {rec.behaviorAdjusted && (() => {
+                        const badgeCls = {
+                          voice_note:       'border-green-400/40 bg-green-500/10 text-green-200',
+                          journal:          'border-amber-400/40 bg-amber-500/10 text-amber-200',
+                          calendar_analysis:'border-blue-400/40  bg-blue-500/10  text-blue-200',
+                        }[rec.source] ?? 'border-zinc-400/40 bg-zinc-500/10 text-zinc-300';
+                        return (
+                          <span
+                            className={cn(
+                              'inline-flex items-center mt-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wide',
+                              badgeCls
+                            )}
+                            title={rec.behaviorAdjustmentNote}
+                          >
+                            Behavior-adjusted
+                          </span>
+                        );
+                      })()}
                       <p className="text-sm text-gray-400 mt-1">
                         {rec.reasoning}
                       </p>

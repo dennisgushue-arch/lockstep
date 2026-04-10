@@ -363,6 +363,30 @@ export class InputSourceManager {
   }
 
   /**
+   * Sync a specific source only
+   */
+  async syncSource(userId: string, source: SourceType): Promise<IntentSignal[]> {
+    console.log(`[InputManager] Syncing source: ${source}`);
+
+    switch (source) {
+      case "message":
+        return this.messageSource.pollMessages(userId);
+      case "calendar":
+        return this.calendarSource.analyzeEvents(
+          userId,
+          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          new Date()
+        );
+      case "journal":
+        return this.journalSource.syncCheckIns(userId);
+      case "voice_note":
+      case "manual":
+      default:
+        return [];
+    }
+  }
+
+  /**
    * Create signal from manual input
    */
   async captureManualSignal(userId: string, text: string): Promise<IntentSignal> {
