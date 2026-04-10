@@ -1,8 +1,9 @@
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
+import { getIntegrityIdentityPressureLine } from "@/lib/integrity-identity";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { format, addHours } from "date-fns";
@@ -53,6 +54,21 @@ export default function LockInPage() {
   const [date, setDate] = useState<Date | undefined>(initialDeadline);
   const [refundOnCompletion, setRefundOnCompletion] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const integrityScore = useMemo(
+    () => Math.round((behaviorProfile.completionRate ?? 0) * 100),
+    [behaviorProfile.completionRate]
+  );
+
+  const identityPressureLine = useMemo(
+    () => getIntegrityIdentityPressureLine(integrityScore),
+    [integrityScore]
+  );
+
+  const composedPressureLine = useMemo(() => {
+    const base = psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line;
+    return base ? `${base} ${identityPressureLine}` : identityPressureLine;
+  }, [psychProfile?.next_pressure_line, behaviorProfile.psych.next_pressure_line, identityPressureLine]);
 
   const creditsRequired = calculateCreditsRequired(stake);
   const hasEnoughCredits = creditBalance >= creditsRequired;
@@ -272,7 +288,7 @@ export default function LockInPage() {
             </div>
             <div className="flex gap-3">
               <Zap className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-sky-200">{psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line}</p>
+              <p className="text-sm text-sky-200">{composedPressureLine}</p>
             </div>
             {currentIntent?.pact_size_reason && (
               <div className="space-y-2">

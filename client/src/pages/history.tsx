@@ -1,11 +1,16 @@
 import React, { useMemo } from "react";
 import { Link } from "wouter";
 import { useApp } from "@/lib/mock-data";
+import IntegrityIdentityCard from "@/components/integrity-identity-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNowStrict, format } from "date-fns";
 import { ArrowLeft, TrendingUp, Award, Target, AlertCircle, Brain, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  getIntegrityIdentity,
+  getIntegrityIdentityPressureLine,
+} from "@/lib/integrity-identity";
 
 function badgeFor(commitment: any) {
   const deadlineMs = new Date(commitment.scheduledDate).getTime();
@@ -33,6 +38,9 @@ export function HistoryPage() {
     const totalCredit = completed * (commitments[0]?.creditsCost || 10);
     const lostCredit = failed * (commitments[0]?.creditsCost || 10);
     
+    const total = completed + failed;
+    const honourRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
     return {
       completed,
       failed,
@@ -41,9 +49,19 @@ export function HistoryPage() {
       lostCredit,
       integrityScore: completed,
       totalPacts: commitments.length,
-      honourRate: commitments.length > 0 ? Math.round((completed / commitments.length) * 100) : 0,
+      honourRate,
     };
   }, [commitments]);
+
+  const integrityIdentity = useMemo(
+    () => getIntegrityIdentity(stats.honourRate),
+    [stats.honourRate]
+  );
+
+  const identityPressureLine = useMemo(
+    () => getIntegrityIdentityPressureLine(stats.honourRate),
+    [stats.honourRate]
+  );
 
   const sortedByDate = useMemo(() => {
     return [...commitments].sort(
@@ -77,15 +95,11 @@ export function HistoryPage() {
 
         {/* Big stats grid */}
         <div className="grid md:grid-cols-4 gap-4">
-          {/* Integrity Score */}
-          <div className="border border-emerald-900/30 bg-gradient-to-br from-emerald-950/40 to-black rounded-xl p-6 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Award className="w-5 h-5 text-emerald-400" />
-              <span className="text-xs uppercase tracking-[0.22em] text-emerald-400 font-bold">Integrity Score</span>
-            </div>
-            <div className="text-5xl font-black text-emerald-400 mb-2">{stats.integrityScore}</div>
-            <p className="text-xs text-zinc-500">Total pacts honored</p>
-          </div>
+          {/* Integrity Identity Card */}
+          <IntegrityIdentityCard
+            score={stats.honourRate}
+            identity={integrityIdentity}
+          />
 
           {/* Honor Rate */}
           <div className="border border-cyan-900/30 bg-gradient-to-br from-cyan-950/40 to-black rounded-xl p-6 backdrop-blur-sm">
@@ -150,6 +164,15 @@ export function HistoryPage() {
             )}
           </div>
         )}
+
+        {/* Identity Pressure — Current Status */}
+        <div className="border border-blue-900/40 bg-gradient-to-br from-blue-950/30 to-black rounded-xl p-6 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="w-5 h-5 text-blue-400" />
+            <span className="text-xs uppercase tracking-[0.22em] text-blue-400 font-bold">Current Pressure</span>
+          </div>
+          <p className="text-sm text-blue-100">{identityPressureLine}</p>
+        </div>
 
         {/* Contract history */}
         <div className="border border-zinc-800/50 rounded-xl bg-gradient-to-b from-zinc-900/30 to-black overflow-hidden backdrop-blur-sm">

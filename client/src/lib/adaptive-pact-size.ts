@@ -16,7 +16,7 @@ type AdaptivePactSizeResult = {
 
 function shrinkAction(action: string): string {
   if (action.toLowerCase().includes("run")) {
-    return "Run for 5 minutes";
+    return "Run for 5 minutes";                                                                                                                                                                                                                                                                                                                 
   }
 
   if (action.toLowerCase().includes("work")) {

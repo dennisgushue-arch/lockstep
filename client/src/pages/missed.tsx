@@ -1,10 +1,16 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/lib/mock-data";
+import {
+  getIntegrityIdentity,
+  getIntegrityIdentityPressureLine,
+} from "@/lib/integrity-identity";
 import { AlertTriangle, Brain, TrendingDown, RefreshCw } from "lucide-react";
+import { getRecoveryPlan } from "@/lib/identity-recovery";
+import IdentityRecoveryCard from "@/components/identity-recovery-card";
 
 export default function MissedPage() {
   const [, setLocation] = useLocation();
@@ -28,6 +34,21 @@ export default function MissedPage() {
 
   const totalMissed = commitments.filter((c) => c.status === "missed").length;
   const totalCompleted = commitments.filter((c) => c.status === "completed").length;
+  const score = useMemo(() => {
+    if (behaviorProfile) {
+      return Math.round((behaviorProfile.completionRate ?? 0) * 100);
+    }
+    const total = totalMissed + totalCompleted;
+    if (total === 0) return 0;
+    return Math.round((totalCompleted / total) * 100);
+  }, [behaviorProfile, totalMissed, totalCompleted]);
+
+  const integrityIdentity = useMemo(() => getIntegrityIdentity(score), [score]);
+  const identityPressureLine = useMemo(
+    () => getIntegrityIdentityPressureLine(score),
+    [score]
+  );
+  const recoveryPlan = useMemo(() => getRecoveryPlan(score), [score]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-red-950/20 to-black">
@@ -35,6 +56,12 @@ export default function MissedPage() {
         <div className="space-y-2">
           <h1 className="text-4xl font-heading font-bold text-red-400">YOU DIDN'T DO IT.</h1>
           <p className="text-muted-foreground text-lg">The deadline passed. You're still here. It's done.</p>
+          <div className={`text-sm font-bold uppercase tracking-widest ${integrityIdentity.colorClass}`}>
+            {integrityIdentity.label}
+          </div>
+          <div className="text-sm text-zinc-400">
+            {identityPressureLine}
+          </div>
         </div>
 
         {/* What happened */}
@@ -130,6 +157,9 @@ export default function MissedPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Recovery Card (new) */}
+        <IdentityRecoveryCard plan={recoveryPlan} />
 
         {/* Recovery signal */}
         {behaviorProfile && (

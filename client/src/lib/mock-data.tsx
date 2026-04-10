@@ -9,6 +9,8 @@ import { buildPsychProfile, type PsychProfile, type BehaviorMemoryLike } from ".
 import { savePsychProfile, getPsychProfile } from "./psych-storage";
 import { calculateAdaptiveDeadline } from "./adaptive-deadlines";
 import { calculateAdaptivePactSize } from "./adaptive-pact-size";
+import { getRecoveryPlan } from "./identity-recovery";
+import { getIntegrityIdentity } from "./integrity-identity";
 
 // Types
 export type User = {
@@ -337,6 +339,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         pact_size_reason: pactSize.reason,
         pact_size_level: pactSize.sizeLevel,
       };
+
+      // Apply recovery system if user is in low integrity state
+      const recoveryPlan = getRecoveryPlan(integrityScore);
+      if (recoveryPlan.mode !== "none") {
+        const integrityIdentity = getIntegrityIdentity(integrityScore);
+        
+        // Enhance reflection with recovery guidance
+        mockAnalysis.reflection = `${mockAnalysis.reflection} RECOVERY MODE: ${recoveryPlan.instruction}`;
+        
+        // Override deadline to recovery recommendation if more aggressive
+        if (recoveryPlan.deadlineHint === "Same-day only" || recoveryPlan.deadlineHint === "Today") {
+          const recoveryDeadline = new Date();
+          if (recoveryPlan.deadlineHint === "Same-day only") {
+            // Set to 2-3 hours from now
+            recoveryDeadline.setHours(recoveryDeadline.getHours() + 2.5);
+          } else {
+            // Set to end of today
+            recoveryDeadline.setHours(23, 59, 59, 999);
+          }
+          mockAnalysis.deadline = recoveryDeadline.toLocaleString();
+          mockAnalysis.deadline_reason = `Recovery mode: ${recoveryPlan.reason}`;
+        }
+
+        console.log("[Mock Supabase] Recovery plan applied:", {
+          mode: recoveryPlan.mode,
+          integrityLevel: integrityIdentity.level,
+          headline: recoveryPlan.headline,
+          instruction: recoveryPlan.instruction,
+        });
+      }
       
       setCurrentIntent(mockAnalysis);
     } catch (error) {

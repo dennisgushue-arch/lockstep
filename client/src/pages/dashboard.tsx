@@ -1,13 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
+import IntegrityIdentityCard from "@/components/integrity-identity-card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  getIntegrityIdentity,
+  getIntegrityIdentityPressureLine,
+} from "@/lib/integrity-identity";
 import {
   differenceInMinutes,
   formatDistanceToNowStrict,
   isBefore,
 } from "date-fns";
+import { getRecoveryPlan } from "@/lib/identity-recovery";
+import IdentityRecoveryCard from "@/components/identity-recovery-card";
 
 type CommitmentCard = {
   id: string;
@@ -16,6 +23,7 @@ type CommitmentCard = {
   stake_amount: number | null;
   consequence_type: string | null;
   action?: string | null;
+  pact?: string | null;
 };
 
 function badgeFor(c: CommitmentCard) {
@@ -44,6 +52,23 @@ export default function Dashboard() {
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [loadingFail, setLoadingFail] = useState(false);
 
+  const integrityScore = useMemo(
+    () => Math.round((behaviorProfile.completionRate ?? 0) * 100),
+    [behaviorProfile.completionRate]
+  );
+
+  const integrityIdentity = useMemo(
+    () => getIntegrityIdentity(integrityScore),
+    [integrityScore]
+  );
+
+  const identityPressureLine = useMemo(
+    () => getIntegrityIdentityPressureLine(integrityScore),
+    [integrityScore]
+  );
+
+  const recoveryPlan = useMemo(() => getRecoveryPlan(integrityScore), [integrityScore]);
+
   const cards = useMemo<CommitmentCard[]>(() => {
     return commitments.map((c) => {
       const status = c.status === "scheduled"
@@ -59,6 +84,7 @@ export default function Dashboard() {
         stake_amount: c.creditsCost ?? 0,
         consequence_type: c.consequenceType ?? null,
         action: c.intent?.goal ?? c.intent?.text ?? "Pact",
+        pact: c.intent?.text ?? c.actionText ?? c.intent?.goal ?? "Pact",
       };
     });
   }, [commitments]);
@@ -130,8 +156,9 @@ export default function Dashboard() {
       <div className="noise-bg" />
 
       <div className="container max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
+        <div className="space-y-2">
+          <div className="flex items-end justify-between gap-4">
+            <div>
             <h1 className="text-4xl font-heading font-bold text-glow">
               DASHBOARD
             </h1>
@@ -145,14 +172,28 @@ export default function Dashboard() {
                   : "none"}
               </span>
             </p>
+            </div>
+
+            <div className="flex items-end gap-4">
+              <div className="text-right">
+                <div className="text-3xl font-bold">{integrityScore}</div>
+                <div className={`text-xs font-bold uppercase tracking-widest mt-1 ${integrityIdentity.colorClass}`}>
+                  {integrityIdentity.label}
+                </div>
+              </div>
+
+              <Button
+                className="rounded-none h-12 px-6 text-lg font-bold"
+                onClick={() => setLocation("/capture")}
+              >
+                + NEW PACT
+              </Button>
+            </div>
           </div>
 
-          <Button
-            className="rounded-none h-12 px-6 text-lg font-bold"
-            onClick={() => setLocation("/capture")}
-          >
-            + NEW PACT
-          </Button>
+          <div className="text-sm text-zinc-400">
+            {identityPressureLine}
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -237,6 +278,10 @@ export default function Dashboard() {
                     </span>
                   </div>
 
+                  <div className="text-sm opacity-80 mt-2">
+                    Pact: <span className="text-white">{c.pact ?? "Pact"}</span>
+                  </div>
+
                   <div className="text-xs opacity-60 mt-2">
                     Stake: {c.stake_amount ? `$${c.stake_amount}` : "$0"} ·{" "}
                     {c.consequence_type ?? "money"}
@@ -283,15 +328,23 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="glass-panel p-6 space-y-4 brutal-shadow">
-            <div className="text-xs uppercase tracking-widest opacity-60">
-              Focus Panel
-            </div>
+          <div className="space-y-4">
+            <IdentityRecoveryCard plan={recoveryPlan} />
 
-            {!selected ? (
-              <div className="opacity-70">Select a pact.</div>
-            ) : (
-              <>
+            <IntegrityIdentityCard
+              score={integrityScore}
+              identity={integrityIdentity}
+            />
+
+            <div className="glass-panel p-6 space-y-4 brutal-shadow">
+              <div className="text-xs uppercase tracking-widest opacity-60">
+                Focus Panel
+              </div>
+
+              {!selected ? (
+                <div className="opacity-70">Select a pact.</div>
+              ) : (
+                <>
                 <div className="text-2xl font-bold">
                   {selected.action ?? "Pact"}
                 </div>
@@ -366,45 +419,46 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="border border-zinc-800 p-4 bg-black/30 space-y-2">
-                  <div className="text-xs uppercase tracking-widest opacity-60">
-                    Next pressure line
+                  <div className="border border-zinc-800 p-4 bg-black/30 space-y-2">
+                    <div className="text-xs uppercase tracking-widest opacity-60">
+                      Next pressure line
+                    </div>
+                    <div className="text-sm">
+                      {psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line}
+                    </div>
                   </div>
-                  <div className="text-sm">
-                    {psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line}
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Button
+                      variant="secondary"
+                      className="rounded-none h-12"
+                      onClick={() => setLocation(`/journal?commitment_id=${selected.id}`)}
+                    >
+                      CHECK-IN
+                    </Button>
+
+                    <Button
+                      variant="destructive"
+                      className="rounded-none h-12"
+                      disabled={loadingFail || selected.status === "failed"}
+                      onClick={async () => {
+                        setLoadingFail(true);
+                        try {
+                          await markFailed(selected.id);
+                        } finally {
+                          setLoadingFail(false);
+                        }
+                      }}
+                    >
+                      {loadingFail ? "…" : "FAIL"}
+                    </Button>
                   </div>
-                </div>
+                </>
+              )}
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <Button
-                    variant="secondary"
-                    className="rounded-none h-12"
-                    onClick={() => setLocation(`/journal?commitment_id=${selected.id}`)}
-                  >
-                    CHECK-IN
-                  </Button>
-
-                  <Button
-                    variant="destructive"
-                    className="rounded-none h-12"
-                    disabled={loadingFail || selected.status === "failed"}
-                    onClick={async () => {
-                      setLoadingFail(true);
-                      try {
-                        await markFailed(selected.id);
-                      } finally {
-                        setLoadingFail(false);
-                      }
-                    }}
-                  >
-                    {loadingFail ? "…" : "FAIL"}
-                  </Button>
-                </div>
-              </>
-            )}
-
-            <div className="pt-4 text-xs italic opacity-60">
-              “Delay is a decision.”
+              <div className="pt-4 text-xs italic opacity-60">
+                “Delay is a decision.”
+              </div>
             </div>
           </div>
         </div>
