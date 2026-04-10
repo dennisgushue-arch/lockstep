@@ -26,10 +26,13 @@
 
 If you prefer external cron jobs, use GitHub Actions:
 
-1. **Create `.github/workflows/cron-sync.yml`**
+1. **Use `.github/workflows/sweep.yml`**
+   - This workflow is already configured to trigger every 15 minutes.
+   - It invokes `sweep_overdue_commitments`.
+   - It supports either `SUPABASE_PROJECT_REF` **or** `SUPABASE_URL`.
 
 ```yaml
-name: Sync Input Sources
+name: Sweep overdue commitments
 
 on:
   schedule:
@@ -37,20 +40,44 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
-  sync:
+  sweep:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SWEEP_SECRET: ${{ secrets.SWEEP_SECRET }}
     steps:
-      - name: Call sync_input_sources
+      - name: Invoke Supabase sweep function
         run: |
-          curl -X POST https://pirhugiuguaahvvxifpu.supabase.co/functions/v1/sync_input_sources \
+          if [ -z "$SWEEP_SECRET" ]; then
+            echo "SWEEP_SECRET secret is not set"
+            exit 1
+          fi
+
+          if [ -n "$SUPABASE_PROJECT_REF" ]; then
+            SWEEP_URL="https://${SUPABASE_PROJECT_REF}.functions.supabase.co/sweep_overdue_commitments"
+          elif [ -n "$SUPABASE_URL" ]; then
+            PROJECT_HOST="${SUPABASE_URL#https://}"
+            PROJECT_HOST="${PROJECT_HOST#http://}"
+            PROJECT_HOST="${PROJECT_HOST%%/*}"
+            SWEEP_URL="https://${PROJECT_HOST}.functions.supabase.co/sweep_overdue_commitments"
+          else
+            echo "Neither SUPABASE_PROJECT_REF nor SUPABASE_URL is set. Add at least one GitHub Actions secret."
+            exit 1
+          fi
+
+          curl -sS -X POST "$SWEEP_URL" \
+            -H "x-sweep-secret: $SWEEP_SECRET" \
             -H "Content-Type: application/json" \
-            -H "x-sweep-secret: ${{ secrets.SWEEP_SECRET }}" \
-            -d '{"user_id":"all"}'
+            -d '{}'
 ```
 
-2. **Add secrets to GitHub**
+1. **Add secrets to GitHub**
    - Go to: Settings → Secrets and variables → Actions
    - Add: `SWEEP_SECRET`
+   - Add one of:
+     - `SUPABASE_PROJECT_REF` (e.g., `pirhugiuguaahvvxifpu`), or
+     - `SUPABASE_URL` (e.g., `https://pirhugiuguaahvvxifpu.supabase.co`)
 
 ### Option 3: Using cron-job.org (External Service)
 
@@ -156,6 +183,10 @@ curl -X POST https://pirhugiuguaahvvxifpu.supabase.co/functions/v1/sweep_overdue
 ### 401 Unauthorized errors
 - Verify `SWEEP_SECRET` environment variable is set in Supabase Dashboard
 - Ensure `x-sweep-secret` header matches the environment variable
+
+### GitHub Action fails with missing Supabase secret
+- If you see `Neither SUPABASE_PROJECT_REF nor SUPABASE_URL is set`, add at least one of those secrets in GitHub Actions.
+- `SUPABASE_PROJECT_REF` is preferred; `SUPABASE_URL` is supported as a fallback.
 
 ### Jobs execute but do nothing
 - Check Edge Function logs: `supabase functions logs sync_input_sources`

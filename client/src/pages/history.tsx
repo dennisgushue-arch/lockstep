@@ -1,10 +1,16 @@
 import React, { useMemo } from "react";
 import { Link } from "wouter";
 import { useApp } from "@/lib/mock-data";
+import IntegrityIdentityCard from "@/components/integrity-identity-card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNowStrict, format } from "date-fns";
-import { ArrowLeft, TrendingUp, Award, Target, AlertCircle } from "lucide-react";
+import { ArrowLeft, TrendingUp, Award, Target, AlertCircle, Brain, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  getIntegrityIdentity,
+  getIntegrityIdentityPressureLine,
+} from "@/lib/integrity-identity";
 
 function badgeFor(commitment: any) {
   const deadlineMs = new Date(commitment.scheduledDate).getTime();
@@ -23,7 +29,7 @@ function badgeFor(commitment: any) {
 }
 
 export function HistoryPage() {
-  const { commitments } = useApp();
+  const { commitments, behaviorProfile } = useApp();
 
   const stats = useMemo(() => {
     const completed = commitments.filter(c => c.status === "completed").length;
@@ -31,6 +37,9 @@ export function HistoryPage() {
     const active = commitments.filter(c => c.status === "scheduled").length;
     const totalCredit = completed * (commitments[0]?.creditsCost || 10);
     const lostCredit = failed * (commitments[0]?.creditsCost || 10);
+    
+    const total = completed + failed;
+    const honourRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     return {
       completed,
@@ -40,9 +49,19 @@ export function HistoryPage() {
       lostCredit,
       integrityScore: completed,
       totalPacts: commitments.length,
-      honourRate: commitments.length > 0 ? Math.round((completed / commitments.length) * 100) : 0,
+      honourRate,
     };
   }, [commitments]);
+
+  const integrityIdentity = useMemo(
+    () => getIntegrityIdentity(stats.honourRate),
+    [stats.honourRate]
+  );
+
+  const identityPressureLine = useMemo(
+    () => behaviorProfile.psych.next_pressure_line,
+    [behaviorProfile.psych.next_pressure_line]
+  );
 
   const sortedByDate = useMemo(() => {
     return [...commitments].sort(
@@ -76,15 +95,11 @@ export function HistoryPage() {
 
         {/* Big stats grid */}
         <div className="grid md:grid-cols-4 gap-4">
-          {/* Integrity Score */}
-          <div className="border border-emerald-900/30 bg-gradient-to-br from-emerald-950/40 to-black rounded-xl p-6 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Award className="w-5 h-5 text-emerald-400" />
-              <span className="text-xs uppercase tracking-[0.22em] text-emerald-400 font-bold">Integrity Score</span>
-            </div>
-            <div className="text-5xl font-black text-emerald-400 mb-2">{stats.integrityScore}</div>
-            <p className="text-xs text-zinc-500">Total pacts honored</p>
-          </div>
+          {/* Integrity Identity Card */}
+          <IntegrityIdentityCard
+            score={stats.honourRate}
+            identity={integrityIdentity}
+          />
 
           {/* Honor Rate */}
           <div className="border border-cyan-900/30 bg-gradient-to-br from-cyan-950/40 to-black rounded-xl p-6 backdrop-blur-sm">
@@ -114,6 +129,49 @@ export function HistoryPage() {
             <div className="text-5xl font-black text-red-400 mb-2">-{stats.lostCredit}</div>
             <p className="text-xs text-zinc-500">{stats.failed} failures</p>
           </div>
+        </div>
+
+        {/* Identity Summary — Psych Engine */}
+        {behaviorProfile && behaviorProfile.identitySummary.length > 0 && (
+          <div className="border border-purple-900/40 bg-gradient-to-br from-purple-950/30 to-black rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="w-5 h-5 text-purple-400" />
+              <span className="text-xs uppercase tracking-[0.22em] text-purple-400 font-bold">Identity Summary</span>
+              {behaviorProfile.strongestCategory && (
+                <Badge variant="outline" className="ml-auto text-xs border-purple-600/50 text-purple-300">
+                  Strongest: {behaviorProfile.strongestCategory}
+                </Badge>
+              )}
+              {behaviorProfile.weakestCategory && behaviorProfile.weakestCategory !== behaviorProfile.strongestCategory && (
+                <Badge variant="outline" className="text-xs border-red-700/50 text-red-400">
+                  Weakest: {behaviorProfile.weakestCategory}
+                </Badge>
+              )}
+            </div>
+            <ul className="space-y-2">
+              {behaviorProfile.identitySummary.map((line, i) => (
+                <li key={i} className="flex gap-3 text-sm text-purple-100">
+                  <Flame className="w-3.5 h-3.5 text-purple-500 mt-0.5 shrink-0" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            {behaviorProfile.bestTimeOfDay && (
+              <p className="mt-4 text-xs text-zinc-500">
+                Peak execution window:{" "}
+                <span className="text-emerald-400 font-semibold">{behaviorProfile.bestTimeOfDay}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Identity Pressure — Current Status */}
+        <div className="border border-blue-900/40 bg-gradient-to-br from-blue-950/30 to-black rounded-xl p-6 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="w-5 h-5 text-blue-400" />
+            <span className="text-xs uppercase tracking-[0.22em] text-blue-400 font-bold">Current Pressure</span>
+          </div>
+          <p className="text-sm text-blue-100">{identityPressureLine}</p>
         </div>
 
         {/* Contract history */}

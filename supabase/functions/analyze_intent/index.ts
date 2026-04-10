@@ -9,12 +9,77 @@ interface StructuredIntent {
   suggested_stake: number;
 }
 
+interface UserBehaviorProfile {
+  version?: string;
+  stats?: {
+    total_commitments?: number;
+    completed_commitments?: number;
+    missed_commitments?: number;
+    active_commitments?: number;
+    completion_rate?: number;
+    active_overdue_count?: number;
+    average_stake?: number;
+  };
+  categories?: Array<{
+    category?: string;
+    total?: number;
+    completion_rate?: number;
+  }>;
+  psych?: {
+    pattern_warning?: string;
+    best_leverage_point?: string;
+    identity_risk?: string;
+    next_pressure_line?: string;
+  };
+}
+
+interface PsychProfile {
+  generatedAt?: string;
+  pattern_warning?: string;
+  best_leverage_point?: string;
+  identity_risk?: string;
+  next_pressure_line?: string;
+}
+
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-async function analyzeWithOpenAI(raw_text: string): Promise<StructuredIntent> {
+function clamp(min: number, value: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function applyBehaviorProfile(intent: StructuredIntent, behaviorProfile?: UserBehaviorProfile): StructuredIntent {
+  if (!behaviorProfile) return intent;
+
+  const completionRate = Number(behaviorProfile.stats?.completion_rate ?? 0);
+  const overdueCount = Number(behaviorProfile.stats?.active_overdue_count ?? 0);
+
+  let adjustedStake = intent.suggested_stake;
+  if (completionRate > 0 && completionRate < 0.45) adjustedStake += 5;
+  if (completionRate >= 0.75) adjustedStake -= 2;
+  if (overdueCount > 0) adjustedStake += 3;
+
+  const warning = behaviorProfile.psych?.pattern_warning;
+  const nextLine = behaviorProfile.psych?.next_pressure_line;
+  const psychAddon = [warning, nextLine].filter(Boolean)[0];
+
+  return {
+    ...intent,
+    suggested_stake: clamp(5, adjustedStake, 100),
+    reflection: psychAddon ? `${intent.reflection} ${psychAddon}`.slice(0, 220) : intent.reflection,
+  };
+}
+
+async function analyzeWithOpenAI(
+  raw_text: string,
+  behaviorProfile?: UserBehaviorProfile,
+  psychProfile?: PsychProfile
+): Promise<StructuredIntent> {
   if (!OPENAI_API_KEY) {
     console.log("[analyze_intent] No OpenAI key, using fallback parsing");
-    return parseFallback(raw_text);
+    const baseIntent = applyBehaviorProfile(parseFallback(raw_text), behaviorProfile);
+    if (!psychProfile) return baseIntent;
+    const addon = psychProfile.next_pressure_line || psychProfile.pattern_warning;
+    return addon ? { ...baseIntent, reflection: `${baseIntent.reflection} ${addon}`.slice(0, 220) } : baseIntent;
   }
 
   try {
@@ -42,6 +107,26 @@ Return a JSON object with:
             role: "user",
             content: raw_text,
           },
+          ...(behaviorProfile
+            ? [
+                {
+                  role: "user",
+                  content:
+                    "Behavior profile context (use this to personalize reflection, not to hallucinate facts): " +
+                    JSON.stringify(behaviorProfile),
+                },
+              ]
+            : []),
+          ...(psychProfile
+            ? [
+                {
+                  role: "user",
+                  content:
+                    "Psych profile context (pressure language only; do not invent details): " +
+                    JSON.stringify(psychProfile),
+                },
+              ]
+            : []),
         ],
         temperature: 0.7,
         max_tokens: 300,
@@ -52,21 +137,30 @@ Return a JSON object with:
 
     if (!response.ok) {
       console.error("[analyze_intent] OpenAI error:", result);
-      return parseFallback(raw_text);
+      const baseIntent = applyBehaviorProfile(parseFallback(raw_text), behaviorProfile);
+      if (!psychProfile) return baseIntent;
+      const addon = psychProfile.next_pressure_line || psychProfile.pattern_warning;
+      return addon ? { ...baseIntent, reflection: `${baseIntent.reflection} ${addon}`.slice(0, 220) } : baseIntent;
     }
 
     const content = result.choices?.[0]?.message?.content;
     if (!content) {
-      return parseFallback(raw_text);
+      const baseIntent = applyBehaviorProfile(parseFallback(raw_text), behaviorProfile);
+      if (!psychProfile) return baseIntent;
+      const addon = psychProfile.next_pressure_line || psychProfile.pattern_warning;
+      return addon ? { ...baseIntent, reflection: `${baseIntent.reflection} ${addon}`.slice(0, 220) } : baseIntent;
     }
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return parseFallback(raw_text);
+      const baseIntent = applyBehaviorProfile(parseFallback(raw_text), behaviorProfile);
+      if (!psychProfile) return baseIntent;
+      const addon = psychProfile.next_pressure_line || psychProfile.pattern_warning;
+      return addon ? { ...baseIntent, reflection: `${baseIntent.reflection} ${addon}`.slice(0, 220) } : baseIntent;
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as StructuredIntent;
-    return {
+    const normalizedIntent: StructuredIntent = {
       category: parsed.category || "other",
       confidence: Math.min(1, Math.max(0, parsed.confidence || 0.7)),
       goal: (parsed.goal || raw_text).substring(0, 50),
@@ -74,9 +168,18 @@ Return a JSON object with:
       reflection: (parsed.reflection || "This is important to you").substring(0, 100),
       suggested_stake: Math.max(5, Math.min(100, parsed.suggested_stake || 20)),
     };
+
+    const profiledIntent = applyBehaviorProfile(normalizedIntent, behaviorProfile);
+    const addon = psychProfile?.next_pressure_line || psychProfile?.pattern_warning;
+    return addon
+      ? { ...profiledIntent, reflection: `${profiledIntent.reflection} ${addon}`.slice(0, 220) }
+      : profiledIntent;
   } catch (error) {
     console.error("[analyze_intent] OpenAI error:", error);
-    return parseFallback(raw_text);
+    const baseIntent = applyBehaviorProfile(parseFallback(raw_text), behaviorProfile);
+    if (!psychProfile) return baseIntent;
+    const addon = psychProfile.next_pressure_line || psychProfile.pattern_warning;
+    return addon ? { ...baseIntent, reflection: `${baseIntent.reflection} ${addon}`.slice(0, 220) } : baseIntent;
   }
 }
 
@@ -116,7 +219,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { raw_text } = await req.json();
+    const { raw_text, behavior_profile, psych_profile } = await req.json();
 
     if (!raw_text || typeof raw_text !== "string" || raw_text.trim().length === 0) {
       return new Response(
@@ -131,7 +234,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const intent = await analyzeWithOpenAI(raw_text.trim());
+    const intent = await analyzeWithOpenAI(
+      raw_text.trim(),
+      behavior_profile as UserBehaviorProfile | undefined,
+      psych_profile as PsychProfile | undefined
+    );
 
     return new Response(
       JSON.stringify(intent),

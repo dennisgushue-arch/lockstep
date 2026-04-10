@@ -1,4 +1,6 @@
 import { supabase } from "./supabase";
+import type { UserBehaviorProfile } from "./behavior-profile";
+import type { PsychProfile } from "./psych-engine";
 
 export type IntentCategory = "fitness" | "work" | "growth" | "social" | "consumption" | "addiction" | "other";
 
@@ -11,12 +13,23 @@ export interface StructuredIntent {
   suggested_stake: number;
 }
 
-export async function analyzeIntent(raw_text: string): Promise<StructuredIntent> {
+type AnalyzeIntentOptions = {
+  behaviorProfile?: UserBehaviorProfile | null;
+  psychProfile?: PsychProfile | null;
+};
+
+export async function analyzeIntent(raw_text: string, options?: AnalyzeIntentOptions): Promise<StructuredIntent> {
   console.log("[AI] Analyzing intent:", raw_text);
+  const behaviorProfile = options?.behaviorProfile ?? null;
+  const psychProfile = options?.psychProfile ?? null;
   
   try {
     const { data, error } = await supabase.functions.invoke("analyze_intent", {
-      body: { raw_text },
+      body: {
+        raw_text,
+        behavior_profile: behaviorProfile,
+        psych_profile: psychProfile
+      },
     });
 
     console.log("[AI] Raw response:", JSON.stringify({ data, error }, null, 2));
@@ -36,7 +49,11 @@ export async function analyzeIntent(raw_text: string): Promise<StructuredIntent>
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ raw_text }),
+          body: JSON.stringify({
+            raw_text,
+            behavior_profile: behaviorProfile,
+            psych_profile: psychProfile,
+          }),
         });
         
         if (!response.ok) {

@@ -36,10 +36,10 @@ jobs:
 
       - name: Check build output
         run: |
-          if [ -d "dist" ]; then
+          if [ -d "public" ]; then
             echo "✓ Build completed successfully"
             echo "Build output:"
-            du -sh dist
+            du -sh public
           else
             echo "✗ Build output not found"
             exit 1
@@ -49,5 +49,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.node-version }}
-          path: dist/
+          path: public/
           retention-days: 7
