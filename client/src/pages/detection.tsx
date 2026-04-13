@@ -49,6 +49,12 @@ export default function DetectionPage() {
     }
   }, [syncErrorMessage]);
 
+  useEffect(() => {
+    if (!user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
   // (Removed auto-redirect to /lock-in for locked patterns)
 
   const handleSync = async () => {
@@ -164,7 +170,6 @@ export default function DetectionPage() {
   };
 
   if (!user) {
-    setLocation("/");
     return null;
   }
 

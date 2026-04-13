@@ -11,6 +11,61 @@ import { calculateAdaptiveDeadline } from "./adaptive-deadlines";
 import { calculateAdaptivePactSize } from "./adaptive-pact-size";
 import { getRecoveryPlan } from "./identity-recovery";
 import { getIntegrityIdentity } from "./integrity-identity";
+import {
+  getProofConfidence,
+  type ProofMethod,
+  type ProofSubmission,
+} from "./proof";
+import { calculateAdaptiveProof } from "./adaptive-proof";
+
+const MOCK_USER_STORAGE_KEY = "intent_mock_user";
+const MOCK_COMMITMENTS_STORAGE_KEY = "intent_mock_commitments";
+const MOCK_TRANSACTIONS_STORAGE_KEY = "intent_mock_transactions";
+const MOCK_SIGNALS_STORAGE_KEY = "intent_mock_signals";
+const MOCK_PATTERNS_STORAGE_KEY = "intent_mock_patterns";
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function getDefaultMockUser(): User {
+  return {
+    id: "guest_demo_user",
+    email: "guest@lockstep.demo",
+    creditBalance: 100,
+  };
+}
+
+function readStoredJson<T>(key: string): T | null {
+  if (!canUseLocalStorage()) return null;
+
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function getInitialUser(): User | null {
+  const storedUser = readStoredJson<User>(MOCK_USER_STORAGE_KEY);
+
+  if (storedUser) {
+    return {
+      ...storedUser,
+      email: storedUser.email || "user@example.com",
+    };
+  }
+
+  return getDefaultMockUser();
+}
+
+function getInitialPsychProfile(): PsychProfile | null {
+  if (!canUseLocalStorage()) return null;
+  return getPsychProfile();
+}
 
 // Types
 export type User = {
@@ -44,6 +99,9 @@ export type Intent = {
   deadline_reason?: string | null;
   pact_size_reason?: string | null;
   pact_size_level?: string | null;
+  proof_method?: string | null;
+  proof_reason?: string | null;
+  proof_confidence?: "low" | "medium" | "high" | null;
   parsed_intent?: {
     category?: string;
     proof_method?: string;
@@ -60,6 +118,8 @@ export type Commitment = {
   scheduledDate: string;
   status: 'scheduled' | 'completed' | 'missed';
   refundOnCompletion: boolean; // Whether to refund credits if completed
+  proofMethod: ProofMethod;
+  proofSubmission?: ProofSubmission | null;
   witness?: {
     name: string;
     contact?: string | null;
@@ -87,8 +147,8 @@ type AppContextType = {
   purchaseCredits: (amount: number, paymentIntentId: string) => Promise<void>;
   
   commitments: Commitment[];
-  createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: string | null; aiPlan?: any; witness?: Commitment["witness"]; }) => Promise<Commitment>;
-  completeCommitment: (id: string) => Promise<void>;
+  createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; }) => Promise<Commitment>;
+  completeCommitment: (id: string, proofSubmission?: ProofSubmission | null) => Promise<void>;
   markMissed: (id: string) => Promise<void>;
   
   // Passive Detection
@@ -109,15 +169,15 @@ type AppContextType = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => getInitialUser());
   const [currentIntent, setCurrentIntent] = useState<Intent | null>(null);
-  const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
-  const [psychProfile, setPsychProfile] = useState<PsychProfile | null>(null);
+  const [commitments, setCommitments] = useState<Commitment[]>(() => readStoredJson<Commitment[]>(MOCK_COMMITMENTS_STORAGE_KEY) ?? []);
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>(() => readStoredJson<CreditTransaction[]>(MOCK_TRANSACTIONS_STORAGE_KEY) ?? []);
+  const [psychProfile, setPsychProfile] = useState<PsychProfile | null>(() => getInitialPsychProfile());
   
   // Passive detection state
-  const [intentSignals, setIntentSignals] = useState<IntentSignal[]>([]);
-  const [intentPatterns, setIntentPatterns] = useState<IntentPattern[]>([]);
+  const [intentSignals, setIntentSignals] = useState<IntentSignal[]>(() => readStoredJson<IntentSignal[]>(MOCK_SIGNALS_STORAGE_KEY) ?? []);
+  const [intentPatterns, setIntentPatterns] = useState<IntentPattern[]>(() => readStoredJson<IntentPattern[]>(MOCK_PATTERNS_STORAGE_KEY) ?? []);
 
   const creditBalance = user?.creditBalance ?? 0;
 
@@ -163,64 +223,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const integrityScore = useMemo(() => Math.round((behaviorProfile.completionRate ?? 0) * 100), [behaviorProfile.completionRate]);
 
-  // Initialize with some dummy data if we want, or clean slate
-  useEffect(() => {
-    // Check local storage for persisted "mock" session
-    const storedUser = localStorage.getItem('intent_mock_user');
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      // Ensure email is always present (fix for older localStorage data)
-      if (parsed && !parsed.email) {
-        parsed.email = 'user@example.com';
-      }
-      setUser(parsed);
-    } else {
-      // Demo-mode convenience: seed a guest user so flows work without email login
-      const guestUser: User = {
-        id: 'guest_demo_user',
-        email: 'guest@lockstep.demo',
-        creditBalance: 100,
-      };
-      setUser(guestUser);
-      localStorage.setItem('intent_mock_user', JSON.stringify(guestUser));
-    }
-    
-    const storedCommitments = localStorage.getItem('intent_mock_commitments');
-    if (storedCommitments) setCommitments(JSON.parse(storedCommitments));
-    
-    const storedTransactions = localStorage.getItem('intent_mock_transactions');
-    if (storedTransactions) setCreditTransactions(JSON.parse(storedTransactions));
-    
-    const storedSignals = localStorage.getItem('intent_mock_signals');
-    if (storedSignals) setIntentSignals(JSON.parse(storedSignals));
-    
-    const storedPatterns = localStorage.getItem('intent_mock_patterns');
-    if (storedPatterns) setIntentPatterns(JSON.parse(storedPatterns));
-
-    const storedPsychProfile = getPsychProfile();
-    if (storedPsychProfile) setPsychProfile(storedPsychProfile);
-  }, []);
-
   useEffect(() => {
     if (user) {
-      localStorage.setItem('intent_mock_user', JSON.stringify(user));
+      localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user));
     }
   }, [user]);
 
   useEffect(() => {
-    localStorage.setItem('intent_mock_commitments', JSON.stringify(commitments));
+    localStorage.setItem(MOCK_COMMITMENTS_STORAGE_KEY, JSON.stringify(commitments));
   }, [commitments]);
   
   useEffect(() => {
-    localStorage.setItem('intent_mock_transactions', JSON.stringify(creditTransactions));
+    localStorage.setItem(MOCK_TRANSACTIONS_STORAGE_KEY, JSON.stringify(creditTransactions));
   }, [creditTransactions]);
   
   useEffect(() => {
-    localStorage.setItem('intent_mock_signals', JSON.stringify(intentSignals));
+    localStorage.setItem(MOCK_SIGNALS_STORAGE_KEY, JSON.stringify(intentSignals));
   }, [intentSignals]);
   
   useEffect(() => {
-    localStorage.setItem('intent_mock_patterns', JSON.stringify(intentPatterns));
+    localStorage.setItem(MOCK_PATTERNS_STORAGE_KEY, JSON.stringify(intentPatterns));
   }, [intentPatterns]);
 
   const refreshPsychProfile = () => {
@@ -255,12 +277,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Give new users 100 starter credits to try the app
     const newUser = { id: 'user_123', email: safeEmail, creditBalance: 100 };
     setUser(newUser);
-    localStorage.setItem('intent_mock_user', JSON.stringify(newUser));
+    localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(newUser));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('intent_mock_user');
+    localStorage.removeItem(MOCK_USER_STORAGE_KEY);
   };
 
   const purchaseCredits = async (amount: number, paymentIntentId: string) => {
@@ -334,6 +356,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         recentMisses: recentMissCount,
       });
 
+      const adaptiveProof = calculateAdaptiveProof({
+        category: result.category,
+        difficulty,
+        integrityScore,
+        weakestCategory: behaviorMemory?.summary?.weakestCategory,
+        strongestCategory: behaviorMemory?.summary?.strongestCategory,
+        recentMisses: recentMissCount,
+        hasWitness: false, // updated to true if witness is selected at lock-in
+      });
+
       const mergedReflection = result.reflection || "Pact structure reviewed.";
       
       const mockAnalysis: Intent = {
@@ -342,13 +374,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         category: result.category,
         goal: pactSize.adjustedAction,
         first_action: result.first_action || `Start: ${pactSize.adjustedAction}`,
-        reflection: `${mergedReflection} Task size adjusted because ${pactSize.reason.toLowerCase()} Deadline set because ${adaptiveDeadline.reason.toLowerCase()}`,
+        reflection: `${mergedReflection} Task size adjusted because ${pactSize.reason.toLowerCase()} Deadline set because ${adaptiveDeadline.reason.toLowerCase()} Proof method selected because ${adaptiveProof.reason.toLowerCase()}`,
         confidence: result.confidence,
         suggested_stake: result.suggested_stake,
         deadline: new Date(adaptiveDeadline.suggestedDeadline).toLocaleString(),
         deadline_reason: adaptiveDeadline.reason,
         pact_size_reason: pactSize.reason,
         pact_size_level: pactSize.sizeLevel,
+        proof_method: adaptiveProof.method,
+        proof_reason: adaptiveProof.reason,
+        proof_confidence: adaptiveProof.confidence,
       };
 
       // Apply recovery system if user is in low integrity state
@@ -390,7 +425,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const clearCurrentIntent = () => setCurrentIntent(null);
 
-  const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true, actionText, stakeAmount, proofMethod, aiPlan, witness, }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: string | null; aiPlan?: any; witness?: Commitment["witness"]; }) => {
+  const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true, actionText, stakeAmount, proofMethod, aiPlan, witness, }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; }) => {
     if (!currentIntent) throw new Error("No intent found");
     if (!user) throw new Error("No user logged in");
     if (user.creditBalance < creditsCost) throw new Error("Insufficient credits");
@@ -426,6 +461,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       scheduledDate: scheduledDate.toISOString(),
       status: 'scheduled',
       refundOnCompletion,
+      proofMethod: proofMethod ?? "checkin",
+      proofSubmission: null,
       witness: witness ?? null,
     };
     
@@ -438,7 +475,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newCommitment;
   };
 
-  const completeCommitment = async (id: string) => {
+  const completeCommitment = async (id: string, proofSubmission?: ProofSubmission | null) => {
     if (!user) throw new Error("No user logged in");
     
     await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API
@@ -464,7 +501,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCreditTransactions(prev => [refundTransaction, ...prev]);
     }
     
-    setCommitments(prev => prev.map(c => c.id === id ? { ...c, status: 'completed' } : c));
+    setCommitments(prev => prev.map((c) => {
+      if (c.id !== id) return c;
+
+      const normalizedProof = proofSubmission
+        ? {
+            ...proofSubmission,
+            confidence: proofSubmission.confidence ?? getProofConfidence(proofSubmission.method),
+            submittedAt: proofSubmission.submittedAt || new Date().toISOString(),
+          }
+        : c.proofSubmission ?? null;
+
+      return {
+        ...c,
+        status: 'completed',
+        proofSubmission: normalizedProof,
+      };
+    }));
   };
 
   const markMissed = async (id: string) => {

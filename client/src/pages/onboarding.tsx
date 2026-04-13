@@ -44,7 +44,7 @@ export default function OnboardingPage() {
 
   const completeOnboarding = () => {
     localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
-    setLocation("/dashboard");
+    setLocation("/capture");
   };
 
   return (

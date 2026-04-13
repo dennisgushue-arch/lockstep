@@ -14,6 +14,7 @@
     "preview": "vite preview --config vite.config.ts --host 0.0.0.0 --port 5000",
     "verify": "pnpm check && pnpm build",
     "verify:routes": "node test-routes.js",
+    "verify:quick-capture": "node scripts/test-quick-capture.mjs",
     "verify:all": "pnpm verify",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",

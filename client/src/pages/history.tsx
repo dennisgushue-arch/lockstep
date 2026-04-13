@@ -11,6 +11,7 @@ import {
   getIntegrityIdentity,
   getIntegrityIdentityPressureLine,
 } from "@/lib/integrity-identity";
+import { getProofConfidenceLabel, getProofMethodLabel } from "@/lib/proof";
 
 function badgeFor(commitment: any) {
   const deadlineMs = new Date(commitment.scheduledDate).getTime();
@@ -224,6 +225,13 @@ export function HistoryPage() {
                         <div>
                           <span className="text-zinc-500">Consequence:</span>{" "}
                           <span className="font-bold capitalize">{commitment.consequenceType || "none"}</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500">Proof:</span>{" "}
+                          <span className="font-bold">{getProofMethodLabel(commitment.proofMethod ?? "checkin")}</span>
+                          {commitment.proofSubmission?.confidence && (
+                            <span className="text-zinc-400"> · {getProofConfidenceLabel(commitment.proofSubmission.confidence)}</span>
+                          )}
                         </div>
                       </div>
 

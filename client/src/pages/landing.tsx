@@ -7,10 +7,32 @@ import WhoItsFor from "@/components/who-its-for";
 import WhatLockstepNotices from "@/components/what-lockstep-notices";
 import BeforeAfter from "@/components/before-after";
 import DemoIntent from "@/components/demo-intent";
+import { useApp } from "@/lib/mock-data";
 import heroImage from "@assets/generated_images/minimalist_abstract_concrete_architecture,_dramatic_lighting,_black_and_white.png";
-
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const { analyzeIntent, user } = useApp();
+
+  const handleAttachPenalty = async (intentText: string) => {
+    const safeText = intentText.trim();
+    if (!user) {
+      // Unauthenticated users must sign in before locking in a pact
+      setLocation("/auth");
+      return;
+    }
+    if (!safeText) {
+      setLocation("/capture");
+      return;
+    }
+
+    try {
+      await analyzeIntent(safeText);
+      setLocation("/reflection");
+    } catch {
+      // Fallback to manual capture flow if analysis fails
+      setLocation("/capture");
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white pb-20 sm:pb-0">
@@ -52,7 +74,7 @@ export default function Landing() {
             </motion.p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Link href="/capture">
+            <Link href={user ? "/capture" : "/auth"}>
                 <Button className="w-full sm:w-auto rounded-none h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg font-black tracking-widest bg-red-600 text-white hover:bg-red-700">
                 PROVE YOU MEAN IT
               </Button>
@@ -71,7 +93,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <DemoIntent onLockReal={() => setLocation("/capture")} />
+      <DemoIntent onLockReal={handleAttachPenalty} />
 
       <WhatLockstepNotices />
 

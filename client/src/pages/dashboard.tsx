@@ -4,6 +4,15 @@ import { useApp } from "@/lib/mock-data";
 import IntegrityIdentityCard from "@/components/integrity-identity-card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  getAdaptiveProofPolicy,
+  getProofConfidence,
+  getProofConfidenceLabel,
+  getProofMethodLabel,
+  validateTextProofAgainstTask,
+  type ProofSubmission,
+} from "@/lib/proof";
 import {
   getIntegrityIdentity,
   getIntegrityIdentityPressureLine,
@@ -22,6 +31,7 @@ type CommitmentCard = {
   status: "active" | "completed" | "failed";
   stake_amount: number | null;
   consequence_type: string | null;
+  proof_method: "checkin" | "photo" | "text" | "witness";
   action?: string | null;
   pact?: string | null;
 };
@@ -47,10 +57,15 @@ function badgeFor(c: CommitmentCard) {
 export default function Dashboard() {
   const { commitments, completeCommitment, markMissed, behaviorProfile, psychProfile } = useApp();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [loadingFail, setLoadingFail] = useState(false);
+  const [proofText, setProofText] = useState("");
+  const [checkinConfirmed, setCheckinConfirmed] = useState(false);
+  const [witnessConfirmed, setWitnessConfirmed] = useState(false);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
 
   const integrityScore = useMemo(
     () => Math.round((behaviorProfile.completionRate ?? 0) * 100),
@@ -69,6 +84,11 @@ export default function Dashboard() {
 
   const recoveryPlan = useMemo(() => getRecoveryPlan(integrityScore), [integrityScore]);
 
+  const adaptiveProofPolicy = useMemo(
+    () => getAdaptiveProofPolicy(integrityScore),
+    [integrityScore]
+  );
+
   const cards = useMemo<CommitmentCard[]>(() => {
     return commitments.map((c) => {
       const status = c.status === "scheduled"
@@ -83,6 +103,7 @@ export default function Dashboard() {
         status,
         stake_amount: c.creditsCost ?? 0,
         consequence_type: c.consequenceType ?? null,
+        proof_method: c.proofMethod ?? "checkin",
         action: c.intent?.goal ?? c.intent?.text ?? "Pact",
         pact: c.intent?.text ?? c.actionText ?? c.intent?.goal ?? "Pact",
       };
@@ -104,6 +125,11 @@ export default function Dashboard() {
   const selected = useMemo(
     () => sortedCards.find((c) => c.id === selectedId) ?? null,
     [sortedCards, selectedId]
+  );
+
+  const selectedCommitment = useMemo(
+    () => commitments.find((c) => c.id === selectedId) ?? null,
+    [commitments, selectedId]
   );
 
   const nextUp = useMemo(() => {
@@ -147,9 +173,148 @@ export default function Dashboard() {
     await completeCommitment(commitmentId);
   }
 
+  async function readImageAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string) || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleProofFileChange(file: File | null) {
+    if (!file) {
+      setPhotoDataUrl(null);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image for photo proof.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dataUrl = await readImageAsDataUrl(file);
+    setPhotoDataUrl(dataUrl);
+  }
+
+  async function completeWithProof(commitmentId: string) {
+    const commitment = commitments.find((c) => c.id === commitmentId);
+    if (!commitment) return;
+
+    const method = commitment.proofMethod ?? "checkin";
+    const actionText = commitment.actionText || commitment.intent?.text || "";
+    const confidence = getProofConfidence(method);
+    // Tier enforcement: block if proof method is weaker than the current minimum
+    const methodOrder: Array<"checkin" | "photo" | "text" | "witness"> = ["checkin", "photo", "text", "witness"];
+    const methodRank = methodOrder.indexOf(method);
+    const minRank = methodOrder.indexOf(adaptiveProofPolicy.minimumMethod);
+    if (adaptiveProofPolicy.required && methodRank < minRank) {
+      toast({
+        title: "Stronger proof required",
+        description: `${adaptiveProofPolicy.nudgeMessage} Minimum: ${getProofMethodLabel(adaptiveProofPolicy.minimumMethod)}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    let proofSubmission: ProofSubmission | null = null;
+
+    if (method === "checkin") {
+      if (!checkinConfirmed) {
+        toast({
+          title: "Confirm completion",
+          description: "Check “I did it” to submit check-in proof.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      proofSubmission = {
+        method,
+        confidence,
+        text: "I did it.",
+        submittedAt: new Date().toISOString(),
+      };
+    }
+
+    if (method === "photo") {
+      if (!photoDataUrl) {
+        toast({
+          title: "Photo required",
+          description: "Upload a photo to complete this pact.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      proofSubmission = {
+        method,
+        confidence,
+        photoDataUrl,
+        submittedAt: new Date().toISOString(),
+      };
+    }
+
+    if (method === "text") {
+      if (!proofText.trim()) {
+        toast({
+          title: "Text proof required",
+          description: "Describe what you completed.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      proofSubmission = {
+        method,
+        confidence,
+        text: proofText.trim(),
+        submittedAt: new Date().toISOString(),
+        aiValidation: validateTextProofAgainstTask(actionText, proofText.trim()),
+      };
+    }
+
+    if (method === "witness") {
+      if (!witnessConfirmed) {
+        toast({
+          title: "Witness confirmation required",
+          description: "Confirm witness acknowledgement to complete this pact.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      proofSubmission = {
+        method,
+        confidence,
+        witnessConfirmed: true,
+        text: proofText.trim() || "Witness confirmation submitted.",
+        submittedAt: new Date().toISOString(),
+      };
+    }
+
+    setLoadingComplete(true);
+    try {
+      await completeCommitment(commitmentId, proofSubmission);
+      setLocation(`/result?commitment_id=${commitmentId}`);
+    } finally {
+      setLoadingComplete(false);
+    }
+  }
+
   async function markFailed(commitmentId: string) {
     await markMissed(commitmentId);
   }
+
+  useEffect(() => {
+    setProofText("");
+    setCheckinConfirmed(false);
+    setWitnessConfirmed(false);
+    setPhotoDataUrl(null);
+  }, [selectedId]);
 
   return (
     <div className="relative">
@@ -306,12 +471,17 @@ export default function Dashboard() {
                       onClick={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setLoadingComplete(true);
-                        try {
-                          await markCompleted(c.id);
-                        } finally {
-                          setLoadingComplete(false);
+                        if (c.proof_method !== "checkin") {
+                          setSelectedId(c.id);
+                          toast({
+                            title: "Proof required",
+                            description: `Use the focus panel to submit ${getProofMethodLabel(c.proof_method).toLowerCase()} proof before completion.`,
+                          });
+                          return;
                         }
+
+                        setCheckinConfirmed(true);
+                        await completeWithProof(c.id);
                       }}
                     >
                       {loadingComplete ? "…" : "COMPLETE"}
@@ -376,6 +546,84 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                <div className="border border-zinc-800 p-4 bg-black/30 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs uppercase tracking-widest opacity-60">
+                      Proof method
+                    </div>
+                    {adaptiveProofPolicy.required && (
+                      <span className="text-[10px] uppercase tracking-widest border border-amber-600/50 text-amber-400 px-2 py-0.5">
+                        Tier minimum: {getProofMethodLabel(adaptiveProofPolicy.minimumMethod)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    {getProofMethodLabel(selected.proof_method)}
+                  </div>
+                  <div className="text-xs opacity-70">
+                    Confidence: {getProofConfidenceLabel(getProofConfidence(selected.proof_method))}
+                  </div>
+                  {adaptiveProofPolicy.nudgeMessage && (
+                    <div className="text-xs border border-zinc-700 bg-zinc-900/40 px-3 py-2 text-zinc-300">
+                      {adaptiveProofPolicy.nudgeMessage}
+                    </div>
+                  )}
+
+                  {selected.status === "active" && selected.proof_method === "checkin" && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checkinConfirmed}
+                        onChange={(e) => setCheckinConfirmed(e.target.checked)}
+                      />
+                      I did it
+                    </label>
+                  )}
+
+                  {selected.status === "active" && selected.proof_method === "text" && (
+                    <textarea
+                      value={proofText}
+                      onChange={(e) => setProofText(e.target.value)}
+                      rows={3}
+                      placeholder="What did you complete?"
+                      className="w-full bg-black/40 border border-zinc-800 p-3 text-sm focus:outline-none focus:border-white"
+                    />
+                  )}
+
+                  {selected.status === "active" && selected.proof_method === "photo" && (
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleProofFileChange(e.target.files?.[0] ?? null)}
+                        className="block w-full text-sm"
+                      />
+                      {photoDataUrl && (
+                        <img src={photoDataUrl} alt="Proof preview" className="max-h-40 border border-zinc-700" />
+                      )}
+                    </div>
+                  )}
+
+                  {selected.status === "active" && selected.proof_method === "witness" && (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={witnessConfirmed}
+                          onChange={(e) => setWitnessConfirmed(e.target.checked)}
+                        />
+                        Witness confirmed
+                      </label>
+                      <input
+                        value={proofText}
+                        onChange={(e) => setProofText(e.target.value)}
+                        placeholder="Optional witness note"
+                        className="w-full bg-black/40 border border-zinc-800 p-3 text-sm focus:outline-none focus:border-white"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="border border-zinc-800 p-4 bg-black/30">
                   <div className="text-xs uppercase tracking-widest opacity-60">
                     Stakes
@@ -438,13 +686,24 @@ export default function Dashboard() {
                     </Button>
 
                     <Button
-                      variant="destructive"
                       className="rounded-none h-12"
+                      disabled={loadingComplete || selected.status === "completed"}
+                      onClick={async () => {
+                        await completeWithProof(selected.id);
+                      }}
+                    >
+                      {loadingComplete ? "…" : "COMPLETE"}
+                    </Button>
+
+                    <Button
+                      variant="destructive"
+                      className="rounded-none h-12 col-span-2"
                       disabled={loadingFail || selected.status === "failed"}
                       onClick={async () => {
                         setLoadingFail(true);
                         try {
                           await markFailed(selected.id);
+                          setLocation(`/result?commitment_id=${selected.id}`);
                         } finally {
                           setLoadingFail(false);
                         }

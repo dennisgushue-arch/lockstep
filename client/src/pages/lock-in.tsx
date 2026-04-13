@@ -14,6 +14,22 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
+import {
+  getAdaptiveProofPolicy,
+  getProofConfidence,
+  getProofConfidenceLabel,
+  getProofMethodLabel,
+  suggestProofMethodForTask,
+  type ProofMethod,
+} from "@/lib/proof";
+
+/** Map AdaptiveProofMethod names to ProofMethod used by proof.ts */
+function mapAdaptiveToProofMethod(m: string): ProofMethod {
+  if (m === "check_in") return "checkin";
+  if (m === "location") return "photo";
+  if (m === "witness" || m === "photo" || m === "text") return m as ProofMethod;
+  return "checkin";
+}
 
 // Credit cost tiers based on stake amount
 const CREDIT_TIERS = [
@@ -52,6 +68,9 @@ export default function LockInPage() {
   const [consequence, setConsequence] = useState<'money' | 'social' | 'escalate'>('money');
   const [date, setDate] = useState<Date | undefined>(initialDeadline);
   const [refundOnCompletion, setRefundOnCompletion] = useState(true);
+  const [proofMethod, setProofMethod] = useState<ProofMethod>(
+    suggestProofMethodForTask(currentIntent?.category)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Witness state
@@ -63,6 +82,11 @@ export default function LockInPage() {
   const integrityScore = useMemo(
     () => Math.round((behaviorProfile.completionRate ?? 0) * 100),
     [behaviorProfile.completionRate]
+  );
+
+  const adaptiveProofPolicy = useMemo(
+    () => getAdaptiveProofPolicy(integrityScore),
+    [integrityScore]
   );
 
   const composedPressureLine = useMemo(() => {
@@ -79,13 +103,37 @@ export default function LockInPage() {
     } else if (stake === 5) {
       // Update stake when intent changes (initial load)
       setStake(currentIntent.suggested_stake);
+      // Prefer AI-recommended method, otherwise fall back to task-based suggestion
+      const aiMethod = currentIntent.proof_method
+        ? mapAdaptiveToProofMethod(currentIntent.proof_method)
+        : suggestProofMethodForTask(currentIntent.category);
+      const policy = getAdaptiveProofPolicy(integrityScore);
+      const methodOrder: ProofMethod[] = ["checkin", "photo", "text", "witness"];
+      const aiRank = methodOrder.indexOf(aiMethod);
+      const minRank = methodOrder.indexOf(policy.minimumMethod);
+      setProofMethod(aiRank >= minRank ? aiMethod : policy.minimumMethod);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIntent, setLocation]);
+
+  // When witness is enabled, upgrade proof method to witness
+  useEffect(() => {
+    if (witnessEnabled) setProofMethod("witness");
+  }, [witnessEnabled]);
 
   if (!currentIntent) return null;
 
   const handleConfirm = async () => {
-    if (!date || !user) return;
+    if (!date) return;
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "You must be signed in to lock in a pact.",
+        variant: "destructive",
+      });
+      setLocation("/auth");
+      return;
+    }
     if (isSubmitting) return;
     
     if (!hasEnoughCredits) {
@@ -115,6 +163,7 @@ export default function LockInPage() {
         consequenceType: consequence,
         scheduledDate: date,
         refundOnCompletion,
+        proofMethod,
         witness:
           witnessEnabled && witnessName.trim()
             ? {
@@ -131,7 +180,7 @@ export default function LockInPage() {
         variant: "default",
       });
       
-      setLocation("/dashboard");
+      setLocation("/momentum");
     } catch (error: any) {
       console.error("Lock-in failed:", error);
       toast({
@@ -232,6 +281,84 @@ export default function LockInPage() {
           >
             ⚡ Double the Next Stake
           </Button>
+        </div>
+      </div>
+
+      {/* AI Proof Recommendation */}
+      {currentIntent.proof_method && (
+        <div className="border border-zinc-800 bg-zinc-950/40 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Brain className="h-4 w-4 text-zinc-400" />
+            <span className="text-xs uppercase tracking-widest text-zinc-500">AI Proof Recommendation</span>
+          </div>
+          <div className="text-base font-bold text-white">
+            {currentIntent.proof_method.toUpperCase().replace(/_/g, " ")}
+          </div>
+          {currentIntent.proof_confidence && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Confidence:</span>
+              <Badge variant="outline" className="text-xs uppercase">
+                {currentIntent.proof_confidence}
+              </Badge>
+            </div>
+          )}
+          {currentIntent.proof_reason && (
+            <p className="text-xs text-zinc-500">{currentIntent.proof_reason}</p>
+          )}
+        </div>
+      )}
+
+      {/* Proof Method */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-base font-bold">PROOF METHOD</Label>
+          {adaptiveProofPolicy.required && (
+            <span className="text-[10px] uppercase tracking-widest border border-amber-600/50 text-amber-400 px-2 py-0.5">
+              Tier requirement
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          How will you prove completion?
+        </p>
+
+        {adaptiveProofPolicy.nudgeMessage && (
+          <div className="text-xs border border-zinc-700 bg-zinc-900/40 px-3 py-2 text-zinc-300">
+            {adaptiveProofPolicy.nudgeMessage}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            "checkin",
+            "photo",
+            "text",
+            "witness",
+          ] as ProofMethod[]).map((method) => {
+            const confidence = getProofConfidence(method);
+            const active = proofMethod === method;
+            const locked = !adaptiveProofPolicy.allowedMethods.includes(method);
+            return (
+              <Button
+                key={method}
+                variant={active ? "default" : "outline"}
+                disabled={locked}
+                className="h-auto min-h-20 py-3 flex flex-col items-start gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                onClick={() => !locked && setProofMethod(method)}
+              >
+                <span className="text-sm font-semibold">{getProofMethodLabel(method)}</span>
+                <span className="text-xs opacity-80">
+                  Confidence: {getProofConfidenceLabel(confidence)}
+                </span>
+                {locked && (
+                  <span className="text-[10px] opacity-60">Not available at your tier</span>
+                )}
+              </Button>
+            );
+          })}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Proof confidence: <span className="font-semibold">{getProofConfidenceLabel(getProofConfidence(proofMethod))}</span>
         </div>
       </div>
 

@@ -29,6 +29,8 @@ import ConnectedSourcesPage from "@/pages/connected-sources";
 import { RecommendationsPage } from "@/pages/recommendations";
 import JournalPage from "@/pages/journal";
 import OnboardingPage from "@/pages/onboarding";
+import ResultPage from "@/pages/result";
+import MomentumPage from "@/pages/momentum";
 
 const isDev = import.meta.env.DEV;
 
@@ -52,7 +54,9 @@ function Router() {
         <Route path="/recommendations" component={RecommendationsPage} />
         <Route path="/journal" component={JournalPage} />
         <Route path="/onboarding" component={OnboardingPage} />
+        <Route path="/result" component={ResultPage} />
         <Route path="/missed" component={Missed} />
+        <Route path="/momentum" component={MomentumPage} />
         {isDev && <Route path="/test-intent" component={TestIntentPage} />}
         {isDev && <Route path="/debug" component={DebugPage} />}
         {isDev && (

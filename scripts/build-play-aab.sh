@@ -17,6 +17,9 @@ ROOT_DIR="/workspaces/lockstep"
 ANDROID_DIR="$ROOT_DIR/android"
 AAB_PATH="$ANDROID_DIR/app/build/outputs/bundle/release/app-release.aab"
 FINAL_AAB="$ROOT_DIR/app-release-play-upload.aab"
+MAPPING_SRC="$ANDROID_DIR/app/build/outputs/mapping/release/mapping.txt"
+MAPPING_ARTIFACT_DIR="$ROOT_DIR/release-artifacts/android"
+MAPPING_ARTIFACT="$MAPPING_ARTIFACT_DIR/mapping-release.txt"
 
 KEYSTORE_PATH="${ANDROID_KEYSTORE_PATH:-$ROOT_DIR/android/signing/new-upload-key.jks}"
 KEY_ALIAS="${ANDROID_KEY_ALIAS:-upload}"
@@ -57,9 +60,18 @@ if [[ ! -f "$AAB_PATH" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$MAPPING_SRC" ]]; then
+  echo "❌ mapping.txt not found after build: $MAPPING_SRC"
+  echo "   Ensure release minification is enabled (R8/proguard)"
+  exit 1
+fi
+
 cp -f "$AAB_PATH" "$FINAL_AAB"
+mkdir -p "$MAPPING_ARTIFACT_DIR"
+cp -f "$MAPPING_SRC" "$MAPPING_ARTIFACT"
 
 echo "🔎 Verifying signer fingerprint on final AAB..."
 keytool -printcert -jarfile "$FINAL_AAB" | grep -E "SHA1:|SHA256:"
 
 echo "\n✅ Ready to upload: $FINAL_AAB"
+echo "🧩 Deobfuscation file: $MAPPING_ARTIFACT"

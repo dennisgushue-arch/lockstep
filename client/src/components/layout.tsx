@@ -48,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="noise-bg" />
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href={user ? "/dashboard" : "/"}>
+          <Link href={user ? "/momentum" : "/"}>
             <span className="text-xl font-heading font-bold tracking-tighter hover:text-primary/80 transition-colors cursor-pointer">
               INTENT.
             </span>
@@ -57,6 +57,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-4">
             {user ? (
               <>
+                <Link href="/momentum">
+                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/momentum' ? 'text-primary' : 'text-muted-foreground'}`}>
+                    Momentum
+                  </span>
+                </Link>
                 <Link href="/dashboard">
                   <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
                     Dashboard
@@ -70,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <DetectionBadge />
                 <Link href="/capture">
                   <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    New Intent
+                    New Pact
                   </span>
                 </Link>
                 <Link href="/credits">

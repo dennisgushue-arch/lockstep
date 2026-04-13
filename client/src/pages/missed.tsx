@@ -11,6 +11,7 @@ import {
 import { AlertTriangle, Brain, TrendingDown, RefreshCw } from "lucide-react";
 import { getRecoveryPlan } from "@/lib/identity-recovery";
 import IdentityRecoveryCard from "@/components/identity-recovery-card";
+import { getProofConfidenceLabel, getProofMethodLabel } from "@/lib/proof";
 
 export default function MissedPage() {
   const [, setLocation] = useLocation();
@@ -86,6 +87,15 @@ export default function MissedPage() {
               <p className="font-semibold">You locked in a commitment. Then you didn't follow through.</p>
             )}
             <p className="text-sm text-red-300/80">That's not a judgment. That's a fact.</p>
+            <div className="text-sm text-red-200/90">
+              {latestMissed?.proofSubmission ? (
+                <>
+                  Proof submitted: {getProofMethodLabel(latestMissed.proofSubmission.method)} · Confidence {getProofConfidenceLabel(latestMissed.proofSubmission.confidence)}
+                </>
+              ) : (
+                <>No proof submitted · Result: Missed</>
+              )}
+            </div>
             <div className="flex gap-4 pt-2">
               <div className="text-center">
                 <p className="text-2xl font-black text-red-400">{totalMissed}</p>
@@ -177,15 +187,15 @@ export default function MissedPage() {
         )}
 
         <div className="grid gap-3">
-          <Button className="w-full rounded-none font-bold h-14" onClick={() => setLocation("/capture")}>
-            SET A NEW COMMITMENT
+          <Button className="w-full rounded-none font-bold h-14 bg-red-600 hover:bg-red-700 text-white" onClick={() => setLocation("/capture")}>
+            START RECOVERY PACT
           </Button>
           <Button
             variant="secondary"
             className="w-full rounded-none font-bold"
-            onClick={() => setLocation("/dashboard")}
+            onClick={() => setLocation("/momentum")}
           >
-            RETURN TO DASHBOARD
+            RETURN TO MOMENTUM
           </Button>
         </div>
       </div>

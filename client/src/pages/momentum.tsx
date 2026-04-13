@@ -4,9 +4,12 @@ import { getRecoveryPlan } from "@/lib/identity-recovery";
 import IdentityRecoveryCard from "@/components/identity-recovery-card";
 import StreakIdentityCard from "@/components/streak-identity-card";
 import { buildStreakIdentity } from "@/lib/streak-identity";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 export default function MomentumPage() {
   const { commitments, psychProfile, behaviorProfile } = useApp();
+  const [, setLocation] = useLocation();
   const integrityScore = useMemo(() => Math.round((behaviorProfile.completionRate ?? 0) * 100), [behaviorProfile.completionRate]);
   const recoveryPlan = useMemo(() => getRecoveryPlan(integrityScore), [integrityScore]);
   const streakIdentity = useMemo(() => buildStreakIdentity(commitments), [commitments]);
@@ -31,12 +34,30 @@ export default function MomentumPage() {
     .join(" ");
 
   return (
-    <div className="flex flex-col md:flex-row gap-8">
+    <div className="flex flex-col md:flex-row gap-8 container max-w-6xl mx-auto px-4 py-8">
       {/* Right rail */}
       <div className="w-full md:w-1/3 space-y-6">
         <IdentityRecoveryCard plan={recoveryPlan} />
         <StreakIdentityCard streak={streakIdentity} />
-        {/* Identity, Psych Engine, Weekly Signal would go here */}
+
+        {/* Score Transparency */}
+        <div className="border border-zinc-800 bg-zinc-950/30 p-4 space-y-3">
+          <div className="text-xs uppercase tracking-widest text-zinc-500">How Your Score Moves</div>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-center gap-2 text-green-400">
+              <span className="font-bold">+2</span>
+              <span className="text-zinc-300">pact completed</span>
+            </div>
+            <div className="flex items-center gap-2 text-red-400">
+              <span className="font-bold">−3</span>
+              <span className="text-zinc-300">pact missed</span>
+            </div>
+            <div className="flex items-center gap-2 text-orange-400">
+              <span className="font-bold">0</span>
+              <span className="text-zinc-300">streak resets to 0 on any miss</span>
+            </div>
+          </div>
+        </div>
       </div>
       {/* Main content */}
       <div className="w-full md:w-2/3">
@@ -75,7 +96,16 @@ export default function MomentumPage() {
         )}
 
         {!primaryPact && (
-          <div className="text-zinc-500">No upcoming pacts. Create one to build momentum!</div>
+          <div className="border border-zinc-800 bg-zinc-950/40 p-8 space-y-4 rounded-xl text-center">
+            <div className="text-zinc-400 text-base">No active pacts. Nothing is at stake.</div>
+            <div className="text-zinc-500 text-sm">Every day without a pact is a day without pressure.</div>
+            <Button
+              className="mt-2 rounded-none font-bold h-12 px-8 bg-red-600 text-white hover:bg-red-700"
+              onClick={() => setLocation("/capture")}
+            >
+              CREATE YOUR FIRST PACT
+            </Button>
+          </div>
         )}
       </div>
     </div>

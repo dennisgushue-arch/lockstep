@@ -1,21 +1,37 @@
 import React, { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { getRecoveryPlan } from "@/lib/identity-recovery";
 import { buildStreakIdentity } from "@/lib/streak-identity";
 import { buildWitnessMessage } from "@/lib/witness-message";
 import { Button } from "@/components/ui/button";
-import type { Commitment } from "@/lib/mock-data";
+import { getProofConfidenceLabel, getProofMethodLabel } from "@/lib/proof";
 
-type ResultPageProps = {
-  score?: number;
-  commitment?: Commitment | null;
-};
+export default function ResultPage() {
+  const [, setLocation] = useLocation();
+  const { commitments, behaviorProfile } = useApp();
 
-export default function ResultPage({ score = 42, commitment = { status: "missed" } as Commitment }: ResultPageProps) {
-  if (!commitment) return null;
+  const commitmentId = useMemo(() => {
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(search);
+    return params.get("commitment_id");
+  }, []);
 
-  const safeScore = typeof score === "number" ? score : 0;
-  const { commitments } = useApp();
+  const commitment = useMemo(() => {
+    if (!commitmentId) return null;
+    return commitments.find((c) => c.id === commitmentId) ?? null;
+  }, [commitments, commitmentId]);
+
+  if (!commitment) {
+    return (
+      <div className="p-8 space-y-4">
+        <div className="text-zinc-300">No result found for this commitment.</div>
+        <Button onClick={() => setLocation("/dashboard")}>Back to Dashboard</Button>
+      </div>
+    );
+  }
+
+  const safeScore = Math.round((behaviorProfile.completionRate ?? 0) * 100);
   const recoveryPlan = useMemo(() => getRecoveryPlan(safeScore), [safeScore]);
   const streakIdentity = useMemo(() => buildStreakIdentity(commitments), [commitments]);
   const [copiedWitness, setCopiedWitness] = useState(false);
@@ -55,6 +71,60 @@ export default function ResultPage({ score = 42, commitment = { status: "missed"
       ) : (
         <div className="text-red-500">You missed this one.</div>
       )}
+
+      {/* AI-selected proof method */}
+      {commitment.intent?.proof_method && (
+        <div className="mt-4 border border-zinc-800 bg-zinc-950/40 p-4 space-y-2">
+          <div className="text-xs uppercase tracking-widest text-zinc-500">AI-Selected Proof Method</div>
+          <div className="text-base font-bold text-white">
+            {commitment.intent.proof_method.toUpperCase().replace(/_/g, " ")}
+          </div>
+          {commitment.intent.proof_confidence && (
+            <div className="text-xs text-zinc-400">
+              Confidence: <span className="font-semibold uppercase">{commitment.intent.proof_confidence}</span>
+            </div>
+          )}
+          {commitment.intent.proof_reason && (
+            <div className="text-xs text-zinc-500">{commitment.intent.proof_reason}</div>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4 border border-zinc-800 bg-black/20 p-4 space-y-2">
+        <div className="text-xs uppercase tracking-widest text-zinc-500">Proof</div>
+        {commitment.proofSubmission ? (
+          <>
+            <div className="text-sm text-zinc-200">
+              Proof submitted: <span className="font-semibold">{getProofMethodLabel(commitment.proofSubmission.method)}</span>
+            </div>
+            <div className="text-sm text-zinc-200">
+              Confidence: <span className="font-semibold">{getProofConfidenceLabel(commitment.proofSubmission.confidence)}</span>
+            </div>
+            {commitment.proofSubmission.text && (
+              <div className="text-sm text-zinc-300">{commitment.proofSubmission.text}</div>
+            )}
+            {commitment.proofSubmission.photoDataUrl && (
+              <img
+                src={commitment.proofSubmission.photoDataUrl}
+                alt="Submitted proof"
+                className="max-h-56 border border-zinc-700"
+              />
+            )}
+            {commitment.proofSubmission.aiValidation && (
+              <div className="text-xs text-zinc-400">
+                Validation: {commitment.proofSubmission.aiValidation.result === "pass" ? "Looks aligned" : "Flagged as weak"} — {commitment.proofSubmission.aiValidation.reason}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="text-sm text-zinc-300">No proof submitted</div>
+            {commitment.status === "missed" && (
+              <div className="text-xs text-red-300">Result: Missed</div>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="mt-4 text-sm text-zinc-400">
         {commitment.status === "completed"
@@ -103,6 +173,20 @@ export default function ResultPage({ score = 42, commitment = { status: "missed"
           </div>
         </div>
       )}
+
+      <div className="mt-6 flex flex-col sm:flex-row gap-3">
+        {commitment.status === "missed" && (
+          <Button
+            className="rounded-none font-bold bg-red-600 hover:bg-red-700 text-white"
+            onClick={() => setLocation("/capture")}
+          >
+            START RECOVERY PACT
+          </Button>
+        )}
+        <Button variant="secondary" className="rounded-none" onClick={() => setLocation("/momentum")}>
+          {commitment.status === "completed" ? "Back to Momentum" : "Return to Momentum"}
+        </Button>
+      </div>
     </div>
   );
 }
