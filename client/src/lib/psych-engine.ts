@@ -67,10 +67,10 @@ export function buildPsychProfile(input: {
 
   const activeCategory = getActiveCategory(commitments);
 
-  let pattern_warning = "Your behavior pattern is still forming.";
-  let best_leverage_point = "Keep the pact small and visible.";
-  let identity_risk = "Your word is still unstable.";
-  let next_pressure_line = "Do not leave this to the last hour.";
+  let pattern_warning = "No history yet — this first pact is what your pattern will be built from.";
+  let best_leverage_point = "Make the first action small enough that avoidance has no argument.";
+  let identity_risk = "Early pacts define early identity. A miss here sets the first data point.";
+  let next_pressure_line = "You said it. Now lock it. Do not let this sit as another stated intention.";
 
   if (commonFailureReason === "Forgot") {
     pattern_warning = "You do not usually fail from effort. You fail from drift.";

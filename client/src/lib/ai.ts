@@ -142,7 +142,7 @@ export const analyzeIntentText = async (text: string): Promise<IntentAnalysis> =
   // Default confrontational response
   return {
     category: "other",
-    confrontation: "That sounds like another vague promise you'll break by lunch. Prove me wrong or keep lying to yourself.",
+    confrontation: "That sounds like another thing you keep saying you'll do. Lock it in with a real stake or drop it.",
     suggestedStake: 5,
   };
 };

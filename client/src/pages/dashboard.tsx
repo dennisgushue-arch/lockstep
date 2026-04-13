@@ -492,8 +492,12 @@ export default function Dashboard() {
             })}
 
             {!sortedCards.length && (
-              <div className="glass-panel p-6 opacity-70">
-                No pacts yet. Create your first intent.
+              <div className="glass-panel p-8 space-y-4">
+                <div className="text-zinc-300 font-semibold">No active pacts. Nothing is at stake.</div>
+                <div className="text-zinc-500 text-sm">Every day without a pact is a day without pressure.</div>
+                <Button className="rounded-none font-bold bg-red-600 hover:bg-red-700 text-white" onClick={() => setLocation("/capture")}>
+                  CREATE YOUR FIRST PACT
+                </Button>
               </div>
             )}
           </div>

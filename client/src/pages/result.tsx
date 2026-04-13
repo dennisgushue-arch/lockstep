@@ -25,8 +25,11 @@ export default function ResultPage() {
   if (!commitment) {
     return (
       <div className="p-8 space-y-4">
-        <div className="text-zinc-300">No result found for this commitment.</div>
-        <Button onClick={() => setLocation("/dashboard")}>Back to Dashboard</Button>
+        <div className="text-zinc-300">No result found. The pact may have been cleared.</div>
+        <div className="flex gap-3">
+          <Button onClick={() => setLocation("/momentum")}>Go to Momentum</Button>
+          <Button variant="secondary" onClick={() => setLocation("/capture")}>Start New Pact</Button>
+        </div>
       </div>
     );
   }

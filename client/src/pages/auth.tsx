@@ -33,7 +33,7 @@ export default function AuthPage() {
           const { data: { session } } = await auth.getSession();
           if (session) {
             console.log("[Auth] User already logged in, redirecting to dashboard");
-            setLocation("/dashboard");
+            setLocation("/momentum");
             return;
           }
         }
@@ -54,7 +54,7 @@ export default function AuthPage() {
           console.log("[Auth] State changed:", event, !!session);
           if (event === 'SIGNED_IN' && session) {
             console.log("[Auth] User signed in via magic link, redirecting...");
-            setLocation("/dashboard");
+            setLocation("/momentum");
           }
         }
       );
@@ -93,7 +93,7 @@ export default function AuthPage() {
         // Actually log the user in via mock context
         await login(email);
         
-        setLocation("/dashboard");
+        setLocation("/momentum");
         setLoading(false);
         return;
       }
@@ -105,7 +105,7 @@ export default function AuthPage() {
       const { data, error } = await auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/momentum`,
         },
       });
 
