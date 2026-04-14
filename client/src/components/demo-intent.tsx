@@ -36,18 +36,22 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
   );
 
   async function runDemo() {
-    if (!text.trim()) return;
+    const demoText = text.trim() || placeholder;
+
+    if (!text.trim()) {
+      setText(placeholder);
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await analyzeIntent(text.trim(), {
+      const data = await analyzeIntent(demoText, {
         behaviorProfile: hydrateBehaviorProfileFromLocalStorage(text.trim()),
       });
       setResult(data);
     } catch {
-      setResult(fallbackDemoResult(text.trim()));
+      setResult(fallbackDemoResult(demoText));
       setError("Live analysis unavailable right now — showing a realistic demo output.");
     } finally {
       setLoading(false);
@@ -101,7 +105,7 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
               <Button
                 className="w-full sm:w-auto rounded-none h-14 px-8 bg-red-600 text-white hover:bg-red-700"
                 onClick={runDemo}
-                disabled={loading || !text.trim()}
+                disabled={loading}
               >
                 {loading ? "ANALYZING..." : "RUN DEMO"}
               </Button>
@@ -114,6 +118,10 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
                 USE A COMMON FLINCH
               </Button>
             </div>
+
+            <p className="text-xs text-zinc-500">
+              No input? We&apos;ll run a default demo.
+            </p>
 
             {error ? <p className="text-sm text-orange-300">{error}</p> : null}
           </div>
