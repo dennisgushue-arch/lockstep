@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Bell, X, TrendingUp, Calendar, MessageSquare, Mic, BookOpen, Zap, 
   ArrowRight, Sparkles, Brain, AlertCircle, CheckCircle2, Clock,
-  Flame, Target, Volume2, StopCircle
+  Flame, Target, Volume2, StopCircle, ShieldAlert, RotateCw
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import type { IntentPattern } from "@/lib/passive-detection";
@@ -25,7 +25,10 @@ export default function DetectionPage() {
     lockInPattern,
     captureSignal,
     loadDemoData,
-    syncInputSources 
+    syncInputSources,
+    syncInputSource,
+    behaviorProfile,
+    psychProfile,
   } = useApp();
   const [, setLocation] = useLocation();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -33,25 +36,65 @@ export default function DetectionPage() {
   const [selectedSource, setSelectedSource] = useState<SourceType>("manual");
   const [isListening, setIsListening] = useState(false);
   const [recentCapture, setRecentCapture] = useState<string | null>(null);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const retryButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const activePatterns = getActivePatterns();
   const recentSignals = intentSignals.slice(0, 10);
 
-  // Auto-redirect if pattern is locked in
   useEffect(() => {
-    const lockedPattern = intentPatterns.find(p => p.status === "locked");
-    if (lockedPattern) {
-      setLocation("/lock-in");
+    if (syncErrorMessage && retryButtonRef.current) {
+      retryButtonRef.current.focus();
     }
-  }, [intentPatterns, setLocation]);
+  }, [syncErrorMessage]);
+
+  useEffect(() => {
+    if (!user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
+  // (Removed auto-redirect to /lock-in for locked patterns)
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      await syncInputSources();
+      const count = await syncInputSources();
+      setSyncErrorMessage(null);
+      setSyncSuccessMessage(`Synced ${count} signal${count === 1 ? "" : "s"} from all sources.`);
+      setTimeout(() => setSyncSuccessMessage(null), 3000);
+    } catch (error) {
+      setSyncSuccessMessage(null);
+      setSyncErrorMessage("Failed to sync sources. Please try again.");
+      setTimeout(() => setSyncErrorMessage(null), 4000);
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleCalendarSync = async () => {
+    setIsSyncing(true);
+    try {
+      const count = await syncInputSource("calendar");
+      setSyncErrorMessage(null);
+      setSyncSuccessMessage(`Synced ${count} calendar signal${count === 1 ? "" : "s"}.`);
+      setTimeout(() => setSyncSuccessMessage(null), 3000);
+    } catch (error) {
+      setSyncSuccessMessage(null);
+      setSyncErrorMessage("Failed to sync calendar events. Please try again.");
+      setTimeout(() => setSyncErrorMessage(null), 4000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRetrySync = async () => {
+    if (selectedSource === "calendar") {
+      await handleCalendarSync();
+      return;
+    }
+    await handleSync();
   };
 
   const handleQuickCapture = async () => {
@@ -127,7 +170,6 @@ export default function DetectionPage() {
   };
 
   if (!user) {
-    setLocation("/");
     return null;
   }
 
@@ -223,6 +265,43 @@ export default function DetectionPage() {
             </Alert>
           )}
 
+          <div aria-live="polite" aria-atomic="true">
+            {syncSuccessMessage && (
+              <Alert className="bg-emerald-500/10 border-emerald-500/50" role="status">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <AlertDescription className="text-emerald-500">
+                  <span className="sr-only">Sync succeeded: </span>
+                  {syncSuccessMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <div aria-live="assertive" aria-atomic="true">
+            {syncErrorMessage && (
+              <Alert className="bg-red-500/10 border-red-500/50" role="alert">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <AlertDescription className="text-red-500 flex items-center justify-between gap-3">
+                  <span>
+                    <span className="sr-only">Sync failed: </span>
+                    {syncErrorMessage}
+                  </span>
+                  <Button
+                    ref={retryButtonRef}
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetrySync}
+                    disabled={isSyncing}
+                    className="border-red-500/40 hover:bg-red-500/10"
+                  >
+                    <RotateCw className={`w-3 h-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
+                    {isSyncing ? "Retrying..." : "Retry"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <Button
               variant={selectedSource === "manual" ? "default" : "outline"}
@@ -256,25 +335,50 @@ export default function DetectionPage() {
               <BookOpen className="w-4 h-4 mr-2" />
               Journal
             </Button>
+            <Button
+              variant={selectedSource === "calendar" ? "default" : "outline"}
+              onClick={() => setSelectedSource("calendar")}
+              className="flex-1"
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Calendar
+            </Button>
           </div>
 
-          <Textarea
-            value={quickCaptureText}
-            onChange={(e) => setQuickCaptureText(e.target.value)}
-            placeholder="e.g., 'I really need to start going to the gym more often' or 'Should finally call mom this weekend'"
-            className="min-h-[100px] text-base"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.metaKey) {
-                handleQuickCapture();
-              }
-            }}
-          />
+
+          {/* Show textarea for all but calendar, show sync button for calendar */}
+          {selectedSource !== "calendar" ? (
+            <Textarea
+              value={quickCaptureText}
+              onChange={(e) => setQuickCaptureText(e.target.value)}
+              placeholder="e.g., 'I really need to start going to the gym more often' or 'Should finally call mom this weekend'"
+              className="min-h-[100px] text-base"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.metaKey) {
+                  handleQuickCapture();
+                }
+              }}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <Button
+                onClick={handleCalendarSync}
+                disabled={isSyncing}
+                className="gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                {isSyncing ? "Syncing Calendar..." : "Sync Calendar Events"}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">Pulls intent signals from your recent calendar events.</p>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <Button 
               onClick={handleVoiceCapture}
               variant={isListening ? "destructive" : "secondary"}
               className="gap-2"
+              disabled={selectedSource === "calendar"}
             >
               {isListening ? (
                 <>
@@ -291,7 +395,7 @@ export default function DetectionPage() {
             <Button 
               onClick={handleQuickCapture}
               className="flex-1 gap-2 text-lg font-bold"
-              disabled={!quickCaptureText.trim()}
+              disabled={selectedSource === "calendar" || !quickCaptureText.trim()}
             >
               <Sparkles className="w-4 h-4" />
               Capture Intent
@@ -304,6 +408,33 @@ export default function DetectionPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Bluff Pattern Alert — from Psych Engine */}
+      {behaviorProfile && behaviorProfile.bluffTopics.length > 0 && (
+        <Card className="border border-amber-600/40 bg-amber-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-amber-300 flex items-center gap-2 text-base">
+              <ShieldAlert className="w-4 h-4" />
+              Bluff Pattern Detected
+            </CardTitle>
+            <CardDescription className="text-amber-200/60">
+              These topics appear repeatedly in your signals but have never been committed to.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {behaviorProfile.bluffTopics.map((topic) => (
+                <Badge key={topic} variant="outline" className="border-amber-600/60 text-amber-300 text-xs">
+                  {topic}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xs text-amber-200/70 italic">
+              {psychProfile?.pattern_warning ?? behaviorProfile.psych.pattern_warning}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detected Patterns */}
       {activePatterns.length > 0 && (

@@ -6,6 +6,10 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { analytics } from "@/lib/analytics";
+import {
+  getIntegrityIdentity,
+  getIntegrityIdentityPressureLine,
+} from "@/lib/integrity-identity";
 
 const STORAGE_KEY = "intent_checkins";
 
@@ -34,7 +38,7 @@ function saveCheckIns(entries: CheckInEntry[]) {
 
 export default function JournalPage() {
   const [location, setLocation] = useLocation();
-  const { commitments, captureSignal } = useApp();
+  const { commitments, captureSignal, behaviorProfile } = useApp();
   const { toast } = useToast();
 
   const [note, setNote] = useState("");
@@ -56,6 +60,23 @@ export default function JournalPage() {
     if (!commitmentId) return [];
     return loadCheckIns().filter((e) => e.commitmentId === commitmentId);
   }, [commitmentId]);
+
+  const integrityScore = useMemo(() => {
+    if (commitments.length === 0) return 0;
+    const completed = commitments.filter(c => c.status === "completed").length;
+    const total = commitments.filter(c => c.status === "completed" || c.status === "missed").length;
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }, [commitments]);
+
+  const integrityIdentity = useMemo(
+    () => getIntegrityIdentity(integrityScore),
+    [integrityScore]
+  );
+
+  const identityPressureLine = useMemo(
+    () => behaviorProfile.psych.next_pressure_line,
+    [behaviorProfile.psych.next_pressure_line]
+  );
 
   const handleSave = async () => {
     if (!commitmentId) return;
@@ -120,25 +141,34 @@ export default function JournalPage() {
     <div className="relative">
       <div className="noise-bg" />
 
-      <div className="container max-w-4xl mx-auto px-4 py-8 space-y-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-heading font-bold text-glow">
-              CHECK-IN
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              {commitment
-                ? `Pact: ${commitment.actionText ?? "Pact"}`
-                : "Log proof and keep the pact alive."}
-            </p>
+      <div className="container max-w-4xl mx-auto px-4 py-8 space-y-6" key={integrityScore}>
+        <div className="space-y-2">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-heading font-bold text-glow">
+                CHECK-IN
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                {commitment
+                  ? `Pact: ${commitment.actionText ?? "Pact"}`
+                  : "Log proof and keep the pact alive."}
+              </p>
+            </div>
+
+            <Button
+              className="rounded-none h-12 px-6 text-lg font-bold"
+              onClick={() => setLocation("/dashboard")}
+            >
+              BACK
+            </Button>
           </div>
 
-          <Button
-            className="rounded-none h-12 px-6 text-lg font-bold"
-            onClick={() => setLocation("/dashboard")}
-          >
-            BACK
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className={`text-sm font-bold uppercase tracking-widest ${integrityIdentity.colorClass}`}>
+              {integrityIdentity.label}
+            </div>
+            <div className="text-sm text-zinc-400">{identityPressureLine}</div>
+          </div>
         </div>
 
         <div className="glass-panel p-6 brutal-shadow space-y-4">

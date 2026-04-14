@@ -7,10 +7,32 @@ import WhoItsFor from "@/components/who-its-for";
 import WhatLockstepNotices from "@/components/what-lockstep-notices";
 import BeforeAfter from "@/components/before-after";
 import DemoIntent from "@/components/demo-intent";
+import { useApp } from "@/lib/mock-data";
 import heroImage from "@assets/generated_images/minimalist_abstract_concrete_architecture,_dramatic_lighting,_black_and_white.png";
-
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const { analyzeIntent, user } = useApp();
+
+  const handleAttachPenalty = async (intentText: string) => {
+    const safeText = intentText.trim();
+    if (!user) {
+      // Unauthenticated users must sign in before locking in a pact
+      setLocation("/auth");
+      return;
+    }
+    if (!safeText) {
+      setLocation("/capture");
+      return;
+    }
+
+    try {
+      await analyzeIntent(safeText);
+      setLocation("/reflection");
+    } catch {
+      // Fallback to manual capture flow if analysis fails
+      setLocation("/capture");
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white pb-20 sm:pb-0">
@@ -52,7 +74,7 @@ export default function Landing() {
             </motion.p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Link href="/auth">
+            <Link href={user ? "/capture" : "/auth"}>
                 <Button className="w-full sm:w-auto rounded-none h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg font-black tracking-widest bg-red-600 text-white hover:bg-red-700">
                 PROVE YOU MEAN IT
               </Button>
@@ -71,7 +93,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <DemoIntent onLockReal={() => setLocation("/auth")} />
+      <DemoIntent onLockReal={handleAttachPenalty} />
 
       <WhatLockstepNotices />
 
@@ -160,7 +182,7 @@ export default function Landing() {
         <p className="text-zinc-400 text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-8">
           Lock one pact. Set one stake. Let proof settle the argument.
         </p>
-        <Link href="/auth">
+        <Link href="/capture">
           <Button size="lg" className="w-full sm:w-auto rounded-none h-14 sm:h-16 px-10 sm:px-12 text-base sm:text-xl font-black bg-white text-black hover:bg-zinc-200">
             PROOF OR PENALTY
           </Button>
@@ -168,7 +190,7 @@ export default function Landing() {
       </section>
 
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-black/95 p-3 sm:hidden">
-        <Link href="/auth">
+        <Link href="/capture">
           <Button className="w-full rounded-none h-12 text-sm font-black bg-red-600 text-white hover:bg-red-700">
             PROVE YOU MEAN IT
           </Button>

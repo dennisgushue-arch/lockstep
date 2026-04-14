@@ -4,8 +4,8 @@
  * Test script to verify all routes and pages render correctly
  */
 
-const http = require('http');
-const https = require('https');
+import http from 'node:http';
+import https from 'node:https';
 
 const BASE_URL = 'http://localhost:5000';
 
@@ -107,4 +107,4 @@ async function runTests() {
   process.exit(failed === 0 ? 0 : 1);
 }
 
-runTests();
+await runTests();

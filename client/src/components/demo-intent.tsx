@@ -1,18 +1,10 @@
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { analyzeIntent, type StructuredIntent } from "@/lib/ai";
-
-type StructuredIntentLike = {
-  category: string;
-  confidence?: number;
-  goal?: string;
-  first_action?: string;
-  reflection?: string;
-  suggested_stake?: number;
-};
+import { hydrateBehaviorProfileFromLocalStorage } from "@/lib/behavior-profile";
 
 type DemoIntentProps = {
-  onLockReal: () => void;
+  onLockReal: (intentText: string) => void | Promise<void>;
 };
 
 function fallbackDemoResult(text: string): StructuredIntent {
@@ -31,54 +23,11 @@ function fallbackDemoResult(text: string): StructuredIntent {
   };
 }
 
-function normalizeDemoResult(
-  input: AnalyzeIntentResult | StructuredIntentLike,
-  rawText: string,
-): AnalyzeIntentResult {
-  if ((input as AnalyzeIntentResult)?.parsed_intent) {
-    return input as AnalyzeIntentResult;
-  }
-
-  const structured = input as StructuredIntentLike;
-  return {
-    parsed_intent: {
-      raw_text: rawText,
-      action: structured.goal || "Complete one concrete action",
-      category: structured.category || "personal",
-      metric: {
-        type: null,
-        target: null,
-        unit: null,
-      },
-      deadline_at: null,
-      proof_method: "check_in",
-      difficulty: 3,
-      confidence: structured.confidence ?? 0.75,
-    },
-    risk: {
-      score: 0.6,
-      level: "medium",
-      reasons: ["Execution risk rises without a concrete start time"],
-      at_risk_warning: "Execution risk rises without a concrete start time.",
-    },
-    recommendation: {
-      rewrite: structured.goal || rawText,
-      suggested_stake: structured.suggested_stake ?? 10,
-      suggested_first_step:
-        structured.first_action || "Take one concrete first step right now.",
-      should_ask_followup: false,
-      followup_question: null,
-    },
-    reflection_message:
-      structured.reflection ||
-      "Intent is strongest when your first action is immediate and measurable.",
-  };
-}
-
 export default function DemoIntent({ onLockReal }: DemoIntentProps) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<StructuredIntent | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isLockingReal, setIsLockingReal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const placeholder = useMemo(
@@ -97,18 +46,27 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
     setError(null);
 
     try {
-      const data = await Promise.race([
-        analyzeIntent(demoText),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Demo analysis timed out")), 5000),
-        ),
-      ]);
-      setResult(normalizeDemoResult(data as AnalyzeIntentResult | StructuredIntentLike, demoText));
+      const data = await analyzeIntent(demoText, {
+        behaviorProfile: hydrateBehaviorProfileFromLocalStorage(text.trim()),
+      });
+      setResult(data);
     } catch {
       setResult(fallbackDemoResult(demoText));
       setError("Live analysis unavailable right now — showing a realistic demo output.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleAttachPenalty() {
+    const intentText = text.trim() || action;
+    if (!intentText) return;
+
+    setIsLockingReal(true);
+    try {
+      await onLockReal(intentText);
+    } finally {
+      setIsLockingReal(false);
     }
   }
 
@@ -206,9 +164,10 @@ export default function DemoIntent({ onLockReal }: DemoIntentProps) {
           {result ? (
             <Button
               className="w-full sm:w-auto rounded-none bg-white text-black hover:bg-zinc-200 font-bold"
-              onClick={onLockReal}
+              onClick={handleAttachPenalty}
+              disabled={isLockingReal}
             >
-              ATTACH A PENALTY
+              {isLockingReal ? "OPENING PACT..." : "ATTACH A PENALTY"}
             </Button>
           ) : (
             <div className="text-sm text-zinc-500">

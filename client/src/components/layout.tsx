@@ -9,9 +9,11 @@ import { Coins, Settings } from "lucide-react";
 import type { IntentPattern } from "@/lib/passive-detection";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logout, creditBalance, intentPatterns, dismissPattern, lockInPattern } = useApp();
   const [activeSuggestion, setActiveSuggestion] = useState<IntentPattern | null>(null);
+  const ONBOARDING_STORAGE_KEY = "onboarding_completed_v1";
+  const isDemoUser = Boolean(user && (user.id === "guest_demo_user" || user.email === "guest@lockstep.demo"));
   
   // Watch for high-urgency patterns to show suggestion
   useEffect(() => {
@@ -23,6 +25,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       setActiveSuggestion(highUrgencyPattern);
     }
   }, [intentPatterns, activeSuggestion]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (location === "/" || location === "/auth" || location === "/onboarding") return;
+
+    const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
+    if (!completed) {
+      setLocation("/onboarding");
+    }
+  }, [user, location, setLocation]);
   
   const isLanding = location === "/";
   const isAuth = location === "/auth";
@@ -36,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="noise-bg" />
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href={user ? "/dashboard" : "/"}>
+          <Link href={user ? "/momentum" : "/"}>
             <span className="text-xl font-heading font-bold tracking-tighter hover:text-primary/80 transition-colors cursor-pointer">
               INTENT.
             </span>
@@ -45,6 +57,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-4">
             {user ? (
               <>
+                <Link href="/momentum">
+                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/momentum' ? 'text-primary' : 'text-muted-foreground'}`}>
+                    Momentum
+                  </span>
+                </Link>
                 <Link href="/dashboard">
                   <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
                     Dashboard
@@ -58,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <DetectionBadge />
                 <Link href="/capture">
                   <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    New Intent
+                    New Pact
                   </span>
                 </Link>
                 <Link href="/credits">
@@ -67,6 +84,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <span className="text-yellow-500 font-bold">{creditBalance}</span>
                   </Badge>
                 </Link>
+                {isDemoUser && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] uppercase tracking-widest border-cyan-500/50 text-cyan-300 bg-cyan-500/10"
+                  >
+                    Demo User
+                  </Badge>
+                )}
                 <Link href="/settings">
                   <Button variant="ghost" size="icon" className="hover:text-primary">
                     <Settings className="w-4 h-4" />

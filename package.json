@@ -14,6 +14,7 @@
     "preview": "vite preview --config vite.config.ts --host 0.0.0.0 --port 5000",
     "verify": "pnpm check && pnpm build",
     "verify:routes": "node test-routes.js",
+    "verify:quick-capture": "node scripts/test-quick-capture.mjs",
     "verify:all": "pnpm verify",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
@@ -24,7 +25,8 @@
     "mobile:add:ios": "pnpm exec cap add ios",
     "mobile:add:android": "pnpm exec cap add android",
     "mobile:open:ios": "pnpm exec cap open ios",
-    "mobile:open:android": "pnpm exec cap open android"
+    "mobile:open:android": "pnpm exec cap open android",
+    "android:release:aab": "bash ./scripts/build-play-aab.sh"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3",
@@ -64,6 +66,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "compromise": "^14.15.0",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.39.3",
@@ -75,6 +78,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.545.0",
     "memorystore": "^1.6.7",
+    "nanoid": "^5.1.7",
     "next-themes": "^0.4.6",
     "openai": "^6.15.0",
     "passport": "^0.7.0",
