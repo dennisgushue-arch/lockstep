@@ -1,16 +1,148 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { inspectPressureNotifications, readLastAppOpenedAt } from "@/lib/pressure-notifications";
+import { buildNativeNotificationPayloadPreview } from "@/lib/native-consequence-notifications";
+import { buildPactDeepLink, handleDeepLink, type DeepLinkMode } from "@/lib/deeplink";
+import { routeFromNotificationUrl } from "@/lib/notification-routing";
+
+type TimeTravelPreset = "live" | "pre-failure" | "final" | "missed" | "recovery" | "custom";
+
+function badgeVariantFor(decision: "queued" | "already-sent" | "suppressed" | "not-applicable") {
+  switch (decision) {
+    case "queued":
+      return "bg-green-500/10 text-green-400 border-green-500/30";
+    case "already-sent":
+      return "bg-sky-500/10 text-sky-300 border-sky-500/30";
+    case "suppressed":
+      return "bg-amber-500/10 text-amber-300 border-amber-500/30";
+    default:
+      return "bg-zinc-500/10 text-zinc-300 border-zinc-500/30";
+  }
+}
 
 export default function AdminPage() {
-  const { runMissCheck, commitments } = useApp();
+  const isDev = import.meta.env.DEV;
+  const [, setLocation] = useLocation();
+  const { runMissCheck, commitments, behaviorProfile } = useApp();
   const [logs, setLogs] = useState<string[]>([]);
+  const [timeTravelPreset, setTimeTravelPreset] = useState<TimeTravelPreset>("live");
+  const [selectedCommitmentId, setSelectedCommitmentId] = useState<string>("");
+  const [customDateTime, setCustomDateTime] = useState("");
+  const [openPayloadKeys, setOpenPayloadKeys] = useState<Record<string, boolean>>({});
+  const [copiedPayloadKey, setCopiedPayloadKey] = useState<string | null>(null);
+  const [copiedDeepLinkMode, setCopiedDeepLinkMode] = useState<DeepLinkMode | null>(null);
+
+  const sortedCommitments = useMemo(
+    () => [...commitments].sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()),
+    [commitments],
+  );
+
+  const effectiveSelectedCommitmentId = selectedCommitmentId || sortedCommitments[0]?.id || "";
+
+  const liveInspection = useMemo(
+    () => inspectPressureNotifications(commitments, {
+      now: Date.now(),
+      worstTimeOfDay: behaviorProfile.worstTimeOfDay,
+      lastAppOpenedAt: readLastAppOpenedAt(),
+    }),
+    [behaviorProfile.worstTimeOfDay, commitments],
+  );
+
+  const selectedInspection = useMemo(
+    () => liveInspection.find((entry) => entry.commitmentId === effectiveSelectedCommitmentId) ?? null,
+    [effectiveSelectedCommitmentId, liveInspection],
+  );
+
+  const simulatedNow = useMemo(() => {
+    if (timeTravelPreset === "live") return Date.now();
+
+    if (timeTravelPreset === "custom") {
+      const parsed = customDateTime ? new Date(customDateTime).getTime() : Number.NaN;
+      return Number.isFinite(parsed) ? parsed : Date.now();
+    }
+
+    if (!selectedInspection) return Date.now();
+
+    const findScheduledAt = (type: "pre-failure-warning" | "deadline-pressure" | "recovery-trigger") => {
+      const item = selectedInspection.items.find((entry) => entry.type === type);
+      return item ? new Date(item.scheduledAt).getTime() : Date.now();
+    };
+
+    if (timeTravelPreset === "pre-failure") {
+      return findScheduledAt("pre-failure-warning") + 60_000;
+    }
+
+    if (timeTravelPreset === "final") {
+      return findScheduledAt("deadline-pressure") + 60_000;
+    }
+
+    if (timeTravelPreset === "missed") {
+      return new Date(selectedInspection.dueAt).getTime() + 2 * 60_000;
+    }
+
+    return findScheduledAt("recovery-trigger") + 60_000;
+  }, [customDateTime, selectedInspection, timeTravelPreset]);
+
+  const pressureInspection = useMemo(
+    () => inspectPressureNotifications(commitments, {
+      now: simulatedNow,
+      worstTimeOfDay: behaviorProfile.worstTimeOfDay,
+      lastAppOpenedAt: timeTravelPreset === "recovery" ? null : readLastAppOpenedAt(),
+    }),
+    [behaviorProfile.worstTimeOfDay, commitments, simulatedNow, timeTravelPreset],
+  );
 
   const handleRunJob = async () => {
     const result = await runMissCheck();
     setLogs(prev => [result, ...prev]);
+  };
+
+  const simulateDeepLink = (mode: DeepLinkMode) => {
+    if (!effectiveSelectedCommitmentId) return;
+    const deepLink = buildPactDeepLink(effectiveSelectedCommitmentId, mode);
+    handleDeepLink(deepLink, setLocation);
+  };
+
+  const simulateNotificationTap = (mode: "act" | "prove" | "missed" | "recovery") => {
+    if (!effectiveSelectedCommitmentId) return;
+    const url = `lockstep://pact/${effectiveSelectedCommitmentId}?mode=${mode}`;
+    routeFromNotificationUrl(url, setLocation);
+  };
+
+  const copyDeepLink = async (mode: DeepLinkMode) => {
+    if (!effectiveSelectedCommitmentId) return;
+    try {
+      await navigator.clipboard.writeText(buildPactDeepLink(effectiveSelectedCommitmentId, mode));
+      setCopiedDeepLinkMode(mode);
+      window.setTimeout(() => {
+        setCopiedDeepLinkMode((current) => (current === mode ? null : current));
+      }, 1500);
+    } catch {
+      setCopiedDeepLinkMode(null);
+    }
+  };
+
+  const togglePayloadPreview = (key: string) => {
+    setOpenPayloadKeys((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const copyPayloadPreview = async (key: string, payload: string) => {
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopiedPayloadKey(key);
+      window.setTimeout(() => {
+        setCopiedPayloadKey((current) => (current === key ? null : current));
+      }, 1500);
+    } catch {
+      setCopiedPayloadKey(null);
+    }
   };
 
   return (
@@ -62,6 +194,252 @@ export default function AdminPage() {
           <pre className="text-xs bg-black p-4 overflow-auto border border-zinc-800 text-zinc-400">
             {JSON.stringify(commitments, null, 2)}
           </pre>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pressure Notification Inspector</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            For each pact: what is queued, what was suppressed by throttling, and what no longer applies.
+          </p>
+
+          <div className="border border-zinc-800 bg-black/30 p-4 space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <label className="flex-1 space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Reference pact</div>
+                <select
+                  value={effectiveSelectedCommitmentId}
+                  onChange={(e) => setSelectedCommitmentId(e.target.value)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                >
+                  {sortedCommitments.map((commitment) => (
+                    <option key={commitment.id} value={commitment.id}>
+                      {(commitment.actionText || commitment.intent.goal || commitment.intent.text || commitment.id).slice(0, 80)}
+                    </option>
+                  ))}
+                  {!sortedCommitments.length && <option value="">No pacts</option>}
+                </select>
+              </label>
+
+              <div className="flex-[2] space-y-2">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Time travel</div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ["live", "Live now"],
+                    ["pre-failure", "Pre-failure"],
+                    ["final", "Final"],
+                    ["missed", "Just missed"],
+                    ["recovery", "+30 min recovery"],
+                    ["custom", "Custom"],
+                  ].map(([value, label]) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      variant={timeTravelPreset === value ? "default" : "outline"}
+                      className="rounded-none"
+                      onClick={() => setTimeTravelPreset(value as TimeTravelPreset)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-zinc-800 bg-zinc-950/40 p-4 space-y-3">
+              <div className="text-xs uppercase tracking-widest text-zinc-500">Simulate deep link</div>
+              <div className="text-sm text-zinc-400">
+                Fire the actual deep-link handler for the selected pact and jump directly into the target screen.
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ["act", "Open act"],
+                  ["prove", "Open prove"],
+                  ["missed", "Open missed"],
+                  ["recovery", "Open recovery"],
+                ] as Array<[DeepLinkMode, string]>).map(([mode, label]) => (
+                  <div key={mode} className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-none"
+                      disabled={!effectiveSelectedCommitmentId}
+                      onClick={() => simulateDeepLink(mode)}
+                    >
+                      {label}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-none"
+                      disabled={!effectiveSelectedCommitmentId}
+                      onClick={() => void copyDeepLink(mode)}
+                    >
+                      {copiedDeepLinkMode === mode ? "Copied" : "Copy link"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {effectiveSelectedCommitmentId && (
+                <div className="text-xs text-zinc-500 break-all">
+                  Selected pact deep link base: <span className="text-zinc-300">lockstep://pact/{effectiveSelectedCommitmentId}?mode=…</span>
+                </div>
+              )}
+            </div>
+
+            {isDev && (
+              <div className="border border-zinc-800 bg-zinc-950/40 p-4 space-y-3">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Dev: simulate notification tap</div>
+                <div className="text-sm text-zinc-400">
+                  Runs the same URL routing path used by the notification response listener.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-none h-8 text-xs"
+                    disabled={!effectiveSelectedCommitmentId}
+                    onClick={() => simulateNotificationTap("act")}
+                  >
+                    Tap ACT notification
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-none h-8 text-xs"
+                    disabled={!effectiveSelectedCommitmentId}
+                    onClick={() => simulateNotificationTap("prove")}
+                  >
+                    Tap PROVE notification
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-none h-8 text-xs"
+                    disabled={!effectiveSelectedCommitmentId}
+                    onClick={() => simulateNotificationTap("missed")}
+                  >
+                    Tap MISSED notification
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-none h-8 text-xs"
+                    disabled={!effectiveSelectedCommitmentId}
+                    onClick={() => simulateNotificationTap("recovery")}
+                  >
+                    Tap RECOVERY notification
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {timeTravelPreset === "custom" && (
+              <label className="block space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Custom simulated time</div>
+                <input
+                  type="datetime-local"
+                  value={customDateTime}
+                  onChange={(e) => setCustomDateTime(e.target.value)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+            )}
+
+            <div className="flex flex-wrap gap-3 text-xs text-zinc-400">
+              <div>
+                Simulated now: <span className="text-white">{new Date(simulatedNow).toLocaleString()}</span>
+              </div>
+              {selectedInspection && timeTravelPreset !== "live" && timeTravelPreset !== "custom" && (
+                <div>
+                  Anchor pact: <span className="text-white">{selectedInspection.actionLabel}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {pressureInspection.map((entry) => (
+              <div key={entry.commitmentId} className="border border-zinc-800 p-4 bg-black/30 space-y-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="text-lg font-semibold text-white">{entry.actionLabel}</div>
+                    <div className="text-xs text-zinc-500 mt-1">
+                      Pact {entry.commitmentId} · due {new Date(entry.dueAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="w-fit uppercase tracking-widest">
+                    {entry.status}
+                  </Badge>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {entry.items.map((item) => (
+                    <div key={`${entry.commitmentId}-${item.type}`} className="border border-zinc-800 p-3 space-y-2 bg-zinc-950/60">
+                      {(() => {
+                        const previewKey = `${entry.commitmentId}-${item.type}`;
+                        const payload = buildNativeNotificationPayloadPreview({
+                          id: item.notificationId,
+                          type: item.type,
+                          at: new Date(item.scheduledAt),
+                          title: item.title,
+                          body: item.body,
+                          commitmentId: item.commitmentId,
+                        });
+                        const payloadText = JSON.stringify(payload, null, 2);
+                        const isOpen = Boolean(openPayloadKeys[previewKey]);
+
+                        return (
+                          <>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-zinc-100 uppercase tracking-widest">{item.type}</div>
+                        <Badge variant="outline" className={badgeVariantFor(item.decision)}>
+                          {item.decision}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-white">{item.title}</div>
+                      <div className="text-xs text-zinc-400">{item.body}</div>
+                      <div className="text-xs text-zinc-500">Scheduled: {new Date(item.scheduledAt).toLocaleString()}</div>
+                      <div className="text-xs text-zinc-300">{item.reason}</div>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-none h-8 text-xs"
+                          onClick={() => togglePayloadPreview(previewKey)}
+                        >
+                          {isOpen ? "Hide payload" : "Show payload"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-none h-8 text-xs"
+                          onClick={() => void copyPayloadPreview(previewKey, payloadText)}
+                        >
+                          {copiedPayloadKey === previewKey ? "Copied" : "Copy payload preview"}
+                        </Button>
+                      </div>
+                      {isOpen && (
+                        <pre className="text-[11px] bg-black p-3 overflow-auto border border-zinc-800 text-zinc-400 whitespace-pre-wrap break-all">
+                          {payloadText}
+                        </pre>
+                      )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {pressureInspection.length === 0 && (
+              <div className="text-sm text-zinc-500">No pacts available to inspect.</div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

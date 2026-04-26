@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,24 @@ import { Mic, ArrowRight, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CapturePage() {
-  const [text, setText] = useState("");
+  const [location] = useLocation();
+  const prefill = useMemo(() => {
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(search);
+    return params.get("prefill") || "";
+  }, [location]);
+  const [text, setText] = useState(prefill);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { analyzeIntent } = useApp();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (prefill) {
+      setText(prefill);
+    }
+  }, [prefill]);
 
   const handleMicToggle = () => {
     // MVP Mock for voice

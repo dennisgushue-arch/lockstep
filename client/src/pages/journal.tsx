@@ -45,6 +45,25 @@ export default function JournalPage() {
   const [proof, setProof] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const handleProofPaste: React.ClipboardEventHandler<HTMLTextAreaElement> = (event) => {
+    const pastedText = event.clipboardData.getData("text");
+    if (!pastedText) return;
+
+    event.preventDefault();
+
+    const target = event.currentTarget;
+    const start = target.selectionStart ?? proof.length;
+    const end = target.selectionEnd ?? proof.length;
+    const nextValue = `${proof.slice(0, start)}${pastedText}${proof.slice(end)}`;
+
+    setProof(nextValue);
+
+    const cursorPosition = start + pastedText.length;
+    requestAnimationFrame(() => {
+      target.setSelectionRange(cursorPosition, cursorPosition);
+    });
+  };
+
   const commitmentId = useMemo(() => {
     const search = typeof window !== "undefined" ? window.location.search : "";
     const params = new URLSearchParams(search);
@@ -189,9 +208,11 @@ export default function JournalPage() {
           <div className="text-xs uppercase tracking-widest opacity-60">
             Proof prompt
           </div>
-          <input
+          <textarea
             value={proof}
             onChange={(e) => setProof(e.target.value)}
+            onPaste={handleProofPaste}
+            rows={3}
             placeholder="Drop a link, screenshot note, or concrete evidence."
             className={cn(
               "w-full bg-black/40 border border-zinc-800 p-3 text-sm",

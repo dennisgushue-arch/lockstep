@@ -19,6 +19,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_EXPECTED_UPLOAD_SHA1: C8:46:61:CA:22:4F:0D:16:2E:6E:4C:AC:79:DC:07:D3:E2:E5:3C:56
 
     steps:
       - name: Checkout
@@ -73,6 +74,20 @@ jobs:
           mkdir -p "$(dirname "$ANDROID_KEYSTORE_PATH")"
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
           chmod 600 "$ANDROID_KEYSTORE_PATH"
+
+      - name: Verify upload keystore fingerprint
+        run: |
+          ACTUAL_SHA1=$(keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | awk -F': ' '/SHA1:/ {print $2; exit}')
+          echo "Expected SHA1: $ANDROID_EXPECTED_UPLOAD_SHA1"
+          echo "Actual SHA1:   $ACTUAL_SHA1"
+          if [ -z "$ACTUAL_SHA1" ]; then
+            echo "Could not read SHA1 from keystore"
+            exit 1
+          fi
+          if [ "$ACTUAL_SHA1" != "$ANDROID_EXPECTED_UPLOAD_SHA1" ]; then
+            echo "Upload keystore fingerprint mismatch"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

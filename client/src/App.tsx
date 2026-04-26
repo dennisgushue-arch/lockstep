@@ -2,7 +2,7 @@ import Missed from "@/pages/missed";
 import TestIntentPage from "@/pages/test-intent";
 import DebugPage from "@/pages/debug";
 import CreditsPage from "@/pages/credits";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -31,8 +31,73 @@ import JournalPage from "@/pages/journal";
 import OnboardingPage from "@/pages/onboarding";
 import ResultPage from "@/pages/result";
 import MomentumPage from "@/pages/momentum";
+import { ReviewPrompt } from "@/components/review-prompt";
+import PactAct from "@/pages/pact-act";
+import PactProvePage from "@/pages/pact-prove";
+import RecoveryPage from "@/pages/recovery";
+import { App as CapacitorApp } from "@capacitor/app";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import { handleDeepLink } from "@/lib/deeplink";
+import { routeFromNotificationUrl } from "@/lib/notification-routing";
+import { useEffect } from "react";
 
 const isDev = import.meta.env.DEV;
+
+function DeepLinkRuntime() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    let appUrlListener: { remove: () => Promise<void> } | null = null;
+    let notificationListener: { remove: () => Promise<void> } | null = null;
+    let expoNotificationResponseSub: { remove: () => void } | null = null;
+
+    const register = async () => {
+      appUrlListener = await CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+        if (url) {
+          handleDeepLink(url, setLocation);
+        }
+      });
+
+      notificationListener = await LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+        const deepLink = event.notification.extra?.deepLink as string | undefined;
+        if (deepLink) {
+          handleDeepLink(deepLink, setLocation);
+        }
+      });
+
+      const isNative = typeof window !== "undefined" && Boolean((window as any).Capacitor?.isNativePlatform?.());
+
+      if (isNative) {
+        try {
+          const Notifications = await import("expo-notifications");
+          expoNotificationResponseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+            const url = response.notification.request.content.data?.url as string | undefined;
+            if (url) {
+              routeFromNotificationUrl(url, setLocation);
+            }
+          });
+        } catch (error) {
+          console.warn("[DeepLinkRuntime] Expo notifications unavailable", error);
+        }
+      }
+
+      const launch = await CapacitorApp.getLaunchUrl();
+      if (launch?.url) {
+        handleDeepLink(launch.url, setLocation);
+      }
+    };
+
+    void register();
+
+    return () => {
+      void appUrlListener?.remove();
+      void notificationListener?.remove();
+      expoNotificationResponseSub?.remove();
+    };
+  }, [setLocation]);
+
+  return null;
+}
 
 function Router() {
   return (
@@ -55,6 +120,10 @@ function Router() {
         <Route path="/journal" component={JournalPage} />
         <Route path="/onboarding" component={OnboardingPage} />
         <Route path="/result" component={ResultPage} />
+        <Route path="/result/:id" component={ResultPage} />
+        <Route path="/pact/:id/act" component={PactAct} />
+        <Route path="/pact/:id/prove" component={PactProvePage} />
+        <Route path="/recovery/:id" component={RecoveryPage} />
         <Route path="/missed" component={Missed} />
         <Route path="/momentum" component={MomentumPage} />
         {isDev && <Route path="/test-intent" component={TestIntentPage} />}
@@ -84,7 +153,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppProvider>
+            <DeepLinkRuntime />
             <Router />
+            <ReviewPrompt />
             <Toaster />
           </AppProvider>
         </TooltipProvider>

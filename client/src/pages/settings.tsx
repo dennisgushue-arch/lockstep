@@ -6,12 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Bell, Lock, Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
+import { requestNativeReview } from "@/lib/native-review";
 
 export default function SettingsPage() {
   const [, setLocation] = useLocation();
   const { user } = useApp();
   const [enablePassiveDetection, setEnablePassiveDetection] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [isRequestingReview, setIsRequestingReview] = useState(false);
 
   // Load setting from localStorage
   useEffect(() => {
@@ -33,6 +35,16 @@ export default function SettingsPage() {
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
     }, 300);
+  };
+
+  const handleRateApp = async () => {
+    if (isRequestingReview) return;
+    setIsRequestingReview(true);
+    try {
+      await requestNativeReview();
+    } finally {
+      setIsRequestingReview(false);
+    }
   };
 
   return (
@@ -157,6 +169,9 @@ export default function SettingsPage() {
           <CardContent className="text-muted-foreground">
             <p className="mb-3">Additional settings coming soon...</p>
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => void handleRateApp()} disabled={isRequestingReview}>
+                {isRequestingReview ? "Opening..." : "Rate Lockstep"}
+              </Button>
               <a href="/privacy.html" target="_blank" rel="noreferrer">
                 <Button variant="outline" size="sm">Privacy Policy</Button>
               </a>

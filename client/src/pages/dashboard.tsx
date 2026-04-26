@@ -19,8 +19,11 @@ import {
 } from "@/lib/integrity-identity";
 import {
   differenceInMinutes,
+  endOfWeek,
   formatDistanceToNowStrict,
   isBefore,
+  startOfWeek,
+  subWeeks,
 } from "date-fns";
 import { getRecoveryPlan } from "@/lib/identity-recovery";
 import IdentityRecoveryCard from "@/components/identity-recovery-card";
@@ -52,6 +55,28 @@ function badgeFor(c: CommitmentCard) {
     return { label: "DUE SOON", cls: "border-yellow-500 text-yellow-300" };
   }
   return { label: "ACTIVE", cls: "border-zinc-600 text-zinc-300" };
+}
+
+function formatCategoryLabel(value: string | null | undefined) {
+  if (!value) return "No pattern yet";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatTimeLabel(value: string | null | undefined) {
+  if (!value) return "No pattern yet";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function summarizeFailurePattern(value: string) {
+  const lower = value.toLowerCase();
+
+  if (lower.includes("deadline drift")) return "Deadline drift";
+  if (lower.includes("repetition trap")) return "Avoidance";
+  if (lower.includes("under-execution")) return "Avoidance";
+  if (lower.includes("unclear closure")) return "Weak proof";
+  if (lower.includes("insufficient data")) return "Startup fragility";
+
+  return "Avoidance";
 }
 
 export default function Dashboard() {
@@ -168,6 +193,81 @@ export default function Dashboard() {
       completedLast7,
     };
   }, [sortedCards]);
+
+  const weeklyReality = useMemo(() => {
+    const now = new Date();
+    const weekStartsOn = 1;
+    const thisWeekStart = startOfWeek(now, { weekStartsOn });
+    const thisWeekEnd = endOfWeek(now, { weekStartsOn });
+
+    const isInWindow = (date: Date, start: Date, end: Date) => date >= start && date <= end;
+
+    const currentWeekPacts = commitments.filter((commitment) => {
+      const dueDate = new Date(commitment.scheduledDate);
+      if (Number.isNaN(dueDate.getTime())) return false;
+      if (!isInWindow(dueDate, thisWeekStart, thisWeekEnd)) return false;
+      return commitment.status !== "scheduled" || dueDate <= now;
+    });
+
+    const kept = currentWeekPacts.filter((commitment) => commitment.status === "completed").length;
+    const total = currentWeekPacts.length;
+
+    const previousRates = [1, 2, 3]
+      .map((weeksAgo) => {
+        const start = startOfWeek(subWeeks(now, weeksAgo), { weekStartsOn });
+        const end = endOfWeek(subWeeks(now, weeksAgo), { weekStartsOn });
+        const windowPacts = commitments.filter((commitment) => {
+          const dueDate = new Date(commitment.scheduledDate);
+          if (Number.isNaN(dueDate.getTime())) return false;
+          return isInWindow(dueDate, start, end) && commitment.status !== "scheduled";
+        });
+
+        if (!windowPacts.length) return null;
+        const completed = windowPacts.filter((commitment) => commitment.status === "completed").length;
+        return completed / windowPacts.length;
+      })
+      .filter((rate): rate is number => rate !== null);
+
+    const currentRate = total > 0 ? kept / total : 0;
+    const baselineRate = previousRates.length > 0
+      ? previousRates.reduce((sum, rate) => sum + rate, 0) / previousRates.length
+      : null;
+
+    let baselineLine = "Set more pacts this week so the pattern becomes visible.";
+    if (baselineRate !== null && total > 0) {
+      if (currentRate + 0.05 < baselineRate) {
+        baselineLine = "This is below your normal.";
+      } else if (currentRate - 0.05 > baselineRate) {
+        baselineLine = "This is above your normal.";
+      } else {
+        baselineLine = "This is right on your normal.";
+      }
+    } else if (total > 0) {
+      baselineLine = kept === total ? "Clean week so far. Keep the pressure on." : "This week is setting your baseline.";
+    }
+
+    const missedByCategory = commitments.reduce<Record<string, number>>((acc, commitment) => {
+      if (commitment.status !== "missed") return acc;
+      const category = commitment.intent?.category || "other";
+      acc[category] = (acc[category] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const mostMissedCategory = Object.entries(missedByCategory)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? behaviorProfile.weakestCategory;
+
+    return {
+      kept,
+      total,
+      baselineLine,
+      mostMissedCategory,
+      bestTime: behaviorProfile.bestTimeOfDay,
+      weakestPattern: summarizeFailurePattern(behaviorProfile.commonFailureReason),
+      patternCallout: behaviorProfile.worstTimeOfDay
+        ? `You miss more in the ${behaviorProfile.worstTimeOfDay}.`
+        : "Your miss pattern is still forming. One more week will expose it.",
+    };
+  }, [behaviorProfile.bestTimeOfDay, behaviorProfile.commonFailureReason, behaviorProfile.weakestCategory, behaviorProfile.worstTimeOfDay, commitments]);
 
   async function markCompleted(commitmentId: string) {
     await completeCommitment(commitmentId);
@@ -325,17 +425,10 @@ export default function Dashboard() {
           <div className="flex items-end justify-between gap-4">
             <div>
             <h1 className="text-4xl font-heading font-bold text-glow">
-              DASHBOARD
+              WEEKLY REALITY
             </h1>
             <p className="text-muted-foreground text-lg">
-              Next pact due:{" "}
-              <span className="text-white font-semibold">
-                {nextUp
-                  ? formatDistanceToNowStrict(new Date(nextUp.scheduled_at), {
-                      addSuffix: true,
-                    })
-                  : "none"}
-              </span>
+              You kept <span className="text-white font-semibold">{weeklyReality.kept}/{weeklyReality.total || 0}</span> commitments this week.
             </p>
             </div>
 
@@ -357,46 +450,47 @@ export default function Dashboard() {
           </div>
 
           <div className="text-sm text-zinc-400">
-            {identityPressureLine}
+            {weeklyReality.baselineLine} {identityPressureLine}
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="glass-panel p-4 brutal-shadow">
-            <div className="text-xs uppercase tracking-widest opacity-60">
-              Active Pacts
+        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-4">
+          <div className="glass-panel p-6 brutal-shadow space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-widest opacity-60">Weekly Reality Block</div>
+                <div className="text-3xl font-bold mt-2">You kept {weeklyReality.kept}/{weeklyReality.total || 0} commitments.</div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-yellow-300">{stats.dueSoonCount}</div>
+                <div className="text-xs uppercase tracking-widest opacity-60 mt-1">At risk now</div>
+              </div>
             </div>
-            <div className="text-3xl font-bold">{stats.activeCount}</div>
-          </div>
 
-          <div className="glass-panel p-4 brutal-shadow">
-            <div className="text-xs uppercase tracking-widest opacity-60">
-              At Risk
-            </div>
-            <div className="text-3xl font-bold text-yellow-300">
-              {stats.dueSoonCount}
-            </div>
-            <div className="text-xs opacity-60 mt-1">
-              Overdue:{" "}
-              <span className="text-red-300 font-semibold">
-                {stats.overdueCount}
-              </span>
+            <div className="border border-zinc-800 bg-black/30 p-4">
+              <div className="text-xs uppercase tracking-widest opacity-60">Pattern Callout</div>
+              <div className="text-xl font-bold mt-2">{weeklyReality.patternCallout}</div>
+              <div className="text-sm text-zinc-400 mt-2">{weeklyReality.baselineLine}</div>
             </div>
           </div>
 
-          <div className="glass-panel p-4 brutal-shadow">
-            <div className="text-xs uppercase tracking-widest opacity-60">
-              Streak (7d)
-            </div>
-            <div className="text-3xl font-bold">{stats.completedLast7}</div>
-            <div className="text-xs opacity-60 mt-1">completed pacts</div>
-          </div>
+          <div className="glass-panel p-6 brutal-shadow space-y-4">
+            <div className="text-xs uppercase tracking-widest opacity-60">Simple Signals</div>
 
-          <div className="glass-panel p-4 brutal-shadow">
-            <div className="text-xs uppercase tracking-widest opacity-60">
-              Total Staked
+            <div className="border border-zinc-800 bg-black/30 p-4">
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500">Most missed category</div>
+              <div className="text-lg font-bold mt-2">{formatCategoryLabel(weeklyReality.mostMissedCategory)}</div>
             </div>
-            <div className="text-3xl font-bold">${stats.totalStaked}</div>
+
+            <div className="border border-zinc-800 bg-black/30 p-4">
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500">Best time</div>
+              <div className="text-lg font-bold mt-2">{formatTimeLabel(weeklyReality.bestTime)}</div>
+            </div>
+
+            <div className="border border-zinc-800 bg-black/30 p-4">
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500">Weakest pattern</div>
+              <div className="text-lg font-bold mt-2">{weeklyReality.weakestPattern}</div>
+            </div>
           </div>
         </div>
 

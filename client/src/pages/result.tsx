@@ -1,21 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { useApp } from "@/lib/mock-data";
 import { getRecoveryPlan } from "@/lib/identity-recovery";
 import { buildStreakIdentity } from "@/lib/streak-identity";
 import { buildWitnessMessage } from "@/lib/witness-message";
+import { hasSeenMicroTooltip, markMicroTooltipSeen } from "@/lib/micro-tooltips";
 import { Button } from "@/components/ui/button";
 import { getProofConfidenceLabel, getProofMethodLabel } from "@/lib/proof";
 
 export default function ResultPage() {
+  const [, routeParams] = useRoute("/result/:id");
   const [, setLocation] = useLocation();
   const { commitments, behaviorProfile } = useApp();
 
   const commitmentId = useMemo(() => {
+    if (routeParams?.id) return routeParams.id;
     const search = typeof window !== "undefined" ? window.location.search : "";
     const params = new URLSearchParams(search);
     return params.get("commitment_id");
-  }, []);
+  }, [routeParams?.id]);
 
   const commitment = useMemo(() => {
     if (!commitmentId) return null;
@@ -38,6 +41,7 @@ export default function ResultPage() {
   const recoveryPlan = useMemo(() => getRecoveryPlan(safeScore), [safeScore]);
   const streakIdentity = useMemo(() => buildStreakIdentity(commitments), [commitments]);
   const [copiedWitness, setCopiedWitness] = useState(false);
+  const showFirstMissTooltip = commitment.status === "missed" && !hasSeenMicroTooltip("firstMiss");
 
   // Build action text for witness message
   const action = commitment.actionText || commitment.intent?.text || "Unknown action";
@@ -69,6 +73,15 @@ export default function ResultPage() {
 
   return (
     <div className="p-8">
+      {showFirstMissTooltip && (
+        <button
+          type="button"
+          onClick={() => markMicroTooltipSeen("firstMiss")}
+          className="mb-4 inline-flex items-center rounded-none border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200"
+        >
+          You didn’t follow through
+        </button>
+      )}
       {commitment.status === "completed" ? (
         <div className="text-green-500">You did it!</div>
       ) : (

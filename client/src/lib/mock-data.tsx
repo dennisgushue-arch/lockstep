@@ -17,6 +17,20 @@ import {
   type ProofSubmission,
 } from "./proof";
 import { calculateAdaptiveProof } from "./adaptive-proof";
+import { syncNativeConsequenceNotifications } from "./native-consequence-notifications";
+import { buildFirstPact, type FirstPactInput } from "@/lib/first-pact";
+import { buildEscalationLadder, type EscalationStage } from "@/lib/escalation-ladder";
+import {
+  createEmptyNotificationState,
+  markAppOpened,
+  planPressureNotifications,
+  readLastAppOpenedAt,
+  type PressureNotificationState,
+} from "./pressure-notifications";
+import {
+  schedulePactNotifications,
+  cancelPactNotifications,
+} from "@/lib/pact-notifications";
 
 const MOCK_USER_STORAGE_KEY = "intent_mock_user";
 const MOCK_COMMITMENTS_STORAGE_KEY = "intent_mock_commitments";
@@ -92,9 +106,12 @@ export type Intent = {
   category: string;
   goal: string;
   first_action: string;
+  action?: string;
+  stake?: number;
   reflection: string;
   confidence: number;
   suggested_stake: number;
+  stake_reason?: string | null;
   deadline?: string | null;
   deadline_reason?: string | null;
   pact_size_reason?: string | null;
@@ -102,8 +119,14 @@ export type Intent = {
   proof_method?: string | null;
   proof_reason?: string | null;
   proof_confidence?: "low" | "medium" | "high" | null;
+  ai_plan?: any;
+  is_first_pact?: boolean;
+  first_pact_reason?: string | null;
+  escalation_stage?: EscalationStage | null;
+  escalation_reason?: string | null;
   parsed_intent?: {
     category?: string;
+    difficulty?: 1 | 2 | 3 | 4 | 5;
     proof_method?: string;
   };
 };
@@ -112,6 +135,7 @@ export type Commitment = {
   id: string;
   intentId: string;
   intent: Intent;
+  createdAt: string;
   actionText: string | null;
   creditsCost: number; // Changed from stakeAmount
   consequenceType: 'money' | 'social' | 'escalate';
@@ -125,7 +149,9 @@ export type Commitment = {
     contact?: string | null;
     relationship?: string | null;
   } | null;
+  notificationIds?: string[];
   ai_plan?: any;
+  notificationState: PressureNotificationState;
 };
 
 type AppContextType = {
@@ -138,7 +164,7 @@ type AppContextType = {
   refreshPsychProfile: () => void;
   
   currentIntent: Intent | null;
-  analyzeIntent: (text: string) => Promise<void>;
+  analyzeIntent: (text: string) => Promise<Intent>;
   clearCurrentIntent: () => void;
   
   // Credits
@@ -168,10 +194,46 @@ type AppContextType = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+function mapCategoryToFirstPact(category?: string): FirstPactInput["category"] {
+  switch (category) {
+    case "fitness":
+      return "health";
+    case "work":
+      return "work";
+    case "growth":
+      return "money";
+    case "social":
+      return "relationships";
+    default:
+      return "personal";
+  }
+}
+
+function getFallbackCreatedAt(scheduledDate: string) {
+  const dueDate = new Date(scheduledDate);
+  if (Number.isNaN(dueDate.getTime())) {
+    return new Date().toISOString();
+  }
+
+  return new Date(dueDate.getTime() - 6 * 60 * 60 * 1000).toISOString();
+}
+
+function normalizeCommitment(commitment: Commitment): Commitment {
+  return {
+    ...commitment,
+    createdAt: commitment.createdAt ?? getFallbackCreatedAt(commitment.scheduledDate),
+    notificationIds: commitment.notificationIds ?? [],
+    notificationState: commitment.notificationState ?? createEmptyNotificationState(),
+  };
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => getInitialUser());
   const [currentIntent, setCurrentIntent] = useState<Intent | null>(null);
-  const [commitments, setCommitments] = useState<Commitment[]>(() => readStoredJson<Commitment[]>(MOCK_COMMITMENTS_STORAGE_KEY) ?? []);
+  const [commitments, setCommitments] = useState<Commitment[]>(() => {
+    const stored = readStoredJson<Commitment[]>(MOCK_COMMITMENTS_STORAGE_KEY) ?? [];
+    return stored.map((commitment) => normalizeCommitment(commitment));
+  });
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>(() => readStoredJson<CreditTransaction[]>(MOCK_TRANSACTIONS_STORAGE_KEY) ?? []);
   const [psychProfile, setPsychProfile] = useState<PsychProfile | null>(() => getInitialPsychProfile());
   
@@ -232,6 +294,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem(MOCK_COMMITMENTS_STORAGE_KEY, JSON.stringify(commitments));
   }, [commitments]);
+
+  useEffect(() => {
+    const lastAppOpenedAt = readLastAppOpenedAt();
+    const { notifications, updatedCommitments } = planPressureNotifications(commitments, {
+      now: Date.now(),
+      worstTimeOfDay: behaviorProfile.worstTimeOfDay,
+      lastAppOpenedAt,
+    });
+
+    const notificationStateChanged = updatedCommitments.some((commitment: Commitment, index: number) => {
+      const before = commitments[index]?.notificationState;
+      const after = commitment.notificationState;
+      return JSON.stringify(before) !== JSON.stringify(after);
+    });
+
+    if (notificationStateChanged) {
+      setCommitments(updatedCommitments);
+      return;
+    }
+
+    void syncNativeConsequenceNotifications(notifications);
+  }, [behaviorProfile.worstTimeOfDay, commitments]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateAppPresence = () => {
+      markAppOpened();
+      setCommitments((prev) => prev.map((commitment) => {
+        if (commitment.status !== "scheduled") return commitment;
+        if (commitment.proofSubmission) return commitment;
+        if (new Date(commitment.scheduledDate).getTime() > Date.now()) return commitment;
+        return {
+          ...commitment,
+          status: "missed",
+        };
+      }));
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        updateAppPresence();
+      }
+    };
+
+    updateAppPresence();
+    const interval = window.setInterval(updateAppPresence, 60_000);
+    window.addEventListener("focus", updateAppPresence);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", updateAppPresence);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
   
   useEffect(() => {
     localStorage.setItem(MOCK_TRANSACTIONS_STORAGE_KEY, JSON.stringify(creditTransactions));
@@ -367,23 +485,93 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
 
       const mergedReflection = result.reflection || "Pact structure reviewed.";
-      
+      const completedCount = commitments.filter((c) => c.status === "completed").length;
+      const isFirstPact = completedCount === 0;
+      const normalizedDifficulty = (result.parsed_intent?.difficulty ?? difficulty) as 1 | 2 | 3 | 4 | 5;
+      const normalizedCategory = mapCategoryToFirstPact(result.parsed_intent?.category ?? result.category);
+      const firstPact = isFirstPact
+        ? buildFirstPact({
+            action: pactSize.adjustedAction,
+            category: normalizedCategory,
+            difficulty: normalizedDifficulty,
+          })
+        : null;
+      const escalation = !isFirstPact
+        ? buildEscalationLadder({
+            action: pactSize.adjustedAction,
+            category: normalizedCategory,
+            completedCount,
+            adaptiveStake: result.suggested_stake,
+            adaptiveProofMethod: adaptiveProof.method,
+            adaptiveSizeLevel: pactSize.sizeLevel,
+          })
+        : null;
+
+      const resolvedAction = firstPact
+        ? firstPact.action
+        : escalation?.action ?? pactSize.adjustedAction;
+      const resolvedDeadline = firstPact ? firstPact.deadlineAt : adaptiveDeadline.suggestedDeadline;
+      const resolvedStake = firstPact
+        ? firstPact.stake
+        : escalation?.stake ?? result.suggested_stake;
+      const resolvedProofMethod = firstPact
+        ? firstPact.proofMethod
+        : escalation?.proofMethod ?? adaptiveProof.method;
+      const resolvedPactSizeLevel = firstPact
+        ? "tiny"
+        : escalation?.sizeLevel ?? pactSize.sizeLevel;
+      const reflectionMessage = isFirstPact && firstPact
+        ? `${result.risk?.at_risk_warning || "Pact structure reviewed."} ${firstPact.reason}`
+        : escalation
+          ? result.reflection_message || `${result.risk?.at_risk_warning || mergedReflection} ${escalation.reason}`
+        : result.reflection_message || `${result.risk?.at_risk_warning || mergedReflection} Task size adjusted because ${pactSize.reason.toLowerCase()}`;
+
       const mockAnalysis: Intent = {
         id: Math.random().toString(36).substr(2, 9),
         text,
         category: result.category,
-        goal: pactSize.adjustedAction,
-        first_action: result.first_action || `Start: ${pactSize.adjustedAction}`,
-        reflection: `${mergedReflection} Task size adjusted because ${pactSize.reason.toLowerCase()} Deadline set because ${adaptiveDeadline.reason.toLowerCase()} Proof method selected because ${adaptiveProof.reason.toLowerCase()}`,
+        goal: resolvedAction,
+        first_action:
+          result.recommendation?.suggested_first_step ||
+          result.first_action ||
+          `Start: ${resolvedAction}`,
+        action: resolvedAction,
+        stake: resolvedStake,
+        reflection: reflectionMessage,
         confidence: result.confidence,
-        suggested_stake: result.suggested_stake,
-        deadline: new Date(adaptiveDeadline.suggestedDeadline).toLocaleString(),
-        deadline_reason: adaptiveDeadline.reason,
-        pact_size_reason: pactSize.reason,
-        pact_size_level: pactSize.sizeLevel,
-        proof_method: adaptiveProof.method,
-        proof_reason: adaptiveProof.reason,
-        proof_confidence: adaptiveProof.confidence,
+        suggested_stake: resolvedStake,
+        stake_reason: firstPact
+          ? "First pacts use lower stakes to reduce friction and build belief."
+          : escalation
+            ? escalation.stakeReason
+          : result.stake_reason || "Stake suggested from intent difficulty and current behavior pattern.",
+        deadline: new Date(resolvedDeadline).toLocaleString(),
+        deadline_reason: firstPact
+          ? "First pacts use shorter deadlines to create a quick win."
+          : result.deadline_reason || adaptiveDeadline.reason,
+        pact_size_reason: firstPact
+          ? "First pacts are intentionally reduced to something winnable."
+          : escalation
+            ? escalation.sizeReason
+          : result.pact_size_reason || pactSize.reason,
+        pact_size_level: resolvedPactSizeLevel,
+        proof_method: resolvedProofMethod.replace("_", " "),
+        proof_reason: firstPact
+          ? "First pacts use low-friction proof so the system feels usable immediately."
+          : escalation
+            ? escalation.proofReason
+          : result.proof_reason || adaptiveProof.reason,
+        proof_confidence: firstPact ? "low" : result.proof_confidence || adaptiveProof.confidence,
+        ai_plan: result.ai_plan ?? null,
+        is_first_pact: isFirstPact,
+        first_pact_reason: firstPact?.reason || null,
+        escalation_stage: escalation?.stage || null,
+        escalation_reason: escalation?.reason || null,
+        parsed_intent: {
+          category: result.parsed_intent?.category ?? result.category,
+          difficulty: normalizedDifficulty,
+          proof_method: resolvedProofMethod,
+        },
       };
 
       // Apply recovery system if user is in low integrity state
@@ -417,6 +605,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       
       setCurrentIntent(mockAnalysis);
+      return mockAnalysis;
     } catch (error) {
       console.error("AI Analysis failed:", error);
       throw error;
@@ -455,7 +644,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: Math.random().toString(36).substr(2, 9),
       intentId: currentIntent.id,
       intent: currentIntent,
-      actionText: currentIntent?.first_action ?? currentIntent?.goal ?? currentIntent?.text ?? null,
+      createdAt: new Date().toISOString(),
+      actionText: actionText ?? currentIntent?.action ?? currentIntent?.first_action ?? currentIntent?.goal ?? currentIntent?.text ?? null,
       creditsCost,
       consequenceType,
       scheduledDate: scheduledDate.toISOString(),
@@ -464,7 +654,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       proofMethod: proofMethod ?? "checkin",
       proofSubmission: null,
       witness: witness ?? null,
+      notificationIds: [],
+      ai_plan: aiPlan ?? currentIntent?.ai_plan ?? null,
+      notificationState: createEmptyNotificationState(),
     };
+
+    const notificationIds = await schedulePactNotifications({
+      pactId: newCommitment.id,
+      actionText:
+        newCommitment.actionText ||
+        newCommitment.intent?.action ||
+        newCommitment.intent?.text ||
+        "Your pact",
+      scheduledDate: newCommitment.scheduledDate,
+    });
+
+    newCommitment.notificationIds = notificationIds;
     
     spendTransaction.relatedCommitmentId = newCommitment.id;
     
@@ -482,6 +687,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const commitment = commitments.find(c => c.id === id);
     if (!commitment) throw new Error("Commitment not found");
+
+    await cancelPactNotifications(commitment.notificationIds || []);
     
     // Refund credits if enabled
     if (commitment.refundOnCompletion) {
@@ -515,13 +722,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return {
         ...c,
         status: 'completed',
+        notificationIds: [],
         proofSubmission: normalizedProof,
+        notificationState: createEmptyNotificationState(),
       };
     }));
   };
 
   const markMissed = async (id: string) => {
-    setCommitments(prev => prev.map(c => c.id === id ? { ...c, status: 'missed' } : c));
+    const pact = commitments.find((c) => c.id === id);
+    if (pact) {
+      await cancelPactNotifications(pact.notificationIds || []);
+    }
+
+    setCommitments((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, status: 'missed', notificationIds: [] }
+          : c
+      )
+    );
   };
 
   const runMissCheck = async () => {

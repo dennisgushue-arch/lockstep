@@ -92,6 +92,33 @@ export default function ReflectionPage() {
           )}
         </div>
 
+        {currentIntent?.is_first_pact && (
+          <div className="border border-green-900/40 bg-green-950/10 p-4 mt-4">
+            <div className="text-xs uppercase tracking-widest text-green-400">
+              First Pact
+            </div>
+            <div className="mt-2 text-sm text-zinc-300">
+              {currentIntent.first_pact_reason || "Your first pact is designed for speed and completion."}
+            </div>
+          </div>
+        )}
+
+        {!currentIntent?.is_first_pact && currentIntent?.escalation_stage && (
+          <div className="border border-blue-900/40 bg-blue-950/10 p-4 mt-4 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs uppercase tracking-widest text-blue-300">
+                Escalation Ladder
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-blue-200/80 border border-blue-400/30 px-2 py-1">
+                {currentIntent.escalation_stage}
+              </span>
+            </div>
+            <div className="text-sm text-zinc-300">
+              {currentIntent.escalation_reason}
+            </div>
+          </div>
+        )}
+
         {/* Behavior Profile + Psych Engine */}
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">

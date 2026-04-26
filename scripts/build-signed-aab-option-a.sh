@@ -10,7 +10,12 @@ set -euo pipefail
 # Optional:
 #   EXPECTED_UPLOAD_SHA1 (defaults to current Play expectation)
 
-EXPECTED_UPLOAD_SHA1="${EXPECTED_UPLOAD_SHA1:-E4:8E:C2:2D:B6:E8:FF:3C:B3:F2:F5:21:3B:78:66:EF:E0:73:DC:1C}"
+EXPECTED_UPLOAD_SHA1="${EXPECTED_UPLOAD_SHA1:-C8:46:61:CA:22:4F:0D:16:2E:6E:4C:AC:79:DC:07:D3:E2:E5:3C:56}"
+
+if [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]]; then
+  export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 
 required=(
   ANDROID_KEYSTORE_PATH

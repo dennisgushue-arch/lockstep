@@ -15,6 +15,7 @@
     "verify": "pnpm check && pnpm build",
     "verify:routes": "node test-routes.js",
     "verify:quick-capture": "node scripts/test-quick-capture.mjs",
+    "test:reality-feedback": "tsx --test client/src/lib/reality-feedback.test.ts",
     "verify:all": "pnpm verify",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
@@ -29,7 +30,9 @@
     "android:release:aab": "bash ./scripts/build-play-aab.sh"
   },
   "dependencies": {
+    "@capacitor/app": "^7.0.1",
     "@capacitor/core": "^7.4.3",
+    "@capacitor/local-notifications": "^7.0.6",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -72,6 +75,8 @@
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
+    "expo-device": "^55.0.15",
+    "expo-notifications": "^55.0.20",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "framer-motion": "^12.23.24",

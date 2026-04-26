@@ -31,6 +31,22 @@ export default defineConfig(() => {
 			outDir: path.resolve(import.meta.dirname, "public"),
 			emptyOutDir: true,
 			chunkSizeWarningLimit: 1000,
+			rollupOptions: {
+				external: [
+					"react-native",
+					"expo",
+					"expo-notifications",
+					"expo-device",
+				],
+			},
+		},
+		optimizeDeps: {
+			exclude: [
+				"react-native",
+				"expo",
+				"expo-notifications",
+				"expo-device",
+			],
 		},
 		server: {
 			host: "0.0.0.0",

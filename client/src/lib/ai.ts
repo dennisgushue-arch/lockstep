@@ -11,6 +11,29 @@ export interface StructuredIntent {
   first_action: string;
   reflection: string;
   suggested_stake: number;
+  action?: string;
+  stake?: number;
+  deadline?: string;
+  proof_method?: string;
+  reflection_message?: string;
+  stake_reason?: string | null;
+  deadline_reason?: string | null;
+  pact_size_reason?: string | null;
+  pact_size_level?: string | null;
+  proof_reason?: string | null;
+  proof_confidence?: "low" | "medium" | "high" | null;
+  ai_plan?: any;
+  parsed_intent?: {
+    category?: string;
+    difficulty?: 1 | 2 | 3 | 4 | 5;
+    proof_method?: string;
+  };
+  recommendation?: {
+    suggested_first_step?: string;
+  };
+  risk?: {
+    at_risk_warning?: string;
+  };
 }
 
 type AnalyzeIntentOptions = {

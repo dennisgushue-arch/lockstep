@@ -93,25 +93,290 @@ Use this as your final handoff checklist for App Store Connect and Google Play C
 - [ ] Age rating questionnaire completed.
 - [ ] Content rights confirmed for all visuals, fonts, and media.
 
-## Screenshot plan (recommended set)
+## Screenshot system (pixel-level, conversion-first)
 
-Create 6–8 screenshots per platform in this sequence:
+### Core principle
 
-1. **Value proposition** — Dashboard with active pacts.
-2. **Commitment creation** — Capture / lock-in flow.
-3. **Voice commitment** — Voice note recording + extraction result.
-4. **Accountability moment** — Timeline/history showing outcomes.
-5. **Connected context** — Sources/calendar connections.
-6. **Reflection/check-in** — Journal/check-in flow.
-7. **Credits/payments** (if enabled in release build).
-8. **Settings/privacy** — user controls and account options.
+Every screenshot must answer:
 
-Notes:
+**What happens if I don't follow through?**
 
-- Keep copy readable at phone size.
-- Keep one message per screenshot.
-- Avoid placeholder/mock nonsense data in final captures.
-- Use consistent device frame style across all images.
+### Canvas specs
+
+- iOS (primary): `1290 × 2796 px` (iPhone 14/15 Pro Max)
+- Android (safe cross-platform): `1242 × 2688 px`
+
+### Global design system
+
+Background:
+
+- Black: `#000000`
+
+Cards:
+
+- Dark: `#0A0A0A`
+- Border: `#1F1F1F`
+
+Primary colors:
+
+- Red (pressure): `#DC2626`
+- White (action): `#FFFFFF`
+- Gray text: `#A1A1AA`
+
+Typography:
+
+- Headline: `80–100px`, bold, uppercase for key lines
+- Subtext: `36–44px`, medium, gray
+
+Universal layout structure for every frame:
+
+1. Top text group (dominant)
+2. Centered app UI mockup
+3. Optional subtext line
+
+### Screenshot set (7 total)
+
+1. **HOOK**
+   - Headline: `YOU SAID YOU WOULD`
+   - Sub: `Nothing happens when you don't follow through`
+   - Visual: blurred phone UI background + faint red glow
+
+2. **CAPTURE**
+   - Headline: `Say it once`
+   - Sub: `Stop repeating it in your head`
+   - Visual: input screen with `I need to...` filled
+
+3. **TRANSFORM**
+   - Headline: `We turn it real`
+   - Sub: `Clear action. Real deadline.`
+   - Visual: action card example (`Run 5 minutes`, `Today 7 PM`, `5 credits`)
+
+4. **STAKE**
+   - Headline: `Put something on the line`
+   - Sub: `Follow through—or lose it`
+   - Visual: credits-at-risk UI with restrained red emphasis
+
+5. **PRESSURE**
+   - Headline: `Now it costs you`
+   - Sub: `This is where most people quit`
+   - Visual: countdown + `You're at risk`
+
+6. **FAILURE (CRITICAL)**
+   - Headline: `YOU DIDN'T DO IT`
+   - Sub: `That's the truth`
+   - Visual: red-leaning result state with score drop indicator
+
+7. **RECOVERY / IDENTITY**
+   - Headline: `Recover immediately`
+   - Sub: `Your word starts to mean something`
+   - Visual: recovery pact + identity score rising
+
+### Ready-to-copy Figma text layer pack (Frame 1–7)
+
+Use this block verbatim when creating text layers in Figma.
+
+```text
+Frame 1 — Hook
+TOP_HEADLINE: YOU SAID YOU WOULD
+SUBTEXT: Nothing happens when you don't follow through
+
+Frame 2 — Capture
+TOP_HEADLINE: Say it once
+SUBTEXT: Stop repeating it in your head
+
+Frame 3 — Transform
+TOP_HEADLINE: We turn it real
+SUBTEXT: Clear action. Real deadline.
+
+Frame 4 — Stake
+TOP_HEADLINE: Put something on the line
+SUBTEXT: Follow through—or lose it
+
+Frame 5 — Pressure
+TOP_HEADLINE: Now it costs you
+SUBTEXT: This is where most people quit
+
+Frame 6 — Failure
+TOP_HEADLINE: YOU DIDN'T DO IT
+SUBTEXT: That's the truth
+
+Frame 7 — Recovery
+TOP_HEADLINE: Recover immediately
+SUBTEXT: Your word starts to mean something
+```
+
+Optional text-layer naming convention per frame:
+
+- `TOP_HEADLINE`
+- `SUBTEXT`
+
+### A/B copy variant pack (tone test)
+
+Use one full tone set at a time when testing. Do not mix A and B in the same screenshot run.
+
+```text
+Variant A (Harsher)
+
+Frame 1 — Hook
+TOP_HEADLINE: YOU SAID YOU WOULD
+SUBTEXT: Nothing changes if you keep breaking your word
+
+Frame 2 — Capture
+TOP_HEADLINE: Say it once
+SUBTEXT: Stop hiding behind intentions
+
+Frame 3 — Transform
+TOP_HEADLINE: We make it concrete
+SUBTEXT: Action. Deadline. No excuses.
+
+Frame 4 — Stake
+TOP_HEADLINE: Put it at risk
+SUBTEXT: Follow through—or pay for it
+
+Frame 5 — Pressure
+TOP_HEADLINE: Time is running out
+SUBTEXT: This is where promises collapse
+
+Frame 6 — Failure
+TOP_HEADLINE: YOU DIDN'T DO IT
+SUBTEXT: This is the cost of avoidance
+
+Frame 7 — Recovery
+TOP_HEADLINE: Recover now
+SUBTEXT: Rebuild trust with one real win
+```
+
+```text
+Variant B (Softer)
+
+Frame 1 — Hook
+TOP_HEADLINE: YOU SAID YOU WOULD
+SUBTEXT: Most goals fade without accountability
+
+Frame 2 — Capture
+TOP_HEADLINE: Say it once
+SUBTEXT: Turn a repeated thought into a real commitment
+
+Frame 3 — Transform
+TOP_HEADLINE: We turn it real
+SUBTEXT: Clear action. Real deadline.
+
+Frame 4 — Stake
+TOP_HEADLINE: Put something on the line
+SUBTEXT: Follow through with real accountability
+
+Frame 5 — Pressure
+TOP_HEADLINE: Now it counts
+SUBTEXT: This is where consistency is built
+
+Frame 6 — Failure
+TOP_HEADLINE: YOU DIDN'T DO IT
+SUBTEXT: See the result clearly and move forward
+
+Frame 7 — Recovery
+TOP_HEADLINE: Recover immediately
+SUBTEXT: Your word starts to mean something
+```
+
+Testing note:
+
+- Start with `Variant B` for broad-market fit.
+- Test `Variant A` if you want stronger qualification and higher-intent users.
+
+### App Store A/B experiment template
+
+Use this before launching any screenshot variant test.
+
+```text
+Experiment name:
+Platform:
+Storefront / Locale:
+Date range:
+Owner:
+
+Hypothesis:
+If we change [control screenshot set] to [variant screenshot set],
+then [primary metric] will improve because [reason].
+
+Control (A):
+Variant (B):
+
+Primary metric:
+- Product page conversion rate (impressions -> first installs)
+
+Secondary metrics:
+- Absolute first installs
+- Day 1 retention (if available)
+- Rating volume / average rating (watch for quality drift)
+
+Minimum duration:
+- 14 days minimum
+- At least one full weekday + weekend cycle
+
+Minimum sample:
+- >= 1,000 product page visitors per variant
+   (or run longer until stable)
+
+Decision rule:
+- Ship variant if:
+   1) Primary metric improves by >= 8% relative lift, and
+   2) No meaningful drop in Day 1 retention (<= 3% relative decline), and
+   3) No negative rating trend.
+
+Stop / no-ship rule:
+- Do not ship if confidence is low due to sample size,
+   or if conversion gain comes with clear quality decline.
+
+Result summary:
+- Winner:
+- Relative lift:
+- Tradeoffs observed:
+- Final decision:
+- Next test to run:
+```
+
+### Design rules
+
+1. **Big text > UI**: message leads, interface supports.
+2. **One idea per screen**: no mixed concepts.
+3. **Contrast discipline**: use red sparingly for impact.
+4. **Show outcome**: don't hide failure; make consequence visible.
+
+### Psychology flow
+
+1. You're lying to yourself
+2. Say it
+3. We fix it
+4. You commit
+5. Pressure hits
+6. You fail (or don't)
+7. You recover
+
+### Figma build structure
+
+Create frames in order:
+
+- Frame 1 — Hook
+- Frame 2 — Capture
+- Frame 3 — Transform
+- Frame 4 — Stake
+- Frame 5 — Pressure
+- Frame 6 — Failure
+- Frame 7 — Recovery
+
+Inside each frame:
+
+- Top text group
+- Centered phone mockup
+- Optional subtext
+
+### Export settings
+
+- PNG
+- 100% quality
+- No compression artifacts
+
+Most apps show features. This set should show **truth + consequence**.
 
 ## Listing copy templates (ready to customize)
 
@@ -123,27 +388,81 @@ Turn intentions into accountable action.
 
 ### Google Play short description template
 
-Create real commitments, track outcomes, and stay accountable.
+You either follow through — or you don't. Lockstep makes it real.
 
 ### Full description template (App Store + Play)
 
-Lockstep helps you turn intentions into measurable commitments.
+Lockstep is for the things you keep saying you'll do and still haven't done.
 
-Create pacts with clear deadlines, track completion, and review your accountability history over time. Voice notes and connected context make it easier to commit to what is actually realistic.
+You admit the drift. Lockstep turns it into a concrete pact with a deadline, proof requirement, and consequence. When the deadline gets close, pressure shows up. If you miss, the result is explicit. Then recovery starts immediately.
+
+### Positioning block (required)
+
+#### NOT A HABIT TRACKER
+
+This is not motivation.
+This is not reminders.
+
+This is consequence-based follow-through.
+
+Category to own: **Accountability with consequences**.
 
 Key features:
 
-- Create deadline-based commitments
-- Track completed, active, and missed pacts
-- Record voice notes and extract commitment intent
-- Review history and check-ins to maintain momentum
-- Manage settings, privacy controls, and account preferences
+- Turn vague intentions into concrete actions
+- Lock a pact with stake, deadline, proof, and consequence
+- Get pressure notifications before failure, not friendly reminders
+- See missed outcomes clearly and start recovery immediately
+- Build momentum until your word starts to mean something
 
 Why people use Lockstep:
 
-- Less vague planning, more follow-through
-- Clear record of promises and outcomes
-- Friction-light flow from intent to action
+- Less explaining, more commitment
+- Clear consequences instead of vague motivation
+- A fast first win that gets you into motion
+
+Keyword guidance (subtle use in natural language):
+
+- accountability
+- discipline
+- productivity
+- habit tracker
+
+Use those words sparingly and naturally. Never make the listing read like keyword stuffing.
+
+## Review prompt rules
+
+Ask for an app review only after:
+
+1. **First completion**
+   - Prompt: *Did you actually follow through because of Lockstep?*
+2. **3+ streak**
+   - Prompt: *Your word is starting to mean something. Rate Lockstep?*
+3. **Recovery success**
+   - Prompt: *You recovered. That matters.*
+
+Do **not** ask:
+
+- on open
+- randomly
+- too early
+
+Use native review APIs where available:
+
+- iOS: `SKStoreReviewController`
+- Android: Play In-App Review API
+
+## First Win Guarantee
+
+First-time users should complete something inside **2 hours**.
+
+Force:
+
+- tiny pact
+- short deadline
+- low stake
+
+The first loop should feel concrete, immediate, and impossible to hide from.
 
 Permissions:
 

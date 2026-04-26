@@ -27,6 +27,9 @@ def resolvedVersionCode = {
         return explicitCode.toInteger()
     }
 
+    // Guardrail: ensure we never reuse a version code already uploaded to Play.
+    int playFloorVersionCode = 197915590
+
     // Fallback: seconds since 2020-01-01 UTC, always increasing over time and safely < Int max
     long baseEpochSeconds = 1577836800L
     long nowEpochSeconds = (System.currentTimeMillis() / 1000L) as long
@@ -36,16 +39,16 @@ def resolvedVersionCode = {
         throw new RuntimeException('Generated ANDROID versionCode must be a positive integer.')
     }
 
-    return generatedCode
+    return Math.max(generatedCode, playFloorVersionCode)
 }.call()
 
 def resolvedVersionName = ciOrGradleProp('ANDROID_VERSION_NAME') ?: "1.0.${resolvedVersionCode}"
 
 android {
-    namespace "com.lockstep.app"
+    namespace "com.dennisgushue.lockstepbeta"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.lockstep.app"
+        applicationId "com.dennisgushue.lockstepbeta"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode resolvedVersionCode

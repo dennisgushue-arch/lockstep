@@ -9,6 +9,7 @@ set -euo pipefail
 #   ANDROID_KEY_ALIAS          (default: upload)
 #   ANDROID_KEYSTORE_PASSWORD  (prompted if missing)
 #   ANDROID_KEY_PASSWORD       (prompted if missing)
+#   EXPECTED_UPLOAD_SHA1       (default: current Play Console upload certificate)
 #
 # Output:
 #   /workspaces/lockstep/app-release-play-upload.aab
@@ -17,12 +18,27 @@ ROOT_DIR="/workspaces/lockstep"
 ANDROID_DIR="$ROOT_DIR/android"
 AAB_PATH="$ANDROID_DIR/app/build/outputs/bundle/release/app-release.aab"
 FINAL_AAB="$ROOT_DIR/app-release-play-upload.aab"
+
+if [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]]; then
+  export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 MAPPING_SRC="$ANDROID_DIR/app/build/outputs/mapping/release/mapping.txt"
 MAPPING_ARTIFACT_DIR="$ROOT_DIR/release-artifacts/android"
 MAPPING_ARTIFACT="$MAPPING_ARTIFACT_DIR/mapping-release.txt"
 
 KEYSTORE_PATH="${ANDROID_KEYSTORE_PATH:-$ROOT_DIR/android/signing/new-upload-key.jks}"
 KEY_ALIAS="${ANDROID_KEY_ALIAS:-upload}"
+EXPECTED_UPLOAD_SHA1="${EXPECTED_UPLOAD_SHA1:-C8:46:61:CA:22:4F:0D:16:2E:6E:4C:AC:79:DC:07:D3:E2:E5:3C:56}"
+MIN_PLAY_VERSION_CODE="${MIN_PLAY_VERSION_CODE:-197915590}"
+if [[ -z "${ANDROID_VERSION_CODE:-}" ]]; then
+  NOW_EPOCH=$(date +%s)
+  ANDROID_VERSION_CODE=$(( NOW_EPOCH - 1577836800 ))
+  if (( ANDROID_VERSION_CODE < MIN_PLAY_VERSION_CODE )); then
+    ANDROID_VERSION_CODE=$MIN_PLAY_VERSION_CODE
+  fi
+fi
+ANDROID_VERSION_NAME="${ANDROID_VERSION_NAME:-1.0.${ANDROID_VERSION_CODE}}"
 
 if [[ ! -f "$KEYSTORE_PATH" ]]; then
   echo "❌ Keystore not found: $KEYSTORE_PATH"
@@ -45,10 +61,31 @@ if [[ -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_PASSWORD" ]]; then
   exit 1
 fi
 
+ACTUAL_SHA1=$(keytool -list -v -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" \
+  | awk -F': ' '/SHA1:/ {print $2; exit}')
+
+if [[ -z "$ACTUAL_SHA1" ]]; then
+  echo "❌ Could not read SHA1 from keystore/alias."
+  exit 1
+fi
+
+echo "Expected SHA1: $EXPECTED_UPLOAD_SHA1"
+echo "Actual SHA1:   $ACTUAL_SHA1"
+
+if [[ "$ACTUAL_SHA1" != "$EXPECTED_UPLOAD_SHA1" ]]; then
+  echo "❌ Upload key fingerprint mismatch. Refusing to build to avoid another rejected upload."
+  exit 1
+fi
+
 export ANDROID_KEYSTORE_PATH="$KEYSTORE_PATH"
 export ANDROID_KEYSTORE_PASSWORD
 export ANDROID_KEY_ALIAS="$KEY_ALIAS"
 export ANDROID_KEY_PASSWORD
+export ANDROID_VERSION_CODE
+export ANDROID_VERSION_NAME
+
+echo "Using Android versionCode: $ANDROID_VERSION_CODE"
+echo "Using Android versionName: $ANDROID_VERSION_NAME"
 
 echo "🔐 Building signed release AAB..."
 pushd "$ANDROID_DIR" >/dev/null
@@ -72,6 +109,12 @@ cp -f "$MAPPING_SRC" "$MAPPING_ARTIFACT"
 
 echo "🔎 Verifying signer fingerprint on final AAB..."
 keytool -printcert -jarfile "$FINAL_AAB" | grep -E "SHA1:|SHA256:"
+
+AAB_SHA1=$(keytool -printcert -jarfile "$FINAL_AAB" | awk -F': ' '/SHA1:/ {print $2; exit}')
+if [[ "$AAB_SHA1" != "$EXPECTED_UPLOAD_SHA1" ]]; then
+  echo "❌ Final AAB signer fingerprint mismatch."
+  exit 1
+fi
 
 echo "\n✅ Ready to upload: $FINAL_AAB"
 echo "🧩 Deobfuscation file: $MAPPING_ARTIFACT"

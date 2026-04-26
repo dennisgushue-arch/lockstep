@@ -1,7 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useApp } from "@/lib/mock-data";
 import { getRecoveryPlan } from "@/lib/identity-recovery";
+import { getIntegrityIdentity } from "@/lib/integrity-identity";
+import { buildRealityFeedback } from "@/lib/reality-feedback";
+import { hasSeenMicroTooltip, markMicroTooltipSeen } from "@/lib/micro-tooltips";
 import IdentityRecoveryCard from "@/components/identity-recovery-card";
+import IntegrityIdentityCard from "@/components/integrity-identity-card";
+import RealityFeedbackCard from "@/components/reality-feedback-card";
 import StreakIdentityCard from "@/components/streak-identity-card";
 import { buildStreakIdentity } from "@/lib/streak-identity";
 import { Button } from "@/components/ui/button";
@@ -10,9 +15,24 @@ import { useLocation } from "wouter";
 export default function MomentumPage() {
   const { commitments, psychProfile, behaviorProfile } = useApp();
   const [, setLocation] = useLocation();
+  const liveBannerActive = typeof window !== "undefined" && window.localStorage.getItem("lockstep_onboarding_live_banner_v1") === "true";
+  const firstLockInTooltipSeen = hasSeenMicroTooltip("firstLockIn");
+  const showFirstLockInTooltip = commitments.length > 0 && !firstLockInTooltipSeen;
   const integrityScore = useMemo(() => Math.round((behaviorProfile.completionRate ?? 0) * 100), [behaviorProfile.completionRate]);
+  const integrityIdentity = useMemo(() => getIntegrityIdentity(integrityScore), [integrityScore]);
   const recoveryPlan = useMemo(() => getRecoveryPlan(integrityScore), [integrityScore]);
+  const realityFeedback = useMemo(() => {
+    return buildRealityFeedback(commitments);
+  }, [commitments]);
   const streakIdentity = useMemo(() => buildStreakIdentity(commitments), [commitments]);
+
+  useEffect(() => {
+    if (!liveBannerActive || typeof window === "undefined") return;
+    const timer = window.setTimeout(() => {
+      window.localStorage.removeItem("lockstep_onboarding_live_banner_v1");
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [liveBannerActive]);
 
   // Get the primary pact (next upcoming commitment)
   const primaryPact = useMemo(() => {
@@ -38,6 +58,8 @@ export default function MomentumPage() {
       {/* Right rail */}
       <div className="w-full md:w-1/3 space-y-6">
         <IdentityRecoveryCard plan={recoveryPlan} />
+        <RealityFeedbackCard feedback={realityFeedback} />
+        <IntegrityIdentityCard score={integrityScore} identity={integrityIdentity} />
         <StreakIdentityCard streak={streakIdentity} />
 
         {/* Score Transparency */}
@@ -63,6 +85,24 @@ export default function MomentumPage() {
       <div className="w-full md:w-2/3">
         <div className="text-2xl font-bold mb-4">Momentum Center</div>
         <div className="mb-4 text-zinc-300">{psychLine}</div>
+
+        {showFirstLockInTooltip && (
+          <button
+            type="button"
+            onClick={() => markMicroTooltipSeen("firstLockIn")}
+            className="mb-4 inline-flex items-center rounded-none border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200"
+          >
+            This is now at risk
+          </button>
+        )}
+
+        {liveBannerActive && (
+          <div className="mb-4 border border-red-500/40 bg-red-950/20 p-5 space-y-2 rounded-xl">
+            <div className="text-xs uppercase tracking-widest text-red-300">This is live now.</div>
+            <div className="text-base text-white">You either do it… or you don't.</div>
+            <div className="text-sm text-zinc-400">Nothing else happens.</div>
+          </div>
+        )}
 
         {/* Primary Pact */}
         {primaryPact && (

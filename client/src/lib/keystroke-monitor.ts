@@ -41,8 +41,8 @@ export class KeystrokeMonitor {
   private sessions: Map<string, KeystrokeSession> = new Map();
   private currentSessionId: string | null = null;
   private lastKeystrokeTime: number = 0;
-  private inactivityTimer: NodeJS.Timeout | null = null;
-  private checkIntervalTimer: NodeJS.Timeout | null = null;
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+  private checkIntervalTimer: ReturnType<typeof setInterval> | null = null;
   private thresholds: DetectionThresholds;
   private onSessionDetected: OnSessionDetected | null = null;
   private bufferedText: string = "";

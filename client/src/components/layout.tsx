@@ -4,6 +4,7 @@ import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DetectionBadge } from "@/components/detection-notifications";
+import { ConsequenceNotificationCenter } from "@/components/consequence-notification-center";
 import { PassiveIntentSuggestion } from "@/components/passive-intent-suggestion";
 import { Coins, Settings } from "lucide-react";
 import type { IntentPattern } from "@/lib/passive-detection";
@@ -38,8 +39,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   
   const isLanding = location === "/";
   const isAuth = location === "/auth";
+  const isOnboarding = location === "/onboarding";
+  const isFocusedDeepLink = /^\/pact\/[^/]+\/(act|prove)$/.test(location) || /^\/recovery\/[^/]+$/.test(location);
 
-  if (isAuth) {
+  if (isAuth || isOnboarding || isFocusedDeepLink) {
     return <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">{children}</div>;
   }
 
@@ -121,6 +124,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
+
+      {user && location !== "/onboarding" && <ConsequenceNotificationCenter />}
 
       <main className="flex-1 pt-16">
         {children}

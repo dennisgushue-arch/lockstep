@@ -1,13 +1,44 @@
 #!/usr/bin/env node
 
 /**
- * Test script to verify all routes and pages render correctly
+ * Test script to verify all routes and pages render correctly.
+ * Automatically starts and stops a dev server if one isn't already running.
  */
 
 import http from 'node:http';
 import https from 'node:https';
+import { spawn } from 'node:child_process';
 
-const BASE_URL = 'http://localhost:5000';
+const PORT = 5000;
+const BASE_URL = `http://localhost:${PORT}`;
+const SERVER_READY_TIMEOUT_MS = 30_000;
+const SERVER_POLL_INTERVAL_MS = 300;
+
+/** Returns true if something is already listening on PORT */
+function isServerRunning() {
+  return new Promise((resolve) => {
+    http
+      .get(BASE_URL, () => resolve(true))
+      .on('error', () => resolve(false));
+  });
+}
+
+/** Polls until the server responds or times out */
+function waitForServer(timeoutMs = SERVER_READY_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const interval = setInterval(async () => {
+      const up = await isServerRunning();
+      if (up) {
+        clearInterval(interval);
+        resolve();
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(interval);
+        reject(new Error(`Server did not start within ${timeoutMs}ms`));
+      }
+    }, SERVER_POLL_INTERVAL_MS);
+  });
+}
 
 const routes = [
   '/',
@@ -73,6 +104,46 @@ async function testRoute(url) {
 }
 
 async function runTests() {
+  // --- Server lifecycle ---
+  let serverProc = null;
+  const alreadyRunning = await isServerRunning();
+
+  if (!alreadyRunning) {
+    console.log(`⚡ No server on port ${PORT} — starting dev server…\n`);
+    serverProc = spawn(
+      'pnpm',
+      ['vite', '--config', 'vite.config.ts', '--host', '0.0.0.0', '--port', String(PORT)],
+      { stdio: 'ignore', detached: false }
+    );
+    serverProc.on('error', (err) => {
+      console.error('Failed to start dev server:', err.message);
+      process.exit(1);
+    });
+    try {
+      await waitForServer();
+      console.log(`✅ Dev server ready at ${BASE_URL}\n`);
+    } catch (err) {
+      console.error(err.message);
+      serverProc.kill();
+      process.exit(1);
+    }
+  } else {
+    console.log(`✅ Using existing server at ${BASE_URL}\n`);
+  }
+
+  const stopServer = () => {
+    if (serverProc) {
+      serverProc.kill();
+      serverProc = null;
+    }
+  };
+
+  // Ensure server is cleaned up on unhandled exits
+  process.on('exit', stopServer);
+  process.on('SIGINT', () => { stopServer(); process.exit(130); });
+  process.on('SIGTERM', () => { stopServer(); process.exit(143); });
+
+  // --- Route checks ---
   console.log('🧪 Testing Lockstep App Routes\n');
   console.log(`Base URL: ${BASE_URL}\n`);
 
@@ -104,6 +175,7 @@ async function runTests() {
     });
   }
 
+  stopServer();
   process.exit(failed === 0 ? 0 : 1);
 }
 

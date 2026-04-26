@@ -6,6 +6,7 @@ import LiveOutcomeStrip from "@/components/live-outcome-strip";
 import WhoItsFor from "@/components/who-its-for";
 import WhatLockstepNotices from "@/components/what-lockstep-notices";
 import BeforeAfter from "@/components/before-after";
+import BehaviorStories from "../components/behavior-stories";
 import DemoIntent from "@/components/demo-intent";
 import { useApp } from "@/lib/mock-data";
 import heroImage from "@assets/generated_images/minimalist_abstract_concrete_architecture,_dramatic_lighting,_black_and_white.png";
@@ -57,11 +58,11 @@ export default function Landing() {
             </h1>
 
             <p className="text-lg sm:text-xl md:text-2xl text-zinc-300 max-w-2xl">
-              You didn&apos;t. Lockstep makes you pay.
+              Nothing happens when you don&apos;t follow through.
             </p>
 
             <p className="text-sm text-zinc-500">
-              AI turns your repeated flinch into a pact, then asks for proof.
+              Lockstep turns the excuse into a pact, then asks for proof.
             </p>
 
             <motion.p
@@ -98,6 +99,8 @@ export default function Landing() {
       <WhatLockstepNotices />
 
       <BeforeAfter />
+
+      <BehaviorStories />
 
       {/* Why Lockstep Wins */}
       <section className="py-16 sm:py-24 px-5 sm:px-6 border-b border-border bg-zinc-950/30">
