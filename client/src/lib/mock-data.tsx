@@ -35,6 +35,7 @@ import {
 const MOCK_USER_STORAGE_KEY = "intent_mock_user";
 const MOCK_COMMITMENTS_STORAGE_KEY = "intent_mock_commitments";
 const MOCK_TRANSACTIONS_STORAGE_KEY = "intent_mock_transactions";
+const MOCK_CASHOUTS_STORAGE_KEY = "intent_mock_cashout_requests";
 const MOCK_SIGNALS_STORAGE_KEY = "intent_mock_signals";
 const MOCK_PATTERNS_STORAGE_KEY = "intent_mock_patterns";
 
@@ -46,6 +47,8 @@ function getDefaultMockUser(): User {
   return {
     id: "guest_demo_user",
     email: "guest@lockstep.demo",
+    purchasedCreditsBalance: 100,
+    earnedCreditsBalance: 0,
     creditBalance: 100,
   };
 }
@@ -67,9 +70,21 @@ function getInitialUser(): User | null {
   const storedUser = readStoredJson<User>(MOCK_USER_STORAGE_KEY);
 
   if (storedUser) {
+    const purchasedCreditsBalance =
+      typeof storedUser.purchasedCreditsBalance === "number"
+        ? storedUser.purchasedCreditsBalance
+        : Math.max(storedUser.creditBalance ?? 0, 0);
+    const earnedCreditsBalance =
+      typeof storedUser.earnedCreditsBalance === "number"
+        ? storedUser.earnedCreditsBalance
+        : 0;
+
     return {
       ...storedUser,
       email: storedUser.email || "user@example.com",
+      purchasedCreditsBalance,
+      earnedCreditsBalance,
+      creditBalance: purchasedCreditsBalance + earnedCreditsBalance,
     };
   }
 
@@ -85,19 +100,36 @@ function getInitialPsychProfile(): PsychProfile | null {
 export type User = {
   id: string;
   email: string;
+  purchasedCreditsBalance: number;
+  earnedCreditsBalance: number;
   creditBalance: number;
 };
 
 export type CreditTransaction = {
   id: string;
   userId: string;
-  type: 'purchase' | 'spend' | 'refund';
+  type: 'purchase' | 'spend' | 'earn' | 'cashout_request' | 'cashout_completed';
   amount: number;
   balanceAfter: number;
   description: string;
+  purchasedPortion?: number;
+  earnedPortion?: number;
+  cashoutRequestId?: string;
+  usdAmount?: number;
   stripePaymentIntentId?: string;
   relatedCommitmentId?: string;
   createdAt: string;
+};
+
+export type CashoutRequest = {
+  id: string;
+  userId: string;
+  creditsRequested: number;
+  usdAmount: number;
+  status: "pending" | "completed";
+  payoutMethod: "batch";
+  requestedAt: string;
+  processedAt?: string;
 };
 
 export type Intent = {
@@ -169,8 +201,14 @@ type AppContextType = {
   
   // Credits
   creditBalance: number;
+  purchasedCreditsBalance: number;
+  earnedCreditsBalance: number;
+  cashoutEligibleCredits: number;
   creditTransactions: CreditTransaction[];
+  cashoutRequests: CashoutRequest[];
   purchaseCredits: (amount: number, paymentIntentId: string) => Promise<void>;
+  requestCashout: (credits: number) => Promise<CashoutRequest>;
+  processPendingCashouts: () => Promise<number>;
   
   commitments: Commitment[];
   createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; }) => Promise<Commitment>;
@@ -235,6 +273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return stored.map((commitment) => normalizeCommitment(commitment));
   });
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>(() => readStoredJson<CreditTransaction[]>(MOCK_TRANSACTIONS_STORAGE_KEY) ?? []);
+  const [cashoutRequests, setCashoutRequests] = useState<CashoutRequest[]>(() => readStoredJson<CashoutRequest[]>(MOCK_CASHOUTS_STORAGE_KEY) ?? []);
   const [psychProfile, setPsychProfile] = useState<PsychProfile | null>(() => getInitialPsychProfile());
   
   // Passive detection state
@@ -242,6 +281,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [intentPatterns, setIntentPatterns] = useState<IntentPattern[]>(() => readStoredJson<IntentPattern[]>(MOCK_PATTERNS_STORAGE_KEY) ?? []);
 
   const creditBalance = user?.creditBalance ?? 0;
+  const purchasedCreditsBalance = user?.purchasedCreditsBalance ?? 0;
+  const earnedCreditsBalance = user?.earnedCreditsBalance ?? 0;
+  const cashoutEligibleCredits = earnedCreditsBalance;
 
   const behaviorProfile = useMemo(
     () =>
@@ -354,6 +396,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem(MOCK_TRANSACTIONS_STORAGE_KEY, JSON.stringify(creditTransactions));
   }, [creditTransactions]);
+
+  useEffect(() => {
+    localStorage.setItem(MOCK_CASHOUTS_STORAGE_KEY, JSON.stringify(cashoutRequests));
+  }, [cashoutRequests]);
   
   useEffect(() => {
     localStorage.setItem(MOCK_SIGNALS_STORAGE_KEY, JSON.stringify(intentSignals));
@@ -393,7 +439,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const safeEmail = email?.trim() || 'user@example.com';
     
     // Give new users 100 starter credits to try the app
-    const newUser = { id: 'user_123', email: safeEmail, creditBalance: 100 };
+    const newUser = {
+      id: 'user_123',
+      email: safeEmail,
+      purchasedCreditsBalance: 100,
+      earnedCreditsBalance: 0,
+      creditBalance: 100,
+    };
     setUser(newUser);
     localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(newUser));
   };
@@ -408,7 +460,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate payment processing
     
-    const newBalance = user.creditBalance + amount;
+    const newPurchasedBalance = user.purchasedCreditsBalance + amount;
+    const newBalance = newPurchasedBalance + user.earnedCreditsBalance;
     const transaction: CreditTransaction = {
       id: Math.random().toString(36).substr(2, 9),
       userId: user.id,
@@ -420,7 +473,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     
-    setUser({ ...user, creditBalance: newBalance });
+    setUser({
+      ...user,
+      purchasedCreditsBalance: newPurchasedBalance,
+      creditBalance: newBalance,
+    });
     setCreditTransactions(prev => [transaction, ...prev]);
   };
 
@@ -617,7 +674,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true, actionText, stakeAmount, proofMethod, aiPlan, witness, }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; }) => {
     if (!currentIntent) throw new Error("No intent found");
     if (!user) throw new Error("No user logged in");
-    if (user.creditBalance < creditsCost) throw new Error("Insufficient credits");
+    if ((user.purchasedCreditsBalance + user.earnedCreditsBalance) < creditsCost) throw new Error("Insufficient credits");
     
     // Validate scheduled date is in the future
     const scheduledTime = scheduledDate.getTime();
@@ -628,14 +685,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
     
-    // Deduct credits
-    const newBalance = user.creditBalance - creditsCost;
+    // Deduct purchased credits first, then earned credits
+    const spendFromPurchased = Math.min(user.purchasedCreditsBalance, creditsCost);
+    const spendFromEarned = creditsCost - spendFromPurchased;
+    const newPurchasedBalance = user.purchasedCreditsBalance - spendFromPurchased;
+    const newEarnedBalance = user.earnedCreditsBalance - spendFromEarned;
+    const newBalance = newPurchasedBalance + newEarnedBalance;
     const spendTransaction: CreditTransaction = {
       id: Math.random().toString(36).substr(2, 9),
       userId: user.id,
       type: 'spend',
       amount: creditsCost,
       balanceAfter: newBalance,
+      purchasedPortion: spendFromPurchased,
+      earnedPortion: spendFromEarned,
       description: `Locked in: ${currentIntent.text.slice(0, 50)}...`,
       createdAt: new Date().toISOString(),
     };
@@ -673,7 +736,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     spendTransaction.relatedCommitmentId = newCommitment.id;
     
-    setUser({ ...user, creditBalance: newBalance });
+    setUser({
+      ...user,
+      purchasedCreditsBalance: newPurchasedBalance,
+      earnedCreditsBalance: newEarnedBalance,
+      creditBalance: newBalance,
+    });
     setCreditTransactions(prev => [spendTransaction, ...prev]);
     setCommitments(prev => [newCommitment, ...prev]);
     setCurrentIntent(null);
@@ -690,22 +758,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     await cancelPactNotifications(commitment.notificationIds || []);
     
-    // Refund credits if enabled
+    // Earn credits back if completion refund is enabled
     if (commitment.refundOnCompletion) {
-      const newBalance = user.creditBalance + commitment.creditsCost;
-      const refundTransaction: CreditTransaction = {
+      const newEarnedBalance = user.earnedCreditsBalance + commitment.creditsCost;
+      const newBalance = user.purchasedCreditsBalance + newEarnedBalance;
+      const earnTransaction: CreditTransaction = {
         id: Math.random().toString(36).substr(2, 9),
         userId: user.id,
-        type: 'refund',
+        type: 'earn',
         amount: commitment.creditsCost,
         balanceAfter: newBalance,
-        description: `Refund for completing: ${commitment.intent.text.slice(0, 50)}...`,
+        description: `Earned back for completing: ${commitment.intent.text.slice(0, 50)}...`,
         relatedCommitmentId: commitment.id,
         createdAt: new Date().toISOString(),
       };
       
-      setUser({ ...user, creditBalance: newBalance });
-      setCreditTransactions(prev => [refundTransaction, ...prev]);
+      setUser({
+        ...user,
+        earnedCreditsBalance: newEarnedBalance,
+        creditBalance: newBalance,
+      });
+      setCreditTransactions(prev => [earnTransaction, ...prev]);
     }
     
     setCommitments(prev => prev.map((c) => {
@@ -742,6 +815,85 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : c
       )
     );
+  };
+
+  const requestCashout = async (credits: number) => {
+    if (!user) throw new Error("No user logged in");
+    if (!Number.isFinite(credits) || credits <= 0) throw new Error("Invalid cashout amount");
+    if (credits < 100) throw new Error("Minimum cashout is 100 credits ($10)");
+    if (credits > user.earnedCreditsBalance) {
+      throw new Error("You can only cash out earned credits");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    const usdAmount = credits / 10;
+    const requestedAt = new Date().toISOString();
+    const request: CashoutRequest = {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: user.id,
+      creditsRequested: credits,
+      usdAmount,
+      status: "pending",
+      payoutMethod: "batch",
+      requestedAt,
+    };
+
+    const newEarnedBalance = user.earnedCreditsBalance - credits;
+    const newBalance = user.purchasedCreditsBalance + newEarnedBalance;
+    const requestTransaction: CreditTransaction = {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: user.id,
+      type: "cashout_request",
+      amount: credits,
+      balanceAfter: newBalance,
+      description: `Cashout requested: ${credits} credits ($${usdAmount.toFixed(2)})`,
+      usdAmount,
+      cashoutRequestId: request.id,
+      createdAt: requestedAt,
+    };
+
+    setUser({
+      ...user,
+      earnedCreditsBalance: newEarnedBalance,
+      creditBalance: newBalance,
+    });
+    setCashoutRequests((prev) => [request, ...prev]);
+    setCreditTransactions((prev) => [requestTransaction, ...prev]);
+
+    return request;
+  };
+
+  const processPendingCashouts = async () => {
+    if (!user) return 0;
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    const now = new Date().toISOString();
+    const pending = cashoutRequests.filter((request) => request.userId === user.id && request.status === "pending");
+    if (!pending.length) return 0;
+
+    const updatedRequests = cashoutRequests.map((request) =>
+      request.userId === user.id && request.status === "pending"
+        ? { ...request, status: "completed" as const, processedAt: now }
+        : request
+    );
+
+    const completionTransactions: CreditTransaction[] = pending.map((request) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      userId: user.id,
+      type: "cashout_completed",
+      amount: request.creditsRequested,
+      balanceAfter: user.creditBalance,
+      description: `Batch payout completed: ${request.creditsRequested} credits -> $${request.usdAmount.toFixed(2)}`,
+      cashoutRequestId: request.id,
+      usdAmount: request.usdAmount,
+      createdAt: now,
+    }));
+
+    setCashoutRequests(updatedRequests);
+    setCreditTransactions((prev) => [...completionTransactions, ...prev]);
+    return pending.length;
   };
 
   const runMissCheck = async () => {
@@ -1026,8 +1178,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       analyzeIntent,
       clearCurrentIntent,
       creditBalance,
+      purchasedCreditsBalance,
+      earnedCreditsBalance,
+      cashoutEligibleCredits,
       creditTransactions,
+      cashoutRequests,
       purchaseCredits,
+      requestCashout,
+      processPendingCashouts,
       commitments,
       createCommitment,
       completeCommitment,

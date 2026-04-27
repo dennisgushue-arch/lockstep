@@ -37,6 +37,41 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const getBalances = async () => {
+      const splitAttempt = await supabase
+        .from("users")
+        .select("credit_balance,purchased_credit_balance,earned_credit_balance")
+        .eq("id", userId)
+        .single();
+
+      if (!splitAttempt.error && splitAttempt.data) {
+        return {
+          total: parseInt(splitAttempt.data.credit_balance || "0"),
+          purchased: parseInt(splitAttempt.data.purchased_credit_balance || "0"),
+          earned: parseInt(splitAttempt.data.earned_credit_balance || "0"),
+          splitSupported: true,
+        };
+      }
+
+      const legacyAttempt = await supabase
+        .from("users")
+        .select("credit_balance")
+        .eq("id", userId)
+        .single();
+
+      if (legacyAttempt.error || !legacyAttempt.data) {
+        throw legacyAttempt.error || new Error("User not found");
+      }
+
+      const total = parseInt(legacyAttempt.data.credit_balance || "0");
+      return {
+        total,
+        purchased: total,
+        earned: 0,
+        splitSupported: false,
+      };
+    };
+
     // Get commitment details
     const { data: commitment, error: fetchError } = await supabase
       .from("commitments")
@@ -65,37 +100,40 @@ Deno.serve(async (req) => {
 
     // Refund credits if enabled
     if (commitment.refund_on_completion) {
-      // Get current user balance
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("credit_balance")
-        .eq("id", userId)
-        .single();
-
-      if (userError) throw userError;
-
-      const currentBalance = parseInt(user.credit_balance || "0");
+      const balances = await getBalances();
       const refundAmount = parseInt(commitment.credits_cost || "0");
-      const newBalance = currentBalance + refundAmount;
+      const newEarnedBalance = balances.earned + refundAmount;
+      const newBalance = balances.purchased + newEarnedBalance;
       creditsRefunded = refundAmount;
 
-      // Update user balance
+      // Update user balance (earned bucket)
+      const updatePayload = balances.splitSupported
+        ? {
+            credit_balance: newBalance.toString(),
+            purchased_credit_balance: balances.purchased.toString(),
+            earned_credit_balance: newEarnedBalance.toString(),
+          }
+        : {
+            credit_balance: newBalance.toString(),
+          };
+
       const { error: balanceError } = await supabase
         .from("users")
-        .update({ credit_balance: newBalance.toString() })
+        .update(updatePayload)
         .eq("id", userId);
 
       if (balanceError) throw balanceError;
 
-      // Create refund transaction
+      // Create earn transaction
       const { error: txnError } = await supabase
         .from("credit_transactions")
         .insert({
           user_id: userId,
-          type: "refund",
+          type: "earn",
           amount: commitment.credits_cost,
           balance_after: newBalance.toString(),
-          description: `Refund for completing commitment`,
+          earned_portion: refundAmount.toString(),
+          description: `Earned back for completing commitment`,
           related_commitment_id: commitmentId,
         });
 

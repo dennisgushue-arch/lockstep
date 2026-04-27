@@ -7,6 +7,7 @@ import { buildWitnessMessage } from "@/lib/witness-message";
 import { hasSeenMicroTooltip, markMicroTooltipSeen } from "@/lib/micro-tooltips";
 import { Button } from "@/components/ui/button";
 import { getProofConfidenceLabel, getProofMethodLabel } from "@/lib/proof";
+import PressurePaywall from "@/components/pressure-paywall";
 
 export default function ResultPage() {
   const [, routeParams] = useRoute("/result/:id");
@@ -40,8 +41,13 @@ export default function ResultPage() {
   const safeScore = Math.round((behaviorProfile.completionRate ?? 0) * 100);
   const recoveryPlan = useMemo(() => getRecoveryPlan(safeScore), [safeScore]);
   const streakIdentity = useMemo(() => buildStreakIdentity(commitments), [commitments]);
+  const completedCount = useMemo(
+    () => commitments.filter((item) => item.status === "completed").length,
+    [commitments]
+  );
   const [copiedWitness, setCopiedWitness] = useState(false);
   const showFirstMissTooltip = commitment.status === "missed" && !hasSeenMicroTooltip("firstMiss");
+  const showFirstWinPaywall = commitment.status === "completed" && completedCount === 1;
 
   // Build action text for witness message
   const action = commitment.actionText || commitment.intent?.text || "Unknown action";
@@ -147,6 +153,10 @@ export default function ResultPage() {
           ? `${streakIdentity.currentStreak} promises kept in a row.`
           : "The chain broke."}
       </div>
+
+      {showFirstWinPaywall && (
+        <PressurePaywall triggerLabel="After first win" mode="celebratory" className="mt-6" />
+      )}
 
       {recoveryPlan.mode !== "none" && (
         <div className="mt-6 border border-red-900/40 bg-red-950/10 p-5 space-y-3">

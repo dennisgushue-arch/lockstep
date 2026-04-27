@@ -65,6 +65,44 @@ const mockSupabase = {
     invoke: async (name: string, { body }: { body: any }): Promise<{ data: any; error: any }> => {
       console.log(`[Mock Supabase] Invoking function: ${name}`, body);
       await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Handle purchase_credits for credit package checkout flow
+      if (name === "purchase_credits") {
+        const mockPaymentIntentId = `pi_mock_credits_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        const mockClientSecret = `${mockPaymentIntentId}_secret_${Math.random().toString(36).substring(2, 15)}`;
+
+        console.log(`[Mock Supabase] Created mock credit purchase intent:`, {
+          payment_intent_id: mockPaymentIntentId,
+          client_secret: mockClientSecret,
+          amount: body?.amount,
+          credits: body?.credits,
+          userId: body?.userId,
+        });
+
+        return {
+          data: {
+            clientSecret: mockClientSecret,
+            paymentIntentId: mockPaymentIntentId,
+          },
+          error: null,
+        };
+      }
+
+      // Handle confirm_credit_purchase post-payment acknowledgement
+      if (name === "confirm_credit_purchase") {
+        console.log(`[Mock Supabase] Confirmed mock credit purchase:`, {
+          userId: body?.userId,
+          credits: body?.credits,
+          paymentIntentId: body?.paymentIntentId,
+        });
+
+        return {
+          data: {
+            success: true,
+          },
+          error: null,
+        };
+      }
       
       // Handle create_stake_intent for Stripe payment flow
       if (name === "create_stake_intent") {
@@ -102,6 +140,26 @@ const mockSupabase = {
         return {
           data: { success: true, released: true },
           error: null
+        };
+      }
+
+      // Handle process_cashout_batch for admin batch payout trigger
+      if (name === "process_cashout_batch") {
+        const requestedLimit = Number(body?.limit ?? 25);
+        const effectiveLimit = Number.isFinite(requestedLimit)
+          ? Math.max(1, Math.min(100, Math.floor(requestedLimit)))
+          : 25;
+
+        console.log(`[Mock Supabase] Processing mock cashout batch with limit=${effectiveLimit}`);
+
+        return {
+          data: {
+            success: true,
+            scanned: 0,
+            results: [],
+            mode: "mock",
+          },
+          error: null,
         };
       }
 

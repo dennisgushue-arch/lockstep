@@ -5,6 +5,9 @@
 
 import React from 'react';
 
+const ANALYTICS_LOCAL_EXPORT_KEY = 'lockstep_analytics_events';
+const ANALYTICS_LOCAL_EXPORT_LIMIT = 2000;
+
 type AnalyticsEvent =
   | 'journal_checkin_saved'
   | 'voice_note_recorded'
@@ -14,11 +17,20 @@ type AnalyticsEvent =
   | 'recommendation_accepted'
   | 'detection_sync'
   | 'calendar_connected'
+  | 'paywall_viewed'
+  | 'paywall_cta_clicked'
+  | 'paywall_dismissed'
   | 'error_occurred';
 
 interface EventData {
-  [key: string]: string | number | boolean | undefined;
+  [key: string]: string | number | boolean | null | undefined;
 }
+
+type AnalyticsPayload = {
+  event: AnalyticsEvent;
+  userId: string | null;
+  timestamp: string;
+} & EventData;
 
 class Analytics {
   private enabled: boolean;
@@ -36,18 +48,55 @@ class Analytics {
     }
   }
 
-  track(event: AnalyticsEvent, data?: EventData) {
-    if (!this.enabled) {
-      console.log('[Analytics Debug]', event, data);
-      return;
-    }
+  private canUseLocalStorage() {
+    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  }
 
-    const payload = {
+  private pushLocalEvent(payload: AnalyticsPayload) {
+    if (!this.canUseLocalStorage()) return;
+
+    try {
+      const raw = window.localStorage.getItem(ANALYTICS_LOCAL_EXPORT_KEY);
+      const existing = raw ? (JSON.parse(raw) as AnalyticsPayload[]) : [];
+      const next = [...existing, payload].slice(-ANALYTICS_LOCAL_EXPORT_LIMIT);
+      window.localStorage.setItem(ANALYTICS_LOCAL_EXPORT_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.error('[Analytics] Failed to persist local event export:', error);
+    }
+  }
+
+  getLocalEvents() {
+    if (!this.canUseLocalStorage()) return [] as AnalyticsPayload[];
+
+    try {
+      const raw = window.localStorage.getItem(ANALYTICS_LOCAL_EXPORT_KEY);
+      if (!raw) return [] as AnalyticsPayload[];
+      const parsed = JSON.parse(raw) as AnalyticsPayload[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [] as AnalyticsPayload[];
+    }
+  }
+
+  clearLocalEvents() {
+    if (!this.canUseLocalStorage()) return;
+    window.localStorage.removeItem(ANALYTICS_LOCAL_EXPORT_KEY);
+  }
+
+  track(event: AnalyticsEvent, data?: EventData) {
+    const payload: AnalyticsPayload = {
       event,
       userId: this.userId,
       timestamp: new Date().toISOString(),
       ...data,
     };
+
+    this.pushLocalEvent(payload);
+
+    if (!this.enabled) {
+      console.log('[Analytics Debug]', event, data);
+      return;
+    }
 
     console.log('[Analytics]', payload);
 

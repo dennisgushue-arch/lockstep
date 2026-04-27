@@ -4,6 +4,7 @@ import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { readSourceBanner } from "@/lib/deeplink";
 import { hasSeenMicroTooltip, markMicroTooltipSeen } from "@/lib/micro-tooltips";
+import PressurePaywall from "@/components/pressure-paywall";
 
 function buildRecoveryAction(action: string) {
   const lower = action.toLowerCase();
@@ -78,6 +79,8 @@ export default function RecoveryPage() {
         >
           START RECOVERY
         </Button>
+
+        <PressurePaywall triggerLabel="After recovery" mode="urgency" />
       </div>
     </div>
   );

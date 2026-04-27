@@ -10,7 +10,7 @@ set -euo pipefail
 # Optional:
 #   EXPECTED_UPLOAD_SHA1 (defaults to current Play expectation)
 
-EXPECTED_UPLOAD_SHA1="${EXPECTED_UPLOAD_SHA1:-C8:46:61:CA:22:4F:0D:16:2E:6E:4C:AC:79:DC:07:D3:E2:E5:3C:56}"
+EXPECTED_UPLOAD_SHA1="${EXPECTED_UPLOAD_SHA1:-21:A3:E7:FF:FC:12:4D:6C:6E:85:C5:D6:38:AA:3F:F3:A7:D9:32:08}"
 
 if [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]]; then
   export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"

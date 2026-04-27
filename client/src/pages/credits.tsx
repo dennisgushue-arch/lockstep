@@ -10,45 +10,59 @@ import { Coins, Zap, TrendingUp, Shield, AlertTriangle, Copy, Check } from "luci
 import { useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcElement } from "@stripe/react-stripe-js";
 import { supabase } from "@/lib/supabase";
 
+const CREDITS_PER_DOLLAR = 10;
+const MIN_CASHOUT_CREDITS = 100; // $10 minimum
+
 const CREDIT_PACKAGES = [
   {
     credits: 100,
-    price: 9.99,
+    price: 10,
     pricePerCredit: 0.10,
     popular: false,
     description: "Perfect for getting started",
   },
   {
     credits: 250,
-    price: 19.99,
-    pricePerCredit: 0.08,
+    price: 25,
+    pricePerCredit: 0.10,
     popular: true,
-    description: "Most popular choice",
-    savings: "20% savings"
+    description: "Most popular choice"
   },
   {
     credits: 500,
-    price: 34.99,
-    pricePerCredit: 0.07,
+    price: 50,
+    pricePerCredit: 0.10,
     popular: false,
-    description: "Best value for serious goal-setters",
-    savings: "30% savings"
+    description: "Best value for serious goal-setters"
   },
   {
     credits: 1000,
-    price: 59.99,
-    pricePerCredit: 0.06,
+    price: 100,
+    pricePerCredit: 0.10,
     popular: false,
-    description: "For the ultimate commitment machine",
-    savings: "40% savings"
+    description: "For the ultimate commitment machine"
   }
 ];
 
 export default function CreditsPage() {
-  const { user, creditBalance, purchaseCredits, creditTransactions } = useApp();
+  const {
+    user,
+    creditBalance,
+    purchasedCreditsBalance,
+    earnedCreditsBalance,
+    cashoutEligibleCredits,
+    purchaseCredits,
+    requestCashout,
+    processPendingCashouts,
+    cashoutRequests,
+    creditTransactions,
+  } = useApp();
   const [, setLocation] = useLocation();
   const [selectedPackage, setSelectedPackage] = useState<typeof CREDIT_PACKAGES[0] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cashoutLoading, setCashoutLoading] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [cashoutCreditsInput, setCashoutCreditsInput] = useState(`${MIN_CASHOUT_CREDITS}`);
   const [error, setError] = useState<string | null>(null);
   const [copiedTest, setCopiedTest] = useState(false);
   const stripe = useStripe();
@@ -132,6 +146,41 @@ export default function CreditsPage() {
     }
   };
 
+  const handleRequestCashout = async () => {
+    setError(null);
+
+    const parsedCredits = Number(cashoutCreditsInput);
+    if (!Number.isFinite(parsedCredits) || parsedCredits <= 0) {
+      setError("Enter a valid cashout credit amount.");
+      return;
+    }
+
+    setCashoutLoading(true);
+    try {
+      const credits = Math.floor(parsedCredits);
+      const request = await requestCashout(credits);
+      alert(`Cashout queued: ${request.creditsRequested} credits ($${request.usdAmount.toFixed(2)}).`);
+      setCashoutCreditsInput(`${MIN_CASHOUT_CREDITS}`);
+    } catch (err: any) {
+      setError(err?.message || "Failed to request cashout.");
+    } finally {
+      setCashoutLoading(false);
+    }
+  };
+
+  const handleProcessBatchPayouts = async () => {
+    setError(null);
+    setBatchLoading(true);
+    try {
+      const processed = await processPendingCashouts();
+      alert(processed > 0 ? `Processed ${processed} pending cashout payout(s).` : "No pending cashouts to process.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to process batch payouts.");
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto max-w-6xl py-8 space-y-8">
@@ -142,7 +191,13 @@ export default function CreditsPage() {
             <h1 className="text-4xl font-bold">Purchase Credits</h1>
           </div>
           <p className="text-xl text-muted-foreground">
-            Current Balance: <span className="font-bold text-yellow-500">{creditBalance} credits</span>
+            Total Balance: <span className="font-bold text-yellow-500">{creditBalance} credits</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Purchased: <span className="font-semibold text-sky-500">{purchasedCreditsBalance}</span> • Earned: <span className="font-semibold text-emerald-500">{earnedCreditsBalance}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Cashout Eligible: <span className="font-semibold text-emerald-500">{cashoutEligibleCredits} credits (${(cashoutEligibleCredits / CREDITS_PER_DOLLAR).toFixed(2)})</span>
           </p>
         </div>
 
@@ -161,7 +216,7 @@ export default function CreditsPage() {
                 <h3 className="font-semibold">Buy Credits</h3>
               </div>
               <p className="text-sm text-muted-foreground">
-                Purchase credits upfront at discounted rates. The more you buy, the more you save.
+                Buy credits upfront. Pricing is fixed at 10 credits per $1.
               </p>
             </div>
             <div className="space-y-2">
@@ -176,14 +231,79 @@ export default function CreditsPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-green-500" />
-                <h3 className="font-semibold">Get Refunds</h3>
+                <h3 className="font-semibold">Earn + Cash Out</h3>
               </div>
               <p className="text-sm text-muted-foreground">
-                Complete your commitments and get your credits back. Fail and they're gone forever.
+                Complete pacts to earn credits back. Cash out earned credits in batch payouts (minimum $10).
               </p>
             </div>
           </CardContent>
         </Card>
+
+        {/* Cashout */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Cash Out Earned Credits</CardTitle>
+            <CardDescription>
+              10 credits = $1. Minimum payout is {MIN_CASHOUT_CREDITS} credits (${(MIN_CASHOUT_CREDITS / CREDITS_PER_DOLLAR).toFixed(2)}).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 max-w-sm">
+              <label className="text-sm font-medium">Credits to cash out</label>
+              <input
+                type="number"
+                min={MIN_CASHOUT_CREDITS}
+                step={10}
+                value={cashoutCreditsInput}
+                onChange={(e) => setCashoutCreditsInput(e.target.value)}
+                className="w-full p-3 border rounded-lg"
+              />
+              <p className="text-xs text-muted-foreground">
+                This subtracts from earned credits immediately and queues a batch refund payout request.
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={handleRequestCashout} disabled={cashoutLoading || cashoutEligibleCredits < MIN_CASHOUT_CREDITS}>
+                {cashoutLoading ? "Requesting..." : "Request Cashout"}
+              </Button>
+              <Button variant="outline" onClick={handleProcessBatchPayouts} disabled={batchLoading}>
+                {batchLoading ? "Processing..." : "Run Batch Payout (Mock)"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {cashoutRequests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Cashout Requests</CardTitle>
+              <CardDescription>Batch payout queue and completion history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {cashoutRequests.slice(0, 10).map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{request.creditsRequested} credits (${request.usdAmount.toFixed(2)})</p>
+                      <p className="text-sm text-muted-foreground">Requested {new Date(request.requestedAt).toLocaleString()}</p>
+                    </div>
+                    <Badge variant={request.status === "completed" ? "default" : "secondary"}>
+                      {request.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Credit Packages */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -214,11 +334,6 @@ export default function CreditsPage() {
                 <div className="text-sm text-muted-foreground">
                   ${pkg.pricePerCredit.toFixed(2)} per credit
                 </div>
-                {pkg.savings && (
-                  <Badge variant="secondary" className="mt-2">
-                    {pkg.savings}
-                  </Badge>
-                )}
                 <p className="text-xs text-muted-foreground pt-2">
                   {pkg.description}
                 </p>
@@ -421,11 +536,11 @@ export default function CreditsPage() {
                     </div>
                     <div className="text-right">
                       <p className={`font-bold ${
-                        txn.type === 'purchase' || txn.type === 'refund' 
-                          ? 'text-green-600' 
+                        txn.type === 'purchase' || txn.type === 'earn' || txn.type === 'cashout_completed'
+                          ? 'text-green-600'
                           : 'text-red-600'
                       }`}>
-                        {txn.type === 'purchase' || txn.type === 'refund' ? '+' : '-'}
+                        {txn.type === 'purchase' || txn.type === 'earn' || txn.type === 'cashout_completed' ? '+' : '-'}
                         {txn.amount}
                       </p>
                       <p className="text-sm text-muted-foreground">

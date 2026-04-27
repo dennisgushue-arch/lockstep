@@ -6,6 +6,8 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
+  purchasedCreditBalance: text("purchased_credit_balance").notNull().default("0"),
+  earnedCreditBalance: text("earned_credit_balance").notNull().default("0"),
   creditBalance: text("credit_balance").notNull().default("0"), // Stored as text to avoid floating point issues
   created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -21,10 +23,14 @@ export type User = typeof users.$inferSelect;
 export const creditTransactions = pgTable("credit_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  type: text("type").notNull(), // "purchase", "spend", "refund"
+  type: text("type").notNull(), // "purchase", "spend", "earn", "cashout_request", "cashout_completed"
   amount: text("amount").notNull(), // Credits added or subtracted (stored as text)
   balanceAfter: text("balance_after").notNull(), // Balance after transaction
   description: text("description"), // Human-readable description
+  purchasedPortion: text("purchased_portion"),
+  earnedPortion: text("earned_portion"),
+  cashoutRequestId: varchar("cashout_request_id"),
+  usdAmount: text("usd_amount"),
   stripePaymentIntentId: text("stripe_payment_intent_id"), // For purchases
   relatedCommitmentId: varchar("related_commitment_id"), // For spend/refund
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -36,12 +42,42 @@ export const insertCreditTransactionSchema = createInsertSchema(creditTransactio
   amount: true,
   balanceAfter: true,
   description: true,
+  purchasedPortion: true,
+  earnedPortion: true,
+  cashoutRequestId: true,
+  usdAmount: true,
   stripePaymentIntentId: true,
   relatedCommitmentId: true,
 });
 
 export type InsertCreditTransaction = z.infer<typeof insertCreditTransactionSchema>;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
+
+export const cashoutRequests = pgTable("cashout_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  creditsRequested: text("credits_requested").notNull(),
+  usdAmount: text("usd_amount").notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "processing", "completed", "failed"
+  payoutMethod: text("payout_method").notNull().default("batch"), // "batch", "immediate"
+  requestedAt: text("requested_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  processedAt: text("processed_at"),
+  stripePayoutId: text("stripe_payout_id"),
+});
+
+export const insertCashoutRequestSchema = createInsertSchema(cashoutRequests).pick({
+  userId: true,
+  creditsRequested: true,
+  usdAmount: true,
+  status: true,
+  payoutMethod: true,
+  requestedAt: true,
+  processedAt: true,
+  stripePayoutId: true,
+});
+
+export type InsertCashoutRequest = z.infer<typeof insertCashoutRequestSchema>;
+export type CashoutRequest = typeof cashoutRequests.$inferSelect;
 
 // Passive Detection: Intent Signals
 export const intentSignals = pgTable("intent_signals", {

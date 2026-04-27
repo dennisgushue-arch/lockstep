@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
+import PressurePaywall from "@/components/pressure-paywall";
 import {
   getAdaptiveProofPolicy,
   getProofConfidence,
@@ -47,7 +48,7 @@ function calculateCreditsRequired(stakeAmount: number): number {
 }
 
 export default function LockInPage() {
-  const { currentIntent, createCommitment, creditBalance, user, behaviorProfile, psychProfile } = useApp();
+  const { currentIntent, createCommitment, creditBalance, user, behaviorProfile, psychProfile, commitments } = useApp();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const pactSizeBadge =
@@ -96,6 +97,11 @@ export default function LockInPage() {
 
   const creditsRequired = calculateCreditsRequired(stake);
   const hasEnoughCredits = creditBalance >= creditsRequired;
+  const activePactsCount = useMemo(
+    () => commitments.filter((item) => item.status === "scheduled").length,
+    [commitments]
+  );
+  const showSecondPactPaywall = activePactsCount >= 1;
 
   useEffect(() => {
     if (!currentIntent) {
@@ -518,6 +524,10 @@ export default function LockInPage() {
 
       {/* Confirm Button */}
       <div className="space-y-4">
+        {showSecondPactPaywall && (
+          <PressurePaywall triggerLabel="When creating 2nd pact" mode="escalation" />
+        )}
+
         <Button 
           size="lg" 
           className="w-full h-16 text-xl font-bold"

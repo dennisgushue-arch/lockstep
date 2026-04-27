@@ -56,22 +56,59 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get current user balance
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("credit_balance")
-      .eq("id", userId)
-      .single();
+    const getBalances = async () => {
+      const splitAttempt = await supabase
+        .from("users")
+        .select("credit_balance,purchased_credit_balance,earned_credit_balance")
+        .eq("id", userId)
+        .single();
 
-    if (userError) throw userError;
+      if (!splitAttempt.error && splitAttempt.data) {
+        return {
+          total: parseInt(splitAttempt.data.credit_balance || "0"),
+          purchased: parseInt(splitAttempt.data.purchased_credit_balance || "0"),
+          earned: parseInt(splitAttempt.data.earned_credit_balance || "0"),
+          splitSupported: true,
+        };
+      }
 
-    const currentBalance = parseInt(user.credit_balance || "0");
-    const newBalance = currentBalance + credits;
+      const legacyAttempt = await supabase
+        .from("users")
+        .select("credit_balance")
+        .eq("id", userId)
+        .single();
 
-    // Update user balance
+      if (legacyAttempt.error || !legacyAttempt.data) {
+        throw legacyAttempt.error || new Error("User not found");
+      }
+
+      const total = parseInt(legacyAttempt.data.credit_balance || "0");
+      return {
+        total,
+        purchased: total,
+        earned: 0,
+        splitSupported: false,
+      };
+    };
+
+    const balances = await getBalances();
+    const newPurchasedBalance = balances.purchased + Number(credits);
+    const newBalance = newPurchasedBalance + balances.earned;
+
+    // Update user balance (purchased bucket)
+    const updatePayload = balances.splitSupported
+      ? {
+          credit_balance: newBalance.toString(),
+          purchased_credit_balance: newPurchasedBalance.toString(),
+          earned_credit_balance: balances.earned.toString(),
+        }
+      : {
+          credit_balance: newBalance.toString(),
+        };
+
     const { error: updateError } = await supabase
       .from("users")
-      .update({ credit_balance: newBalance.toString() })
+      .update(updatePayload)
       .eq("id", userId);
 
     if (updateError) throw updateError;
@@ -84,6 +121,8 @@ Deno.serve(async (req) => {
         type: "purchase",
         amount: credits.toString(),
         balance_after: newBalance.toString(),
+        purchased_portion: credits.toString(),
+        earned_portion: "0",
         description: `Purchased ${credits} credits`,
         stripe_payment_intent_id: paymentIntentId,
       });

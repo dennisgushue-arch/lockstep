@@ -1,9 +1,17 @@
 import React, { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useApp } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { analytics } from "@/lib/analytics";
+import {
+  calculatePaywallCtrByMode,
+  formatCtrRows,
+  type PaywallAnalyticsEvent,
+  type PaywallMode,
+} from "@/lib/paywall-reporting";
 import { inspectPressureNotifications, readLastAppOpenedAt } from "@/lib/pressure-notifications";
 import { buildNativeNotificationPayloadPreview } from "@/lib/native-consequence-notifications";
 import { buildPactDeepLink, handleDeepLink, type DeepLinkMode } from "@/lib/deeplink";
@@ -35,6 +43,156 @@ export default function AdminPage() {
   const [openPayloadKeys, setOpenPayloadKeys] = useState<Record<string, boolean>>({});
   const [copiedPayloadKey, setCopiedPayloadKey] = useState<string | null>(null);
   const [copiedDeepLinkMode, setCopiedDeepLinkMode] = useState<DeepLinkMode | null>(null);
+  const [paywallExportVersion, setPaywallExportVersion] = useState(0);
+  const [batchSecret, setBatchSecret] = useState("");
+  const [batchLimit, setBatchLimit] = useState("25");
+  const [runningBatch, setRunningBatch] = useState(false);
+  const [batchRunLogs, setBatchRunLogs] = useState<string[]>([]);
+
+  const paywallRows = useMemo(() => {
+    const events = analytics.getLocalEvents() as PaywallAnalyticsEvent[];
+    return formatCtrRows(calculatePaywallCtrByMode(events));
+  }, [paywallExportVersion]);
+
+  const paywallDismissalsByMode = useMemo(() => {
+    const events = analytics.getLocalEvents() as PaywallAnalyticsEvent[];
+    const counters: Record<PaywallMode, number> = {
+      celebratory: 0,
+      escalation: 0,
+      urgency: 0,
+    };
+
+    for (const event of events) {
+      if (event.event !== "paywall_dismissed") continue;
+      if (event.mode === "celebratory" || event.mode === "escalation" || event.mode === "urgency") {
+        counters[event.mode] += 1;
+      }
+    }
+
+    return counters;
+  }, [paywallExportVersion]);
+
+  const winnerMode = useMemo(() => {
+    const eligible = paywallRows.filter((row) => row.views > 0);
+    if (!eligible.length) return null;
+
+    return [...eligible].sort((a, b) => {
+      if (b.ctr !== a.ctr) return b.ctr - a.ctr;
+      if (b.clicks !== a.clicks) return b.clicks - a.clicks;
+      return b.views - a.views;
+    })[0];
+  }, [paywallRows]);
+
+  const totalPaywallViews = useMemo(
+    () => paywallRows.reduce((sum, row) => sum + row.views, 0),
+    [paywallRows]
+  );
+
+  const totalPaywallClicks = useMemo(
+    () => paywallRows.reduce((sum, row) => sum + row.clicks, 0),
+    [paywallRows]
+  );
+
+  const totalPaywallDismissals = useMemo(
+    () => Object.values(paywallDismissalsByMode).reduce((sum, value) => sum + value, 0),
+    [paywallDismissalsByMode]
+  );
+
+  const refreshPaywallExport = () => setPaywallExportVersion((v) => v + 1);
+
+  const clearPaywallExport = () => {
+    analytics.clearLocalEvents();
+    setPaywallExportVersion((v) => v + 1);
+  };
+
+  const paywallEventSlice = useMemo(() => {
+    const events = analytics.getLocalEvents() as Array<Record<string, unknown>>;
+    return events.filter((event) => {
+      const name = event.event;
+      return (
+        name === "paywall_viewed" ||
+        name === "paywall_cta_clicked" ||
+        name === "paywall_dismissed"
+      );
+    });
+  }, [paywallExportVersion]);
+
+  function toCsvCell(value: unknown) {
+    if (value === null || value === undefined) return "";
+    const raw = String(value);
+    const escaped = raw.replace(/"/g, '""');
+    return `"${escaped}"`;
+  }
+
+  function exportPaywallCsv() {
+    if (typeof window === "undefined") return;
+    if (!paywallEventSlice.length) return;
+
+    const columns = [
+      "timestamp",
+      "event",
+      "mode",
+      "triggerLabel",
+      "surface",
+      "path",
+      "destination",
+      "userId",
+    ];
+
+    const lines = [columns.join(",")];
+
+    for (const event of paywallEventSlice) {
+      const row = columns.map((column) => toCsvCell(event[column]));
+      lines.push(row.join(","));
+    }
+
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `paywall-events-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPaywallSummaryCsv() {
+    if (typeof window === "undefined") return;
+
+    const columns = ["mode", "views", "clicks", "dismissals", "ctr_percent"];
+    const lines = [columns.join(",")];
+
+    for (const row of paywallRows) {
+      const dismissals = paywallDismissalsByMode[row.mode] ?? 0;
+      const values = [
+        row.mode,
+        String(row.views),
+        String(row.clicks),
+        String(dismissals),
+        row.ctrPercent,
+      ];
+
+      const escaped = values.map((value) => `"${value.replace(/"/g, '""')}"`);
+      lines.push(escaped.join(","));
+    }
+
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `paywall-summary-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
   const sortedCommitments = useMemo(
     () => [...commitments].sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()),
@@ -99,6 +257,52 @@ export default function AdminPage() {
   const handleRunJob = async () => {
     const result = await runMissCheck();
     setLogs(prev => [result, ...prev]);
+  };
+
+  const handleRunCashoutBatch = async () => {
+    if (!batchSecret.trim()) {
+      setBatchRunLogs((prev) => ["Missing batch secret (x-batch-secret)", ...prev]);
+      return;
+    }
+
+    const parsedLimit = Number(batchLimit);
+    const normalizedLimit = Number.isFinite(parsedLimit)
+      ? Math.max(1, Math.min(100, Math.floor(parsedLimit)))
+      : 25;
+
+    setRunningBatch(true);
+
+    try {
+      const startedAt = new Date();
+      const { data, error } = await (supabase as any).functions.invoke("process_cashout_batch", {
+        body: { limit: normalizedLimit },
+        headers: {
+          "x-batch-secret": batchSecret.trim(),
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const scanned = data?.scanned ?? 0;
+      const results = Array.isArray(data?.results) ? data.results : [];
+      const completed = results.filter((r: any) => r?.status === "completed").length;
+      const processing = results.filter((r: any) => r?.status === "processing").length;
+      const failed = results.filter((r: any) => r?.status === "failed").length;
+
+      setBatchRunLogs((prev) => [
+        `[${startedAt.toLocaleTimeString()}] scanned=${scanned} processing=${processing} completed=${completed} failed=${failed}`,
+        ...prev,
+      ]);
+    } catch (err: any) {
+      setBatchRunLogs((prev) => [
+        `[${new Date().toLocaleTimeString()}] batch failed: ${err?.message || "Unknown error"}`,
+        ...prev,
+      ]);
+    } finally {
+      setRunningBatch(false);
+    }
   };
 
   const simulateDeepLink = (mode: DeepLinkMode) => {
@@ -173,6 +377,54 @@ export default function AdminPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Cashout Batch Trigger</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Runs <span className="font-mono">process_cashout_batch</span> with secret header wiring from this admin panel.
+            </p>
+
+            <label className="block space-y-2">
+              <span className="text-xs uppercase tracking-widest text-zinc-500">Batch secret (x-batch-secret)</span>
+              <input
+                type="password"
+                value={batchSecret}
+                onChange={(e) => setBatchSecret(e.target.value)}
+                className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                placeholder="Enter BATCH_PAYOUT_SECRET"
+              />
+            </label>
+
+            <label className="block space-y-2 max-w-xs">
+              <span className="text-xs uppercase tracking-widest text-zinc-500">Batch limit (1-100)</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={batchLimit}
+                onChange={(e) => setBatchLimit(e.target.value)}
+                className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+              />
+            </label>
+
+            <Button onClick={handleRunCashoutBatch} disabled={runningBatch} variant="outline">
+              {runningBatch ? "Running batch..." : "Run Cashout Batch"}
+            </Button>
+
+            <div className="bg-black p-4 rounded text-xs font-mono h-40 overflow-y-auto border border-zinc-800">
+              {batchRunLogs.length === 0 ? (
+                <span className="text-zinc-600">No cashout batch runs yet...</span>
+              ) : (
+                batchRunLogs.map((log, i) => (
+                  <div key={i} className="mb-1 text-sky-300">{`> ${log}`}</div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Environment Check</CardTitle>
           </CardHeader>
           <CardContent>
@@ -185,6 +437,91 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Paywall CTR (Local Event Export)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Local analytics export from this device/session. CTR formula:
+            {" "}
+            <span className="font-mono">paywall_cta_clicked / paywall_viewed</span>
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" className="rounded-none" onClick={refreshPaywallExport}>
+              Refresh
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-none"
+              onClick={exportPaywallCsv}
+              disabled={!paywallEventSlice.length}
+            >
+              Export CSV
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-none"
+              onClick={exportPaywallSummaryCsv}
+            >
+              Export Summary CSV
+            </Button>
+            <Button type="button" variant="outline" className="rounded-none" onClick={clearPaywallExport}>
+              Clear local export
+            </Button>
+          </div>
+
+          <div className="text-xs text-zinc-500">
+            Export includes <span className="text-zinc-300">{paywallEventSlice.length}</span> paywall events (view/click/dismiss).
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Views</div>
+              <div className="text-2xl font-bold text-white">{totalPaywallViews}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Clicks</div>
+              <div className="text-2xl font-bold text-white">{totalPaywallClicks}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Dismissals</div>
+              <div className="text-2xl font-bold text-white">{totalPaywallDismissals}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Winner</div>
+              <div className="text-sm font-bold text-white mt-1">
+                {winnerMode ? `${winnerMode.mode.toUpperCase()} (${winnerMode.ctrPercent})` : "No data"}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {paywallRows.map((row) => (
+              <div key={row.mode} className="border border-zinc-800 bg-zinc-950/40 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs uppercase tracking-widest text-zinc-500">{row.mode}</div>
+                    {winnerMode?.mode === row.mode && (
+                      <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/30">
+                        Winner
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-sm font-semibold text-white">CTR {row.ctrPercent}</div>
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">
+                  views: {row.views} · clicks: {row.clicks} · dismissals: {paywallDismissalsByMode[row.mode]}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
