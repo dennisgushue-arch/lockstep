@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Bell, Lock, Eye, EyeOff } from "lucide-react";
@@ -96,18 +95,25 @@ export default function SettingsPage() {
             {/* Main Toggle */}
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex-1">
-                <h3 className="font-semibold mb-1">Enable Passive Monitoring</h3>
+                <h3 className="font-semibold mb-1">Passive Monitoring</h3>
                 <p className="text-sm text-muted-foreground">
                   {enablePassiveDetection
-                    ? "We're watching what you actually care about"
-                    : "Monitoring is off"}
+                    ? "We're watching what you actually care about."
+                    : "Monitoring is off."}
                 </p>
               </div>
-              <Switch
-                checked={enablePassiveDetection}
-                onCheckedChange={handleToggle}
+              <Button
+                variant={enablePassiveDetection ? "outline" : "default"}
+                onClick={() => void handleToggle(!enablePassiveDetection)}
                 disabled={saveStatus === "saving"}
-              />
+                className="whitespace-nowrap"
+              >
+                {saveStatus === "saving"
+                  ? "Saving..."
+                  : enablePassiveDetection
+                    ? "Disable Passive Monitoring"
+                    : "Enable Passive Monitoring"}
+              </Button>
             </div>
 
             {/* Status Message */}

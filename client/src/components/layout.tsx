@@ -49,90 +49,108 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans overflow-x-hidden">
       <div className="noise-bg" />
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <header
+        className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="container mx-auto px-3 sm:px-4 h-16 flex items-center justify-between gap-2">
           <Link href={user ? "/momentum" : "/"}>
-            <span className="text-xl font-heading font-bold tracking-tighter hover:text-primary/80 transition-colors cursor-pointer">
+            <span className="shrink-0 text-lg sm:text-xl font-heading font-bold tracking-tighter hover:text-primary/80 transition-colors cursor-pointer">
               INTENT.
             </span>
           </Link>
 
-          <nav className="flex items-center gap-4">
-            {user ? (
-              <>
-                <Link href="/momentum">
-                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/momentum' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    Momentum
-                  </span>
-                </Link>
-                <Link href="/dashboard">
-                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    Dashboard
-                  </span>
-                </Link>
-                <Link href="/detection">
-                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/detection' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    Detection
-                  </span>
-                </Link>
-                <DetectionBadge />
-                <Link href="/capture">
-                  <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/capture' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    New Pact
-                  </span>
-                </Link>
-                <Link href="/credits">
-                  <Badge variant="outline" className="gap-1 cursor-pointer hover:bg-yellow-500/10 border-yellow-500/50">
-                    <Coins className="w-3 h-3 text-yellow-500" />
-                    <span className="text-yellow-500 font-bold">{creditBalance}</span>
-                  </Badge>
-                </Link>
-                {isDemoUser && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] uppercase tracking-widest border-cyan-500/50 text-cyan-300 bg-cyan-500/10"
+          <div className="flex flex-1 min-w-0 items-center justify-end gap-1 sm:gap-2">
+            <nav className="flex flex-1 min-w-0 justify-end max-w-[calc(100vw-7rem)] items-center gap-2 sm:gap-3 md:gap-4 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {user ? (
+                <>
+                  <Link href="/momentum">
+                    <span className={`hidden md:inline text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/momentum' ? 'text-primary' : 'text-muted-foreground'}`}>
+                      Momentum
+                    </span>
+                  </Link>
+                  <Link href="/dashboard">
+                    <span className={`hidden md:inline text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                      Dashboard
+                    </span>
+                  </Link>
+                  <Link href="/leaderboard">
+                    <span className={`hidden md:inline text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/leaderboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                      Leaderboard
+                    </span>
+                  </Link>
+                  <Link href="/detection">
+                    <span className={`hidden md:inline text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/detection' ? 'text-primary' : 'text-muted-foreground'}`}>
+                      Detection
+                    </span>
+                  </Link>
+                  <div>
+                    <DetectionBadge />
+                  </div>
+                  <Link href="/capture">
+                    <span className={`inline-flex items-center h-8 px-3 rounded-full text-xs font-black tracking-[0.08em] uppercase cursor-pointer transition-all ${location === '/capture' ? 'ls-button-primary text-white shadow-[0_0_18px_rgba(124,58,237,0.45)]' : 'border border-violet-500/40 text-violet-300 hover:text-white hover:border-violet-400 hover:bg-violet-500/20'}`}>
+                      New Pact
+                    </span>
+                  </Link>
+                  <Link href="/credits">
+                    <Badge variant="outline" className="gap-1 cursor-pointer hover:bg-yellow-500/10 border-yellow-500/50 px-2 py-0.5">
+                      <Coins className="w-3 h-3 text-yellow-500" />
+                      <span className="text-yellow-500 font-bold text-xs">{creditBalance}</span>
+                    </Badge>
+                  </Link>
+                  {isDemoUser && (
+                    <Badge
+                      variant="outline"
+                      className="hidden lg:inline-flex text-[10px] uppercase tracking-widest border-cyan-500/50 text-cyan-300 bg-cyan-500/10"
+                    >
+                      Demo User
+                    </Badge>
+                  )}
+                  <button 
+                    onClick={logout}
+                    className="hidden md:inline text-sm font-medium text-muted-foreground hover:text-primary transition-colors ml-2 cursor-pointer"
                   >
-                    Demo User
-                  </Badge>
-                )}
-                <Link href="/settings">
-                  <Button variant="ghost" size="icon" className="hover:text-primary">
-                    <Settings className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                !isLanding && (
+                  <Link href="/auth">
+                    <Button variant="ghost" size="sm">Log In</Button>
+                  </Link>
+                )
+              )}
+              {!user && isLanding && (
+                <Link href="/auth">
+                  <Button variant="outline" size="sm" className="rounded-none border-primary/20 hover:bg-primary hover:text-background transition-all">
+                    Sign In
                   </Button>
                 </Link>
-                <button 
-                  onClick={logout}
-                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors ml-2 cursor-pointer"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              !isLanding && (
-                <Link href="/auth">
-                  <Button variant="ghost" size="sm">Log In</Button>
-                </Link>
-              )
+              )}
+            </nav>
+
+            {user && (
+              <Link href="/settings">
+                <Button variant="ghost" size="icon" className="hover:text-primary shrink-0" aria-label="Settings">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </Link>
             )}
-            {!user && isLanding && (
-               <Link href="/auth">
-                 <Button variant="outline" size="sm" className="rounded-none border-primary/20 hover:bg-primary hover:text-background transition-all">
-                   Sign In
-                 </Button>
-               </Link>
-            )}
-          </nav>
+          </div>
         </div>
       </header>
 
       {user && location !== "/onboarding" && <ConsequenceNotificationCenter />}
 
-      <main className="flex-1 pt-16">
+      <main className="flex-1 pt-[calc(4rem+env(safe-area-inset-top))]">
         {children}
       </main>
 
       {user && (
-        <footer className="border-t border-border py-8 mt-auto">
+        <footer 
+          className="border-t border-border py-8 mt-auto"
+          style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+        >
           <div className="container mx-auto px-4 text-center text-xs text-muted-foreground font-mono">
             <p>INTENT SYSTEMS © 2026</p>
             <Link href="/admin">

@@ -12,18 +12,17 @@ export type FirstPactResult = {
   reason: string;
 };
 
-function inHours(hours: number) {
-  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-}
+function shortWindowDeadline(difficulty: FirstPactInput["difficulty"]) {
+  const minutesByDifficulty: Record<FirstPactInput["difficulty"], number> = {
+    1: 30,
+    2: 45,
+    3: 60,
+    4: 90,
+    5: 120,
+  };
 
-function sameDayFastDeadline() {
-  const now = new Date();
-  const quickWin = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-  const endOfDay = new Date(now);
-
-  endOfDay.setHours(23, 59, 0, 0);
-
-  return (quickWin.getTime() <= endOfDay.getTime() ? quickWin : endOfDay).toISOString();
+  const minutes = minutesByDifficulty[difficulty] ?? 60;
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString();
 }
 
 function shrinkFirstAction(
@@ -61,7 +60,7 @@ export function buildFirstPact(input: FirstPactInput): FirstPactResult {
 
   return {
     action,
-    deadlineAt: sameDayFastDeadline(),
+    deadlineAt: shortWindowDeadline(input.difficulty),
     stake: 5,
     proofMethod: "check_in",
     reason:

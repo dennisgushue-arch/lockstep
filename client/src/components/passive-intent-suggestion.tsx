@@ -89,16 +89,16 @@ export function PassiveIntentSuggestion({
           </p>
         </div>
 
-        <DialogFooter className="flex gap-2 justify-end">
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 justify-end">
           <Button
             variant="outline"
             onClick={handleDismiss}
-            className="flex items-center gap-2 border-red-200 text-red-700 hover:bg-red-50"
+            className="w-full sm:w-auto h-auto py-2 leading-tight whitespace-normal flex items-center gap-2 border-red-200 text-red-700 hover:bg-red-50"
           >
             <X className="w-4 h-4" />
             Keep Saying It
           </Button>
-          <Button onClick={handleCapture} className="flex items-center gap-2 bg-red-600 hover:bg-red-700">
+          <Button onClick={handleCapture} className="w-full sm:w-auto h-auto py-2 leading-tight whitespace-normal flex items-center gap-2 bg-red-600 hover:bg-red-700">
             <Sparkles className="w-4 h-4" />
             I Mean It
           </Button>

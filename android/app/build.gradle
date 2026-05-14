@@ -45,10 +45,10 @@ def resolvedVersionCode = {
 def resolvedVersionName = ciOrGradleProp('ANDROID_VERSION_NAME') ?: "1.0.${resolvedVersionCode}"
 
 android {
-    namespace "com.dennisgushue.lockstepbeta"
+    namespace "com.lockstep.app"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.dennisgushue.lockstepbeta"
+        applicationId "com.lockstep.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode resolvedVersionCode

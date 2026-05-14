@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.dennisgushue.lockstepbeta",
+  appId: "com.lockstep.app",
   appName: "Lockstep",
   webDir: "public",
   bundledWebRuntime: false,

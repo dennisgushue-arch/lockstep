@@ -125,8 +125,16 @@ export default function PactProvePage() {
 
     setSubmitting(true);
     try {
-      await completeCommitment(commitment.id, proofSubmission);
-      setLocation(`/result/${commitment.id}`);
+      const completion = await completeCommitment(commitment.id, proofSubmission);
+      if (completion.status === "completed") {
+        setLocation(`/result/${commitment.id}`);
+      } else {
+        toast({
+          title: "Team confirmations pending",
+          description: "Your proof was saved. This pact completes when every team member confirms.",
+        });
+        setLocation("/momentum");
+      }
     } finally {
       setSubmitting(false);
     }

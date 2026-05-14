@@ -8,11 +8,11 @@ export default function Step4Live() {
   return (
     <div className="space-y-6 text-center">
       <h1 className="text-3xl font-bold">
-        This is live now.
+        It's live.
       </h1>
 
       <p className="text-zinc-400">
-        You either do it… or you don’t.
+        You said you'd do it. Now prove it.
       </p>
 
       <Button

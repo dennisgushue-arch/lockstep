@@ -11,6 +11,11 @@ export type StreakIdentity = {
   pressureLine: string;
 };
 
+export type BouncebackIdentity = {
+  bouncebackScore: number;
+  currentBouncebackStreak: number;
+};
+
 export function calculatePromiseStreaks(commitments: CommitmentLike[]) {
   const resolved = commitments
     .filter((c) => c.status === "completed" || c.status === "missed")
@@ -87,5 +92,40 @@ export function buildStreakIdentity(commitments: CommitmentLike[]): StreakIdenti
     currentStreak,
     longestStreak,
     ...identity,
+  };
+}
+
+export function calculateBouncebackIdentity(commitments: CommitmentLike[]): BouncebackIdentity {
+  const resolved = commitments
+    .filter((c) => c.status === "completed" || c.status === "missed")
+    .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+
+  let bouncebackScore = 0;
+  let currentBouncebackStreak = 0;
+
+  for (let i = 0; i < resolved.length - 1; i += 1) {
+    const current = resolved[i];
+    const next = resolved[i + 1];
+    if (current.status === "missed" && next.status === "completed") {
+      bouncebackScore += 1;
+    }
+  }
+
+  for (let i = resolved.length - 2; i >= 0; i -= 1) {
+    const current = resolved[i];
+    const next = resolved[i + 1];
+    if (current.status === "missed" && next.status === "completed") {
+      currentBouncebackStreak += 1;
+      continue;
+    }
+    if (next.status === "completed") {
+      continue;
+    }
+    break;
+  }
+
+  return {
+    bouncebackScore,
+    currentBouncebackStreak,
   };
 }

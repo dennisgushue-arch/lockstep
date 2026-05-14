@@ -9,6 +9,20 @@ const ANALYTICS_LOCAL_EXPORT_KEY = 'lockstep_analytics_events';
 const ANALYTICS_LOCAL_EXPORT_LIMIT = 2000;
 
 type AnalyticsEvent =
+  | 'landing_cta_clicked'
+  | 'signup_started'
+  | 'signup_completed'
+  | 'first_intent_submitted'
+  | 'first_pact_preset_selected'
+  | 'first_pact_created'
+  | 'first_pact_completed'
+  | 'first_pact_completed_24h'
+  | 'ai_suggestion_adjusted'
+  | 'recovery_prompt_clicked'
+  | 'recovery_option_selected'
+  | 'recovery_pact_started'
+  | 'recovery_pact_created'
+  | 'result_share_clicked'
   | 'journal_checkin_saved'
   | 'voice_note_recorded'
   | 'voice_note_uploaded'

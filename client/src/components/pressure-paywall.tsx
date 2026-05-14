@@ -20,6 +20,9 @@ type PressurePaywallProps = {
   triggerLabel: string;
   mode?: PressurePaywallMode;
   className?: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  dismissLabel?: string;
 };
 
 type ToneConfig = {
@@ -86,6 +89,9 @@ export default function PressurePaywall({
   triggerLabel,
   mode = "escalation",
   className,
+  ctaHref = "/credits",
+  ctaLabel = "TURN UP THE PRESSURE",
+  dismissLabel = "Stay limited (1 pact only)",
 }: PressurePaywallProps) {
   const [dismissed, setDismissed] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -109,7 +115,7 @@ export default function PressurePaywall({
       mode,
       triggerLabel,
       surface: "pressure_paywall",
-      destination: "/credits",
+      destination: ctaHref,
       path: typeof window !== "undefined" ? window.location.pathname : undefined,
     });
   }
@@ -263,10 +269,10 @@ export default function PressurePaywall({
               transition={{ duration: mode === "urgency" ? 1.8 : 2.2, repeat: Infinity, repeatDelay: mode === "urgency" ? 0.8 : 1.2 }}
               className="rounded-none"
             >
-              <Button asChild className="w-full rounded-none h-14 bg-white text-black hover:bg-zinc-200 font-black tracking-[0.16em] text-[13px] sm:text-sm shadow-[0_10px_30px_rgba(255,255,255,0.08)]">
-                <Link href="/credits" onClick={handleCtaClick}>
-                  <span>TURN UP THE PRESSURE</span>
-                  <ArrowRight className="w-4 h-4" />
+              <Button asChild className="w-full rounded-none h-auto min-h-14 py-3 bg-white text-black hover:bg-zinc-200 font-black tracking-[0.08em] sm:tracking-[0.16em] text-[11px] sm:text-sm leading-tight whitespace-normal shadow-[0_10px_30px_rgba(255,255,255,0.08)]">
+                <Link href={ctaHref} onClick={handleCtaClick}>
+                  <span className="text-center whitespace-normal">{ctaLabel}</span>
+                  <ArrowRight className="w-4 h-4 shrink-0" />
                 </Link>
               </Button>
             </motion.div>
@@ -276,7 +282,7 @@ export default function PressurePaywall({
               onClick={handleDismiss}
               className="w-full text-xs text-zinc-500 hover:text-zinc-400 transition-colors"
             >
-              Stay limited (1 pact only)
+              {dismissLabel}
             </button>
           </motion.div>
         </motion.section>

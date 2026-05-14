@@ -57,19 +57,28 @@ export function ConsequenceNotificationCenter() {
             <div className="text-sm text-zinc-300">{primary.detail}</div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full md:w-auto md:flex-shrink-0 flex-col sm:flex-row flex-wrap gap-2">
             {(primary.type === "pre-failure-warning" || primary.type === "deadline-pressure") && (
-              <Button className="rounded-none bg-red-600 text-white hover:bg-red-700" onClick={() => setLocation(`/pact/${primary.commitmentId}/act?source=notification`)}>
+              <Button
+                className="rounded-none bg-red-600 text-white hover:bg-red-700 w-full sm:w-auto h-auto py-2 px-3 text-sm leading-tight whitespace-normal"
+                onClick={() => setLocation(`/pact/${primary.commitmentId}/act?source=notification`)}
+              >
                 Do it now
               </Button>
             )}
             {primary.type === "missed-outcome" && (
-              <Button className="rounded-none bg-red-600 text-white hover:bg-red-700" onClick={() => setLocation(`/result/${primary.commitmentId}?source=notification`)}>
-                See result
+              <Button
+                className="rounded-none bg-red-600 text-white hover:bg-red-700 w-full sm:w-auto md:min-w-[9rem] md:justify-center h-auto py-2 px-3 text-sm leading-tight whitespace-nowrap"
+                onClick={() => setLocation(`/result/${primary.commitmentId}?source=notification`)}
+              >
+                See results
               </Button>
             )}
             {primary.type === "recovery-trigger" && (
-              <Button className="rounded-none bg-red-600 text-white hover:bg-red-700" onClick={() => setLocation(`/recovery/${primary.commitmentId}?source=notification`)}>
+              <Button
+                className="rounded-none bg-red-600 text-white hover:bg-red-700 w-full sm:w-auto h-auto py-2 px-3 text-sm leading-tight whitespace-normal"
+                onClick={() => setLocation(`/recovery/${primary.commitmentId}?source=notification`)}
+              >
                 Start recovery pact
               </Button>
             )}

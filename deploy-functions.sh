@@ -28,6 +28,9 @@ echo ""
 # Deploy each function
 FUNCTIONS=(
     "analyze_intent"
+    "create_stake_intent"
+    "purchase_credits"
+    "confirm_credit_purchase"
     "complete_commitment"
     "fail_commitment"
     "sweep_overdue_commitments"

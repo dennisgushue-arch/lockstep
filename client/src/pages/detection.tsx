@@ -38,7 +38,9 @@ export default function DetectionPage() {
   const [recentCapture, setRecentCapture] = useState<string | null>(null);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
   const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const [captureErrorMessage, setCaptureErrorMessage] = useState<string | null>(null);
   const retryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const voiceCaptureTimeoutRef = useRef<number | null>(null);
 
   const activePatterns = getActivePatterns();
   const recentSignals = intentSignals.slice(0, 10);
@@ -48,6 +50,14 @@ export default function DetectionPage() {
       retryButtonRef.current.focus();
     }
   }, [syncErrorMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (voiceCaptureTimeoutRef.current) {
+        window.clearTimeout(voiceCaptureTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -98,33 +108,66 @@ export default function DetectionPage() {
   };
 
   const handleQuickCapture = async () => {
-    if (!quickCaptureText.trim()) return;
-    
-    const result = await captureSignal(quickCaptureText, selectedSource);
-    setRecentCapture(quickCaptureText);
-    setQuickCaptureText("");
-    
-    if (result?.shouldPrompt && result.urgency === "high") {
-      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
+    if (selectedSource === "calendar") {
+      await handleCalendarSync();
+      return;
     }
-    
-    // Clear recent capture after 3 seconds
-    setTimeout(() => setRecentCapture(null), 3000);
+
+    if (!quickCaptureText.trim()) return;
+
+    setCaptureErrorMessage(null);
+
+    try {
+      const capturedText = quickCaptureText;
+      const result = await captureSignal(capturedText, selectedSource);
+      setRecentCapture(capturedText);
+      setQuickCaptureText("");
+
+      if (result?.shouldPrompt && result.urgency === "high") {
+        setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
+      }
+
+      // Clear recent capture after 3 seconds
+      setTimeout(() => setRecentCapture(null), 3000);
+    } catch (error) {
+      setCaptureErrorMessage("Capture failed. Please try again.");
+      setTimeout(() => setCaptureErrorMessage(null), 4000);
+    }
   };
 
   const handleVoiceCapture = () => {
     if (isListening) {
+      if (voiceCaptureTimeoutRef.current) {
+        window.clearTimeout(voiceCaptureTimeoutRef.current);
+        voiceCaptureTimeoutRef.current = null;
+      }
       setIsListening(false);
       // In production: stop speech recognition
     } else {
       setIsListening(true);
       // In production: start speech recognition with Web Speech API
       // Mock: simulate voice input after 2 seconds
-      setTimeout(() => {
+      voiceCaptureTimeoutRef.current = window.setTimeout(async () => {
         const mockTranscript = "I really need to start working out consistently, maybe hit the gym three times a week";
         setQuickCaptureText(mockTranscript);
         setSelectedSource("voice_note");
         setIsListening(false);
+        voiceCaptureTimeoutRef.current = null;
+
+        try {
+          const result = await captureSignal(mockTranscript, "voice_note");
+          setRecentCapture(mockTranscript);
+          setQuickCaptureText("");
+
+          if (result?.shouldPrompt && result.urgency === "high") {
+            setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
+          }
+
+          setTimeout(() => setRecentCapture(null), 3000);
+        } catch (error) {
+          setCaptureErrorMessage("Voice capture failed. Please try again.");
+          setTimeout(() => setCaptureErrorMessage(null), 4000);
+        }
       }, 2000);
     }
   };
@@ -281,7 +324,7 @@ export default function DetectionPage() {
             {syncErrorMessage && (
               <Alert className="bg-red-500/10 border-red-500/50" role="alert">
                 <AlertCircle className="h-4 w-4 text-red-500" />
-                <AlertDescription className="text-red-500 flex items-center justify-between gap-3">
+                <AlertDescription className="text-red-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <span>
                     <span className="sr-only">Sync failed: </span>
                     {syncErrorMessage}
@@ -292,11 +335,22 @@ export default function DetectionPage() {
                     size="sm"
                     onClick={handleRetrySync}
                     disabled={isSyncing}
-                    className="border-red-500/40 hover:bg-red-500/10"
+                    className="w-full sm:w-auto h-auto py-2 leading-tight whitespace-normal border-red-500/40 hover:bg-red-500/10"
                   >
                     <RotateCw className={`w-3 h-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
                     {isSyncing ? "Retrying..." : "Retry"}
                   </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <div aria-live="assertive" aria-atomic="true">
+            {captureErrorMessage && (
+              <Alert className="bg-red-500/10 border-red-500/50" role="alert">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <AlertDescription className="text-red-500">
+                  {captureErrorMessage}
                 </AlertDescription>
               </Alert>
             )}
@@ -395,10 +449,10 @@ export default function DetectionPage() {
             <Button 
               onClick={handleQuickCapture}
               className="flex-1 gap-2 text-lg font-bold"
-              disabled={selectedSource === "calendar" || !quickCaptureText.trim()}
+              disabled={selectedSource !== "calendar" && !quickCaptureText.trim()}
             >
               <Sparkles className="w-4 h-4" />
-              Capture Intent
+              {selectedSource === "calendar" ? "Sync Calendar" : "Capture Intent"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

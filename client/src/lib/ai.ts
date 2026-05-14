@@ -41,6 +41,42 @@ type AnalyzeIntentOptions = {
   psychProfile?: PsychProfile | null;
 };
 
+function buildLocalFallbackIntent(rawText: string): StructuredIntent {
+  const lowerText = rawText.toLowerCase();
+
+  let category: IntentCategory = "other";
+  if (lowerText.includes("run") || lowerText.includes("gym") || lowerText.includes("workout") || lowerText.includes("exercise")) {
+    category = "fitness";
+  } else if (lowerText.includes("write") || lowerText.includes("code") || lowerText.includes("work") || lowerText.includes("project")) {
+    category = "work";
+  } else if (lowerText.includes("money") || lowerText.includes("save") || lowerText.includes("budget")) {
+    category = "growth";
+  } else if (lowerText.includes("eat") || lowerText.includes("diet") || lowerText.includes("food")) {
+    category = "consumption";
+  } else if (lowerText.includes("quit") || lowerText.includes("stop") || lowerText.includes("habit")) {
+    category = "addiction";
+  }
+
+  return {
+    category,
+    confidence: 0.65,
+    goal: rawText,
+    first_action: "Take the smallest concrete step right now.",
+    reflection: "Quick plan generated. Don't wait for perfect analysis — lock a small pact and move.",
+    suggested_stake: 10,
+    action: rawText,
+    stake: 10,
+    proof_method: "checkin",
+    reflection_message: "Quick plan generated. Keep momentum: start small and prove one action.",
+    stake_reason: "Quick-plan stake tuned for fast action.",
+    deadline_reason: "Use a near-term deadline to keep pressure clear.",
+    pact_size_reason: "Fallback mode uses small, winnable tasks.",
+    pact_size_level: "small",
+    proof_reason: "Low-friction fallback proof keeps flow moving.",
+    proof_confidence: "low",
+  };
+}
+
 export async function analyzeIntent(raw_text: string, options?: AnalyzeIntentOptions): Promise<StructuredIntent> {
   console.log("[AI] Analyzing intent:", raw_text);
   const behaviorProfile = options?.behaviorProfile ?? null;
@@ -93,7 +129,8 @@ export async function analyzeIntent(raw_text: string, options?: AnalyzeIntentOpt
         return intent;
       } catch (fallbackError) {
         console.error("[AI] Fallback fetch also failed:", fallbackError);
-        throw new Error(`Function unavailable: ${error.message || error.name || "unknown error"}`);
+        console.warn("[AI] Using local fallback intent due to edge function outage");
+        return buildLocalFallbackIntent(raw_text);
       }
     }
 

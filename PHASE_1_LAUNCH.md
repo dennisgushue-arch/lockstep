@@ -2,15 +2,17 @@
 
 ## Step 1: Get API Keys (5 minutes)
 
-### 1.1 OpenAI API Key (Whisper)
-1. Go to: https://platform.openai.com/account/api-keys
+### 1.1 OpenAI API Key (Whisper transcription)
+
+1. Go to: <https://platform.openai.com/api-keys>
 2. Click "Create new secret key"
 3. Name it: `lockstep-whisper`
 4. Copy the key (starts with `sk-`)
 5. **Keep this open** - you'll need it next
 
 ### 1.2 Anthropic API Key (Claude)
-1. Go to: https://console.anthropic.com/account/keys
+
+1. Go to: <https://console.anthropic.com/account/keys>
 2. Click "Create Key"
 3. Copy the key (starts with `sk-ant-`)
 4. **Keep this open** - you'll need it next
@@ -19,30 +21,36 @@
 
 ## Step 2: Set Secrets in Supabase (2 minutes)
 
-1. Go to: https://supabase.com/dashboard/project/[your-project-id]/functions
-   - Replace `[your-project-id]` with your actual project ID
-2. Click "Secrets" in the left sidebar
-3. Add each secret by clicking "New secret":
+1. Open your Supabase project dashboard.
+2. Go to **Edge Functions**.
+3. Open the area labeled **Secrets**, **Environment Variables**, or **Settings** depending on your dashboard version.
+4. Add each secret:
 
 ### 2.1 Add OPENAI_API_KEY
-```
+
+```text
 Name:  OPENAI_API_KEY
 Value: sk-... [paste from step 1.1]
 ```
 
 ### 2.2 Add ANTHROPIC_API_KEY
-```
+
+```text
 Name:  ANTHROPIC_API_KEY
 Value: sk-ant-... [paste from step 1.2]
 ```
 
-**Verify**: Refresh the page - you should see both secrets listed.
+**Verify**: Refresh the page - you should still see both secrets listed.
+
+> Note: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically for hosted Supabase Edge Functions. The voice-note functions in this repo only need `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` added manually.
 
 ---
 
 ## Step 3: Create Storage Bucket (2 minutes)
 
-1. Go to: https://supabase.com/dashboard/project/[your-project-id]/sql/new
+The repo already includes this as `supabase/migrations/007_create_audio_storage.sql`, but you can also create it directly in the Supabase SQL editor:
+
+1. Go to: <https://supabase.com/dashboard/project/[your-project-id]/sql/new>
 2. Paste this SQL:
 
 ```sql
@@ -76,8 +84,8 @@ USING (
 );
 ```
 
-3. Click "Run"
-4. You should see: "Success. No rows returned"
+1. Click "Run"
+2. You should see: "Success. No rows returned"
 
 **Verify**: Go to Storage → audio_files (should appear in sidebar)
 
@@ -94,21 +102,27 @@ VITE_SUPABASE_ANON_KEY=[your-anon-key]
 ```
 
 Find these values:
+
 - **SUPABASE_URL**: Supabase Dashboard → Settings → API
 - **SUPABASE_ANON_KEY**: Supabase Dashboard → Settings → API (under "anon public")
+
+> Optional: `VITE_STRIPE_PUBLISHABLE_KEY` is only needed if you also want to test payment or credits flows. It is not required for `/voice-notes`.
 
 ---
 
 ## Step 5: Test Voice Notes Page (5 minutes)
 
-1. Start your dev server:
+1. Make sure you're signed in inside the app. Voice-note upload requires an authenticated Supabase session.
+
+2. Start your dev server:
+
 ```bash
-npm run dev
+pnpm dev
 ```
 
-2. Navigate to: http://localhost:5173/voice-notes
+1. Navigate to: <http://localhost:5000/voice-notes>
 
-3. Test the flow:
+2. Test the flow:
    - [ ] Page loads
    - [ ] See blue microphone icon
    - [ ] Click "START RECORDING"
@@ -117,11 +131,13 @@ npm run dev
    - [ ] Red pulsing circle appears
    - [ ] Duration timer starts (0:00, 0:01, etc.)
    - [ ] Record for 30-60 seconds, say:
-     ```
+
+     ```text
      "I want to run 3 miles this week. I'm usually too tired after work.
      Let me commit to Tuesday, Wednesday, and Friday mornings at 6 AM.
      I'll give myself 5 credits as stakes."
      ```
+
    - [ ] Click "STOP RECORDING"
    - [ ] Shows "Duration: X:XX"
    - [ ] Click "EXTRACT"
@@ -136,24 +152,26 @@ npm run dev
      - **Confidence**: 85%
    - [ ] Click "CREATE PACT"
    - [ ] Toast appears: "✓ PACT HONORED. You kept your word."
-   - [ ] Redirects to dashboard
+   - [ ] Redirects back into the app (`/`)
    - [ ] New commitment appears on dashboard with your extracted intent
 
 **If something fails:**
+
 - Check browser console (F12) for errors
 - Check Supabase Functions logs:
   - Dashboard → Functions → [function name] → Logs
 - Verify both API keys are set correctly
 - Verify storage bucket was created
+- If you see `You must be signed in to upload voice notes.`, sign in first and retry
 
 ---
 
 ## Step 6: Test Recommendations Page (Optional, 5 minutes)
 
-1. Navigate to: http://localhost:5173/recommendations
+1. Navigate to: <http://localhost:5000/recommendations>
 
 2. Verify you see:
-   - [ ] Your voice note recommendation (from Step 6)
+   - [ ] Your voice note recommendation (from Step 5)
    - [ ] Shows extracted intent
    - [ ] Shows confidence score (85%)
    - [ ] Shows suggested stake (5 credits)
@@ -168,15 +186,16 @@ npm run dev
 ## Step 7: Launch! 🎯
 
 ### Pre-Launch Checklist
-- [x] Code deployed to Supabase (functions)
-- [x] Routes added to App router
-- [x] Database migrations created
-- [x] Components built
-- [x] API keys set in Supabase
-- [x] Storage bucket created
-- [x] Frontend environment variables set
-- [x] /voice-notes page tested
-- [x] /recommendations page tested
+
+- [ ] Code deployed to Supabase (functions)
+- [ ] Routes added to App router
+- [ ] Database migrations created
+- [ ] Components built
+- [ ] API keys set in Supabase
+- [ ] Storage bucket created
+- [ ] Frontend environment variables set
+- [ ] /voice-notes page tested
+- [ ] /recommendations page tested
 
 ### Launch Steps
 
@@ -190,7 +209,8 @@ npm run dev
    - Track user adoption
 
 3. **Announce Feature**
-   ```
+
+   ```text
    "You can now record your commitments with your voice.
    
    Say what you're committing to, and our AI will:
@@ -208,21 +228,26 @@ npm run dev
 ## Troubleshooting
 
 ### "Failed to access microphone"
+
 - Check browser permissions (Settings → Privacy → Microphone)
 - Try a different browser
 - Must be HTTPS or localhost
 
 ### "Upload failed"
+
 - Verify OPENAI_API_KEY is set correctly
 - Check Supabase Functions logs
 - Verify storage bucket exists
+- Make sure you are signed in before uploading
 
 ### "Transcription timeout"
+
 - Check OpenAI API status (status.openai.com)
 - Try a shorter recording (< 2 minutes)
 - Check internet connection
 
 ### "Intent extraction failed"
+
 - Verify ANTHROPIC_API_KEY is set correctly
 - Check Anthropic API account has credits
 - Verify transcription succeeded first
@@ -245,6 +270,7 @@ npm run dev
 ## Next: Phase 2
 
 After validating Phase 1 with real users:
+
 - Message integration (iOS share sheet, SMS, email)
 - Daily check-in prompts
 - Advanced analytics
@@ -257,6 +283,7 @@ See `SOURCES_IMPLEMENTATION.md` for Phase 2-3 roadmap.
 ## Support
 
 If you get stuck:
+
 1. Check the error message
 2. Verify both API keys are set
 3. Check Supabase Functions logs

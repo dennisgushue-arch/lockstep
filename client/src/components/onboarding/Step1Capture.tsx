@@ -19,7 +19,7 @@ export default function Step1Capture({
       </div>
 
       <h1 className="text-3xl font-bold leading-tight">
-        What do you keep saying you’ll do?
+        What will you do today?
       </h1>
 
       <textarea
@@ -30,7 +30,7 @@ export default function Step1Capture({
       />
 
       <p className="text-sm text-zinc-500">
-        Don’t overthink it. Say it how you normally would.
+        Keep it simple. One thing you can actually finish.
       </p>
 
       <Button
@@ -38,7 +38,7 @@ export default function Step1Capture({
         onClick={onNext}
         className="w-full h-14 bg-white text-black font-bold hover:bg-zinc-200"
       >
-        {isLoading ? "ANALYZING..." : "CONTINUE"}
+        {isLoading ? "ANALYZING..." : "NEXT"}
       </Button>
     </div>
   );

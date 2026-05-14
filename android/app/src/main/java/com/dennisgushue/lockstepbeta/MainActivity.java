@@ -1,4 +1,4 @@
-package com.dennisgushue.lockstepbeta;
+package com.lockstep.app;
 
 import com.getcapacitor.BridgeActivity;
 

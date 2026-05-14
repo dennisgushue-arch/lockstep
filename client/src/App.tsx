@@ -35,6 +35,7 @@ import { ReviewPrompt } from "@/components/review-prompt";
 import PactAct from "@/pages/pact-act";
 import PactProvePage from "@/pages/pact-prove";
 import RecoveryPage from "@/pages/recovery";
+import LeaderboardPage from "@/pages/leaderboard";
 import { App as CapacitorApp } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { handleDeepLink } from "@/lib/deeplink";
@@ -126,6 +127,7 @@ function Router() {
         <Route path="/recovery/:id" component={RecoveryPage} />
         <Route path="/missed" component={Missed} />
         <Route path="/momentum" component={MomentumPage} />
+        <Route path="/leaderboard" component={LeaderboardPage} />
         {isDev && <Route path="/test-intent" component={TestIntentPage} />}
         {isDev && <Route path="/debug" component={DebugPage} />}
         {isDev && (

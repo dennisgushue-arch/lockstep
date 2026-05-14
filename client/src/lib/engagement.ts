@@ -6,7 +6,8 @@ export type ConsequenceNotificationType =
   | "pre-failure-warning"
   | "deadline-pressure"
   | "missed-outcome"
-  | "recovery-trigger";
+  | "recovery-trigger"
+  | "day-2-trigger";
 
 export type ConsequenceNotification = {
   id: string;

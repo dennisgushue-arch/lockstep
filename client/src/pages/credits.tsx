@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/lib/mock-data";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
@@ -12,32 +12,33 @@ import { supabase } from "@/lib/supabase";
 
 const CREDITS_PER_DOLLAR = 10;
 const MIN_CASHOUT_CREDITS = 100; // $10 minimum
+const FOUNDING_MEMBER_DISCOUNT_MULTIPLIER = 0.5;
 
 const CREDIT_PACKAGES = [
   {
     credits: 100,
-    price: 10,
+    basePrice: 10,
     pricePerCredit: 0.10,
     popular: false,
     description: "Perfect for getting started",
   },
   {
     credits: 250,
-    price: 25,
+    basePrice: 25,
     pricePerCredit: 0.10,
     popular: true,
     description: "Most popular choice"
   },
   {
     credits: 500,
-    price: 50,
+    basePrice: 50,
     pricePerCredit: 0.10,
     popular: false,
     description: "Best value for serious goal-setters"
   },
   {
     credits: 1000,
-    price: 100,
+    basePrice: 100,
     pricePerCredit: 0.10,
     popular: false,
     description: "For the ultimate commitment machine"
@@ -58,7 +59,22 @@ export default function CreditsPage() {
     creditTransactions,
   } = useApp();
   const [, setLocation] = useLocation();
-  const [selectedPackage, setSelectedPackage] = useState<typeof CREDIT_PACKAGES[0] | null>(null);
+  const isFoundingMember = Boolean(user?.isFoundingMember);
+  const pricingMultiplier = isFoundingMember ? FOUNDING_MEMBER_DISCOUNT_MULTIPLIER : 1;
+  const availablePackages = useMemo(
+    () =>
+      CREDIT_PACKAGES.map((pkg) => {
+        const effectivePrice = Number((pkg.basePrice * pricingMultiplier).toFixed(2));
+        return {
+          ...pkg,
+          effectivePrice,
+          effectivePricePerCredit: effectivePrice / pkg.credits,
+        };
+      }),
+    [pricingMultiplier]
+  );
+  const [selectedCredits, setSelectedCredits] = useState<number | null>(null);
+  const selectedPackage = availablePackages.find((pkg) => pkg.credits === selectedCredits) ?? null;
   const [loading, setLoading] = useState(false);
   const [cashoutLoading, setCashoutLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -87,9 +103,10 @@ export default function CreditsPage() {
       const userId = user?.id || `user_${Date.now()}`;
       const { data: pi, error: piErr } = await supabase.functions.invoke("purchase_credits", {
         body: {
-          amount: selectedPackage.price * 100, // Convert to cents
+          amount: Math.round(selectedPackage.effectivePrice * 100), // Convert to cents
           credits: selectedPackage.credits,
           userId: userId,
+          foundingMemberRateApplied: isFoundingMember,
         },
       }) as { data: { clientSecret: string; paymentIntentId: string } | null; error: any };
 
@@ -136,7 +153,7 @@ export default function CreditsPage() {
         }
       }
 
-      setSelectedPackage(null);
+      setSelectedCredits(null);
       alert(`Successfully purchased ${selectedPackage.credits} credits!`);
     } catch (err: any) {
       console.error("Purchase failed:", err);
@@ -189,10 +206,16 @@ export default function CreditsPage() {
           <div className="flex items-center justify-center gap-2">
             <Coins className="w-8 h-8 text-yellow-500" />
             <h1 className="text-4xl font-bold">Purchase Credits</h1>
+            {isFoundingMember && <Badge className="bg-violet-600">Founding Member · 50% Off</Badge>}
           </div>
           <p className="text-xl text-muted-foreground">
             Total Balance: <span className="font-bold text-yellow-500">{creditBalance} credits</span>
           </p>
+          {creditBalance < 50 && (
+            <div className="mt-3 border border-red-700 bg-red-950/40 text-red-300 px-4 py-3 text-sm font-semibold">
+              ⚠ Low credits — you can lock in {Math.floor(creditBalance / 10)} more pact{Math.floor(creditBalance / 10) !== 1 ? 's' : ''} at minimum stake. Top up to keep going.
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">
             Purchased: <span className="font-semibold text-sky-500">{purchasedCreditsBalance}</span> • Earned: <span className="font-semibold text-emerald-500">{earnedCreditsBalance}</span>
           </p>
@@ -216,7 +239,7 @@ export default function CreditsPage() {
                 <h3 className="font-semibold">Buy Credits</h3>
               </div>
               <p className="text-sm text-muted-foreground">
-                Buy credits upfront. Pricing is fixed at 10 credits per $1.
+                Buy credits upfront. {isFoundingMember ? "Founding members pay 50% off standard rates." : "Pricing is fixed at 10 credits per $1."}
               </p>
             </div>
             <div className="space-y-2">
@@ -307,7 +330,7 @@ export default function CreditsPage() {
 
         {/* Credit Packages */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {CREDIT_PACKAGES.map((pkg) => (
+          {availablePackages.map((pkg) => (
             <Card
               key={pkg.credits}
               className={`relative cursor-pointer transition-all hover:shadow-lg ${
@@ -315,7 +338,7 @@ export default function CreditsPage() {
                   ? "ring-2 ring-primary shadow-lg"
                   : ""
               } ${pkg.popular ? "border-yellow-500 border-2" : ""}`}
-              onClick={() => setSelectedPackage(pkg)}
+              onClick={() => setSelectedCredits(pkg.credits)}
             >
               {pkg.popular && (
                 <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500">
@@ -330,9 +353,12 @@ export default function CreditsPage() {
                 <CardDescription>credits</CardDescription>
               </CardHeader>
               <CardContent className="text-center space-y-2">
-                <div className="text-4xl font-bold">${pkg.price}</div>
+                {isFoundingMember && (
+                  <div className="text-sm text-muted-foreground line-through">${pkg.basePrice.toFixed(2)}</div>
+                )}
+                <div className="text-4xl font-bold">${pkg.effectivePrice.toFixed(2)}</div>
                 <div className="text-sm text-muted-foreground">
-                  ${pkg.pricePerCredit.toFixed(2)} per credit
+                  ${pkg.effectivePricePerCredit.toFixed(2)} per credit
                 </div>
                 <p className="text-xs text-muted-foreground pt-2">
                   {pkg.description}
@@ -397,7 +423,7 @@ export default function CreditsPage() {
             <CardFooter>
               <Button
                 variant="outline"
-                onClick={() => setSelectedPackage(null)}
+                onClick={() => setSelectedCredits(null)}
                 className="w-full"
               >
                 Close
@@ -412,7 +438,7 @@ export default function CreditsPage() {
             <CardHeader>
               <CardTitle>Complete Purchase</CardTitle>
               <CardDescription>
-                Purchasing {selectedPackage.credits} credits for ${selectedPackage.price}
+                Purchasing {selectedPackage.credits} credits for ${selectedPackage.effectivePrice.toFixed(2)}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -499,7 +525,7 @@ export default function CreditsPage() {
             <CardFooter className="flex gap-4">
               <Button
                 variant="outline"
-                onClick={() => setSelectedPackage(null)}
+                onClick={() => setSelectedCredits(null)}
                 disabled={loading}
                 className="flex-1"
               >
@@ -510,7 +536,7 @@ export default function CreditsPage() {
                 disabled={loading || !stripe}
                 className="flex-1"
               >
-                {loading ? "Processing..." : `Pay $${selectedPackage.price}`}
+                {loading ? "Processing..." : `Pay $${selectedPackage.effectivePrice.toFixed(2)}`}
               </Button>
             </CardFooter>
           </Card>

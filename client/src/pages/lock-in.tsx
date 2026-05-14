@@ -6,7 +6,7 @@ import { useApp } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { format, addHours } from "date-fns";
-import { CalendarIcon, Coins, AlertCircle, Brain, ShieldAlert, Zap } from "lucide-react";
+import { CalendarIcon, Coins, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
@@ -48,17 +48,9 @@ function calculateCreditsRequired(stakeAmount: number): number {
 }
 
 export default function LockInPage() {
-  const { currentIntent, createCommitment, creditBalance, user, behaviorProfile, psychProfile, commitments } = useApp();
+  const { currentIntent, createCommitment, creditBalance, user, behaviorProfile, commitments } = useApp();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const pactSizeBadge =
-    currentIntent?.pact_size_level === "tiny"
-      ? "border-yellow-500/50 text-yellow-300 bg-yellow-500/10"
-      : currentIntent?.pact_size_level === "small"
-        ? "border-sky-500/50 text-sky-300 bg-sky-500/10"
-        : currentIntent?.pact_size_level === "expanded"
-          ? "border-emerald-500/50 text-emerald-300 bg-emerald-500/10"
-          : "border-zinc-700 text-zinc-300 bg-zinc-900/50";
   const parsedIntentDeadline = currentIntent?.deadline ? new Date(currentIntent.deadline) : null;
   const initialDeadline = parsedIntentDeadline && !Number.isNaN(parsedIntentDeadline.getTime())
     ? parsedIntentDeadline
@@ -79,6 +71,10 @@ export default function LockInPage() {
   const [witnessName, setWitnessName] = useState("");
   const [witnessRelationship, setWitnessRelationship] = useState("");
   const [witnessContact, setWitnessContact] = useState("");
+  const [invitedWitnessesInput, setInvitedWitnessesInput] = useState("");
+  const [challengeMode, setChallengeMode] = useState(false);
+  const [teamMembersInput, setTeamMembersInput] = useState("");
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   const integrityScore = useMemo(
     () => Math.round((behaviorProfile.completionRate ?? 0) * 100),
@@ -90,18 +86,38 @@ export default function LockInPage() {
     [integrityScore]
   );
 
-  const composedPressureLine = useMemo(() => {
-    const base = psychProfile?.next_pressure_line ?? behaviorProfile.psych.next_pressure_line;
-    return base || "";
-  }, [psychProfile?.next_pressure_line, behaviorProfile.psych.next_pressure_line]);
-
   const creditsRequired = calculateCreditsRequired(stake);
-  const hasEnoughCredits = creditBalance >= creditsRequired;
+  const invitedWitnesses = useMemo(
+    () => invitedWitnessesInput.split(",").map((name) => name.trim()).filter(Boolean),
+    [invitedWitnessesInput]
+  );
+  const challengeMemberNames = useMemo(
+    () => teamMembersInput.split(",").map((name) => name.trim()).filter(Boolean),
+    [teamMembersInput]
+  );
+  const teamSize = challengeMode ? challengeMemberNames.length + 1 : 1; // +1 for current user
+  const splitCreditsPerMember = challengeMode ? Math.max(1, Math.ceil(creditsRequired / teamSize)) : creditsRequired;
+  const userCreditsAtRisk = splitCreditsPerMember;
+  const hasEnoughCredits = creditBalance >= userCreditsAtRisk;
   const activePactsCount = useMemo(
     () => commitments.filter((item) => item.status === "scheduled").length,
     [commitments]
   );
   const showSecondPactPaywall = activePactsCount >= 1;
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const countdownLabel = useMemo(() => {
+    if (!date) return "00:00:00";
+    const remaining = Math.max(0, Math.floor((date.getTime() - nowTick) / 1000));
+    const h = Math.floor(remaining / 3600).toString().padStart(2, "0");
+    const m = Math.floor((remaining % 3600) / 60).toString().padStart(2, "0");
+    const s = Math.floor(remaining % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  }, [date, nowTick]);
 
   useEffect(() => {
     if (!currentIntent) {
@@ -133,8 +149,8 @@ export default function LockInPage() {
     if (!date) return;
     if (!user) {
       toast({
-        title: "Not logged in",
-        description: "You must be signed in to lock in a pact.",
+        title: "Sign in required",
+        description: "Sign in to lock this pact.",
         variant: "destructive",
       });
       setLocation("/auth");
@@ -144,8 +160,8 @@ export default function LockInPage() {
     
     if (!hasEnoughCredits) {
       toast({
-        title: "Insufficient Credits",
-        description: `You need ${creditsRequired} credits but only have ${creditBalance}.`,
+        title: "Not enough credits",
+        description: `You need ${userCreditsAtRisk}, but you only have ${creditBalance}.`,
         variant: "destructive",
       });
       return;
@@ -154,8 +170,17 @@ export default function LockInPage() {
     // Validate witness for social consequence
     if (consequence === "social" && (!witnessEnabled || !witnessName.trim())) {
       toast({
-        title: "Witness Required",
-        description: "A witness is required for social consequence mode.",
+        title: "Add a witness",
+        description: "Social consequence needs a witness name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (challengeMode && challengeMemberNames.length === 0) {
+      toast({
+        title: "Add teammates",
+        description: "Challenge mode requires at least one teammate name.",
         variant: "destructive",
       });
       return;
@@ -165,11 +190,21 @@ export default function LockInPage() {
 
     try {
       await createCommitment({
-        creditsCost: creditsRequired,
+        creditsCost: userCreditsAtRisk,
         consequenceType: consequence,
         scheduledDate: date,
         refundOnCompletion,
         proofMethod,
+        invitedWitnesses,
+        teamChallenge: challengeMode
+          ? {
+              enabled: true,
+              memberNames: challengeMemberNames,
+              totalCredits: creditsRequired,
+              splitCreditsPerMember,
+              confirmedBy: [],
+            }
+          : null,
         witness:
           witnessEnabled && witnessName.trim()
             ? {
@@ -181,8 +216,8 @@ export default function LockInPage() {
       });
       
       toast({
-        title: "LOCKED IN",
-        description: `${creditsRequired} credits spent. ${refundOnCompletion ? "Complete it to get them back!" : "No refunds - make it count!"}`,
+        title: "Pact locked",
+        description: `${userCreditsAtRisk} credits at risk${challengeMode ? ` (team split from total ${creditsRequired})` : ""}. ${refundOnCompletion ? "Finish on time to get them back." : "No refunds on this one."}`,
         variant: "default",
       });
       
@@ -190,8 +225,8 @@ export default function LockInPage() {
     } catch (error: any) {
       console.error("Lock-in failed:", error);
       toast({
-        title: "Error",
-        description: error?.message || "Failed to lock in.",
+        title: "Couldn't lock pact",
+        description: error?.message || "Try again in a moment.",
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -199,10 +234,21 @@ export default function LockInPage() {
   };
 
   return (
-    <div className="container max-w-3xl mx-auto px-4 py-8 pb-24 space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-heading font-bold">DEFINE THE STAKES</h1>
-        <p className="text-muted-foreground">Make it painful to fail.</p>
+    <div className="container max-w-3xl mx-auto px-4 py-8 pb-24 space-y-8 premium-screen">
+      <div className="space-y-2 text-center">
+        <div className="text-xs uppercase tracking-[0.35em] premium-danger font-black">PACT ACTIVATION</div>
+        <h1 className="text-4xl sm:text-5xl font-heading premium-headline leading-[0.9]">THIS IS NOW REAL</h1>
+        <p className="premium-subtext">No quiet escape now.</p>
+      </div>
+
+      <div className="premium-card-active premium-breathe p-7 space-y-5 text-center">
+        <div className="text-[10px] uppercase tracking-[0.32em] label-subtle">Pressure window</div>
+        <div className="premium-countdown-ring">
+          <div className="text-4xl sm:text-5xl font-black premium-countdown">{countdownLabel}</div>
+        </div>
+        <div className="text-sm premium-subtext">
+          Miss this → <span className="premium-danger font-bold premium-stake-pulse px-2 py-1 rounded-md">lose {userCreditsAtRisk} credits</span>
+        </div>
       </div>
 
       {/* Credit Balance Warning */}
@@ -210,7 +256,7 @@ export default function LockInPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            You need {creditsRequired} credits but only have {creditBalance}.{" "}
+            You need {userCreditsAtRisk} credits but only have {creditBalance}.{" "}
             <Link href="/credits" className="underline font-semibold">
               Purchase more credits
             </Link>
@@ -219,20 +265,23 @@ export default function LockInPage() {
       )}
 
       {/* Credit Info Card */}
-      <Card className="p-6 bg-muted/50">
+      <Card className="p-6 premium-card">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Coins className="w-5 h-5 text-yellow-500" />
-              <h3 className="font-semibold">Your Credit Balance</h3>
+              <h3 className="font-semibold">CREDIT BALANCE</h3>
             </div>
             <p className="text-3xl font-bold text-yellow-500">{creditBalance}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-muted-foreground mb-1">Cost to Lock In</p>
-            <p className="text-3xl font-bold">{creditsRequired}</p>
+            <p className="text-sm text-muted-foreground mb-1">LOCK COST</p>
+            <p className="text-3xl font-bold">{userCreditsAtRisk}</p>
+            {challengeMode && (
+              <p className="text-xs text-muted-foreground mt-1">Split from total {creditsRequired} ({teamSize} members)</p>
+            )}
             <Badge variant={hasEnoughCredits ? "default" : "destructive"} className="mt-2">
-              {hasEnoughCredits ? "Can Afford" : "Insufficient"}
+              {hasEnoughCredits ? "READY" : "TOP UP"}
             </Badge>
           </div>
         </div>
@@ -240,18 +289,15 @@ export default function LockInPage() {
 
       {/* Stake Amount Selector */}
       <div className="space-y-4">
-        <Label className="text-base font-bold">SYMBOLIC STAKE AMOUNT</Label>
-        <p className="text-sm text-muted-foreground">
-          Choose a symbolic dollar amount. You'll spend {creditsRequired} credits (not actual money).
-        </p>
-        <div className="grid grid-cols-4 gap-3">
+        <Label className="text-base font-bold">STAKE SIZE</Label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {[5, 10, 25, 50, 100, 250, 500, 1000].map((amount) => {
             const cost = calculateCreditsRequired(amount);
             return (
               <Button
                 key={amount}
                 variant={stake === amount ? "default" : "outline"}
-                className="h-20 flex flex-col items-center justify-center"
+                className="h-16 sm:h-20 flex flex-col items-center justify-center"
                 onClick={() => setStake(amount)}
               >
                 <span className="text-lg font-bold">${amount}</span>
@@ -264,77 +310,49 @@ export default function LockInPage() {
 
       {/* Consequence Type */}
       <div className="space-y-4">
-        <Label className="text-base font-bold">CONSEQUENCE TYPE</Label>
+        <Label className="text-base font-bold">CHOOSE CONSEQUENCE</Label>
         <div className="grid gap-3">
           <Button
             variant={consequence === 'money' ? "default" : "outline"}
             className="h-16 justify-start"
             onClick={() => setConsequence('money')}
           >
-            💸 Lose Credits Forever
+            💸 BURN CREDITS
           </Button>
           <Button
             variant={consequence === 'social' ? "default" : "outline"}
             className="h-16 justify-start"
             onClick={() => setConsequence('social')}
           >
-            📢 Public Shame Post
+            📢 TRIGGER SHAME POST
           </Button>
           <Button
             variant={consequence === 'escalate' ? "default" : "outline"}
             className="h-16 justify-start"
             onClick={() => setConsequence('escalate')}
           >
-            ⚡ Double the Next Stake
+            ⚡ DOUBLE NEXT STAKE
           </Button>
         </div>
       </div>
 
-      {/* AI Proof Recommendation */}
-      {currentIntent.proof_method && (
-        <div className="border border-zinc-800 bg-zinc-950/40 p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-zinc-400" />
-            <span className="text-xs uppercase tracking-widest text-zinc-500">AI Proof Recommendation</span>
-          </div>
-          <div className="text-base font-bold text-white">
-            {currentIntent.proof_method.toUpperCase().replace(/_/g, " ")}
-          </div>
-          {currentIntent.proof_confidence && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Confidence:</span>
-              <Badge variant="outline" className="text-xs uppercase">
-                {currentIntent.proof_confidence}
-              </Badge>
-            </div>
-          )}
-          {currentIntent.proof_reason && (
-            <p className="text-xs text-zinc-500">{currentIntent.proof_reason}</p>
-          )}
-        </div>
-      )}
-
       {/* Proof Method */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-base font-bold">PROOF METHOD</Label>
+          <Label className="text-base font-bold">CHOOSE PROOF</Label>
           {adaptiveProofPolicy.required && (
             <span className="text-[10px] uppercase tracking-widest border border-amber-600/50 text-amber-400 px-2 py-0.5">
-              Tier requirement
+              TIER LOCK
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          How will you prove completion?
-        </p>
-
         {adaptiveProofPolicy.nudgeMessage && (
           <div className="text-xs border border-zinc-700 bg-zinc-900/40 px-3 py-2 text-zinc-300">
             {adaptiveProofPolicy.nudgeMessage}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {([
             "checkin",
             "photo",
@@ -357,7 +375,7 @@ export default function LockInPage() {
                   Confidence: {getProofConfidenceLabel(confidence)}
                 </span>
                 {locked && (
-                  <span className="text-[10px] opacity-60">Not available at your tier</span>
+                  <span className="text-[10px] opacity-60">Tier locked</span>
                 )}
               </Button>
             );
@@ -370,7 +388,7 @@ export default function LockInPage() {
 
       {/* Schedule */}
       <div className="space-y-4">
-        <Label className="text-base font-bold">DEADLINE</Label>
+        <Label className="text-base font-bold">SET DEADLINE</Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -381,7 +399,7 @@ export default function LockInPage() {
               )}
             >
               <CalendarIcon className="mr-2 h-5 w-5" />
-              {date ? format(date, "PPP p") : <span>Pick a deadline</span>}
+              {date ? format(date, "PPP p") : <span>Set deadline</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -397,7 +415,7 @@ export default function LockInPage() {
       </div>
 
       {/* Refund Option */}
-      <Card className="p-4">
+      <Card className="p-4 premium-card">
         <div className="flex items-start gap-3">
           <Checkbox
             id="refund"
@@ -409,7 +427,7 @@ export default function LockInPage() {
               htmlFor="refund"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
             >
-              Refund credits on completion
+              REFUND ON WIN
             </label>
             <p className="text-sm text-muted-foreground mt-1">
               {refundOnCompletion 
@@ -425,10 +443,10 @@ export default function LockInPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-widest text-zinc-500">
-              Witness Mode
+              ADD WITNESS
             </div>
             <div className="text-sm text-zinc-300 mt-1">
-              If you miss, this person becomes part of the consequence.
+              Miss = witness consequence.
             </div>
           </div>
 
@@ -469,58 +487,61 @@ export default function LockInPage() {
             />
 
             <div className="text-xs text-zinc-500">
-              Start simple: name is enough. Contact can be added later.
+              Name first. Add contact later.
             </div>
           </div>
         )}
       </div>
 
-      {/* Pre-Failure Psych Signal */}
-      {(psychProfile || behaviorProfile) && ((psychProfile?.pattern_warning || behaviorProfile?.psych.pattern_warning) || (psychProfile?.next_pressure_line || behaviorProfile?.psych.next_pressure_line)) && (
-        <Card className="border border-amber-500/40 bg-amber-950/20 p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Brain className="w-4 h-4 text-amber-400" />
-            <span className="text-xs uppercase tracking-widest text-amber-400 font-bold">Psych Engine</span>
-            {behaviorProfile.completionRate > 0 && (
-              <Badge variant="outline" className="ml-auto text-xs border-amber-600/50 text-amber-400">
-                {Math.round(behaviorProfile.completionRate * 100)}% honor rate
-              </Badge>
-            )}
+      {/* Invite Friends to Witness */}
+      <div className="border border-zinc-800 bg-zinc-950/40 p-4 space-y-3">
+        <div className="text-xs uppercase tracking-widest text-zinc-500">Invite friends to witness</div>
+        <div className="text-sm text-zinc-300">Add names (comma-separated) to increase social pressure and network growth.</div>
+        <input
+          value={invitedWitnessesInput}
+          onChange={(e) => setInvitedWitnessesInput(e.target.value)}
+          placeholder="e.g., Alex, Jordan, Sam"
+          className="w-full bg-black/20 border border-zinc-800 px-3 py-3 text-white outline-none"
+        />
+        {invitedWitnesses.length > 0 && (
+          <div className="text-xs text-zinc-500">Inviting {invitedWitnesses.length} friend{invitedWitnesses.length !== 1 ? "s" : ""} as witnesses.</div>
+        )}
+      </div>
+
+      {/* Challenge Mode */}
+      <div className="border border-violet-900/50 bg-violet-950/20 p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-violet-300">Challenge Mode · Team Pacts</div>
+            <div className="text-sm text-zinc-300 mt-1">Split stake among team members for shared accountability.</div>
           </div>
-          <div className="space-y-3">
-            <div className="flex gap-3">
-              <ShieldAlert className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-200">{psychProfile?.pattern_warning ?? behaviorProfile.psych.pattern_warning}</p>
+          <button
+            type="button"
+            onClick={() => setChallengeMode((v) => !v)}
+            className={`px-3 py-2 border text-sm ${
+              challengeMode
+                ? "border-violet-500 bg-violet-700/30 text-violet-100"
+                : "border-zinc-700 bg-black/20 text-zinc-400"
+            }`}
+          >
+            {challengeMode ? "ON" : "OFF"}
+          </button>
+        </div>
+
+        {challengeMode && (
+          <>
+            <input
+              value={teamMembersInput}
+              onChange={(e) => setTeamMembersInput(e.target.value)}
+              placeholder="Team members (comma-separated), e.g., Alex, Jordan"
+              className="w-full bg-black/20 border border-zinc-800 px-3 py-3 text-white outline-none"
+            />
+            <div className="text-xs text-zinc-400">
+              Total stake: {creditsRequired} credits · Team size: {teamSize} · Your share: {splitCreditsPerMember} credits
             </div>
-            <div className="flex gap-3">
-              <Zap className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-sky-200">{composedPressureLine}</p>
-            </div>
-            {currentIntent?.pact_size_reason && (
-              <div className="space-y-2">
-                <span className={`inline-flex items-center px-2 py-0.5 text-[10px] uppercase tracking-widest border ${pactSizeBadge}`}>
-                  Pact Size: {currentIntent.pact_size_level ?? "standard"}
-                </span>
-                <div className="text-xs text-zinc-300">{currentIntent.pact_size_reason}</div>
-              </div>
-            )}
-            {currentIntent?.pact_size_level === "tiny" && (
-              <div className="text-sm text-yellow-400">
-                This was reduced to make sure you actually start.
-              </div>
-            )}
-          </div>
-          {behaviorProfile.riskPatterns.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {behaviorProfile.riskPatterns.map((risk) => (
-                <Badge key={risk} variant="outline" className="text-xs border-red-700/50 text-red-400">
-                  {risk}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
+          </>
+        )}
+      </div>
 
       {/* Confirm Button */}
       <div className="space-y-4">
@@ -530,12 +551,12 @@ export default function LockInPage() {
 
         <Button 
           size="lg" 
-          className="w-full h-16 text-xl font-bold"
+          className="w-full h-16 text-xl font-black tracking-wide rounded-2xl premium-cta premium-breathe"
           onClick={handleConfirm}
           disabled={isSubmitting || !date || !hasEnoughCredits}
           data-testid="button-confirm-commitment"
         >
-          {isSubmitting ? "Locking In..." : `LOCK IN (Spend ${creditsRequired} Credits)`}
+          {isSubmitting ? "MAKING IT REAL..." : `MAKE IT REAL (${userCreditsAtRisk} CREDITS)`}
         </Button>
         <p className="text-center text-xs text-muted-foreground">
           {refundOnCompletion 

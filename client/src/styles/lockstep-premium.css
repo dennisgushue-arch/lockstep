@@ -1,0 +1,119 @@
+:root {
+  --ls-bg: #050505;
+  --ls-bg-2: #0b0714;
+  --ls-card: rgba(17, 17, 17, 0.82);
+  --ls-border: #232323;
+  --ls-text: #ffffff;
+  --ls-muted: #a1a1aa;
+  --ls-red: #ff453a;
+  --ls-purple: #7c3aed;
+  --ls-purple-2: #9333ea;
+  /* Safe area insets for notches and system bars */
+  --safe-area-inset-top: env(safe-area-inset-top, 0);
+  --safe-area-inset-right: env(safe-area-inset-right, 0);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+  --safe-area-inset-left: env(safe-area-inset-left, 0);
+}
+
+.ls-screen {
+  min-height: 100vh;
+  color: var(--ls-text);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(124, 58, 237, 0.22), transparent 34%),
+    radial-gradient(circle at 80% 80%, rgba(255, 69, 58, 0.12), transparent 26%),
+    linear-gradient(180deg, var(--ls-bg) 0%, var(--ls-bg-2) 100%);
+  /* Respect safe areas on mobile devices */
+  padding-left: max(1rem, var(--safe-area-inset-left));
+  padding-right: max(1rem, var(--safe-area-inset-right));
+}
+
+.ls-card {
+  background: var(--ls-card);
+  border: 1px solid var(--ls-border);
+  border-radius: 24px;
+  box-shadow: 0 0 40px rgba(124, 58, 237, 0.14);
+  backdrop-filter: blur(24px);
+}
+
+.ls-glow-purple {
+  box-shadow: 0 0 48px rgba(124, 58, 237, 0.32);
+}
+
+.ls-glow-red {
+  box-shadow: 0 0 48px rgba(255, 69, 58, 0.28);
+}
+
+.ls-button-primary {
+  background: linear-gradient(90deg, var(--ls-purple), var(--ls-purple-2));
+  color: white;
+  border-radius: 18px;
+  box-shadow: 0 0 34px rgba(124, 58, 237, 0.35);
+}
+
+.ls-button-danger {
+  background: linear-gradient(90deg, #dc2626, var(--ls-red));
+  color: white;
+  border-radius: 18px;
+  box-shadow: 0 0 34px rgba(255, 69, 58, 0.3);
+}
+
+.ls-ring {
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  border: 6px solid rgba(124, 58, 237, 0.9);
+  box-shadow:
+    0 0 28px rgba(124, 58, 237, 0.75),
+    inset 0 0 34px rgba(124, 58, 237, 0.32);
+  display: grid;
+  place-items: center;
+}
+
+@keyframes lsPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+
+  50% {
+    transform: scale(1.035);
+    opacity: 1;
+  }
+}
+
+.ls-pulse {
+  animation: lsPulse 2.6s ease-in-out infinite;
+}
+
+@keyframes lsFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.ls-float {
+  animation: lsFloat 4.5s ease-in-out infinite;
+}
+
+@keyframes lsFlash {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 69, 58, 0);
+  }
+
+  40% {
+    box-shadow: 0 0 54px rgba(255, 69, 58, 0.45);
+  }
+
+  100% {
+    box-shadow: 0 0 0 rgba(255, 69, 58, 0);
+  }
+}
+
+.ls-flash-red {
+  animation: lsFlash 1s ease-out;
+}

@@ -7,6 +7,7 @@ Complete voice note capture, transcription, and intent extraction pipeline.
 ## What's Built
 
 ### 1. Frontend: Voice Recording Component
+
 **File**: `client/src/components/voice-note-recorder.tsx`
 
 - **Recording State**: Red pulsing circle, real-time duration display, stop button
@@ -20,6 +21,7 @@ Complete voice note capture, transcription, and intent extraction pipeline.
   - Callback hooks: `onRecordingComplete`, `onUploadStart`, `onUploadComplete`, `onError`
 
 **Usage**:
+
 ```tsx
 <VoiceNoteRecorder
   onUploadComplete={(voiceNoteId) => handleExtractIntent(voiceNoteId)}
@@ -30,6 +32,7 @@ Complete voice note capture, transcription, and intent extraction pipeline.
 ---
 
 ### 2. Frontend: Voice Notes Page
+
 **File**: `client/src/pages/voice-notes.tsx`
 
 - **Recorder Section**: Uses `VoiceNoteRecorder` component
@@ -44,6 +47,7 @@ Complete voice note capture, transcription, and intent extraction pipeline.
 - **Help Text**: Instructions for recording effectively
 
 **States**:
+
 1. Recording ready
 2. Recording in progress
 3. Awaiting upload
@@ -54,9 +58,11 @@ Complete voice note capture, transcription, and intent extraction pipeline.
 ---
 
 ### 3. Backend: Transcription Function
+
 **File**: `supabase/functions/transcribe_voice_note/index.ts`
 
 **What it does**:
+
 1. Validates user authentication
 2. Receives audio file + duration from client
 3. Uploads audio to Supabase Storage (`audio_files/voice-notes/{user_id}/{timestamp}.webm`)
@@ -65,6 +71,7 @@ Complete voice note capture, transcription, and intent extraction pipeline.
 6. Returns voice note ID + transcription text
 
 **API Interface**:
+
 ```
 POST /functions/v1/transcribe_voice_note
 Authorization: Bearer {token}
@@ -77,9 +84,11 @@ Response: { success: true, voiceNoteId: string, transcription: string }
 ---
 
 ### 4. Backend: Intent Extraction Function
+
 **File**: `supabase/functions/extract_intent_from_voice/index.ts`
 
 **What it does**:
+
 1. Validates user authentication
 2. Receives voice note ID
 3. Fetches transcription from database
@@ -94,6 +103,7 @@ Response: { success: true, voiceNoteId: string, transcription: string }
 7. Returns extracted intent
 
 **API Interface**:
+
 ```
 POST /functions/v1/extract_intent_from_voice
 Authorization: Bearer {token}
@@ -112,6 +122,7 @@ Response: {
 ```
 
 **Claude Prompt**: Instructs Claude to:
+
 - Rewrite the intent as a formal pact statement
 - Identify emotion (determined, anxious, excited, etc.)
 - Extract obstacles
@@ -124,6 +135,7 @@ Response: {
 ## Database Schema (Already in Migration 006)
 
 ### voice_notes table
+
 ```sql
 id UUID PRIMARY KEY
 user_id UUID (foreign key)
@@ -144,21 +156,29 @@ extracted_at TIMESTAMPTZ -- When intent was extracted
 ## Environment Variables Required
 
 Add to `.env.local`:
+
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+```
 
-# For Supabase Functions (in supabase/.env)
-OPENAI_API_KEY=sk-...  # For Whisper transcription
+For hosted Supabase Edge Functions, add function secrets in the Supabase dashboard:
+
+```text
+OPENAI_API_KEY=sk-...      # For Whisper transcription
 ANTHROPIC_API_KEY=sk-ant-...  # For intent extraction
 ```
+
+For local Supabase function development only, put those same keys in `supabase/.env`.
 
 ---
 
 ## User Flow
 
 ### Step 1: Start Recording
-```
+
+what should e do next
+
 User clicks "START RECORDING"
 ↓
 Permission prompt appears
@@ -166,10 +186,13 @@ Permission prompt appears
 Microphone activates (red pulse)
 ↓
 Timer starts
+
 ```
 
 ### Step 2: Stop Recording
+
 ```
+
 User clicks "STOP RECORDING"
 ↓
 Recording stops
@@ -177,47 +200,56 @@ Recording stops
 UI shows review state
 ↓
 User sees "Duration: X:XX"
+
 ```
 
 ### Step 3: Upload & Extract
+
 ```
+
 User clicks "EXTRACT"
 ↓
 Audio uploads to Supabase Storage
 ↓
 Transcribe function:
-  - Receives audio file
-  - Calls Whisper API
-  - Saves transcription to DB
+
+- Receives audio file
+- Calls Whisper API
+- Saves transcription to DB
   ↓
   Returns voiceNoteId
 ↓
 Extract intent function:
-  - Receives voiceNoteId
-  - Fetches transcription
-  - Calls Claude API
-  - Saves extracted fields
+- Receives voiceNoteId
+- Fetches transcription
+- Calls Claude API
+- Saves extracted fields
   ↓
   Returns extractedIntent
 ↓
 UI shows extracted intent with fields
+
 ```
 
 ### Step 4: Create Commitment
+
 ```
+
 User reviews extracted intent
 ↓
 User clicks "CREATE PACT"
 ↓
 Commitment created with:
-  - Intent: extracted_intent
-  - Stake: suggested_stake
-  - Deadline: (calculated from suggested deadline)
-  - Source: "voice_note"
+
+- Intent: extracted_intent
+- Stake: suggested_stake
+- Deadline: (calculated from suggested deadline)
+- Source: "voice_note"
 ↓
 Toast: "✓ PACT HONORED. You kept your word."
 ↓
-Redirect to dashboard
+Redirect to app home (`/`), then verify commitment on dashboard
+
 ```
 
 ---
@@ -225,6 +257,7 @@ Redirect to dashboard
 ## Quality Checks
 
 ### Audio Recording
+
 - ✅ Echo cancellation enabled
 - ✅ Noise suppression enabled
 - ✅ Auto-gain control enabled
@@ -233,6 +266,7 @@ Redirect to dashboard
 - ✅ Proper cleanup on unmount
 
 ### Transcription
+
 - ✅ OpenAI Whisper (industry standard)
 - ✅ Audio stored in Supabase Storage
 - ✅ Encrypted in transit
@@ -240,6 +274,7 @@ Redirect to dashboard
 - ✅ Error handling for API failures
 
 ### Intent Extraction
+
 - ✅ Claude 3.5 Sonnet (latest model)
 - ✅ Structured JSON output
 - ✅ Confidence scoring
@@ -249,6 +284,7 @@ Redirect to dashboard
 - ✅ Stake recommendation
 
 ### Frontend UX
+
 - ✅ Progressive states (ready → recording → review → extracting → reviewing)
 - ✅ Clear affordances (colored buttons, icons)
 - ✅ Error messages (user-friendly)
@@ -260,42 +296,45 @@ Redirect to dashboard
 
 ## Next Steps
 
-### 1. Add Route to App
-Add to your router (`client/src/App.tsx`):
-```tsx
-import { VoiceNotesPage } from '@/pages/voice-notes';
+### 1. Confirm Route in App
 
-// In your router:
-<Route path="/voice-notes" component={VoiceNotesPage} />
-```
+`/voice-notes` is already wired in `client/src/App.tsx`. Verify it remains present after merges.
 
 ### 2. Deploy Supabase Functions
+
 ```bash
 supabase functions deploy transcribe_voice_note --no-verify-jwt
 supabase functions deploy extract_intent_from_voice --no-verify-jwt
 ```
 
 ### 3. Set Environment Variables
+
 ```bash
-# In Supabase dashboard, set function secrets:
+# In Supabase dashboard, set function secrets (or env vars):
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ### 4. Create Storage Bucket
+
 ```bash
-supabase storage create audio_files
+# Option A: apply project migrations (includes 007_create_audio_storage.sql)
+supabase migration up
 ```
 
+Or run the SQL from `supabase/migrations/007_create_audio_storage.sql` in the Supabase SQL editor.
+
 ### 5. Test End-to-End
-1. Navigate to `/voice-notes`
-2. Click "START RECORDING"
-3. Say something like: "I want to exercise 3 times this week. Monday, Wednesday, Friday at 6 AM. I'm scared I'll sleep through the alarm and skip the gym again."
-4. Click "STOP RECORDING"
-5. Click "EXTRACT"
-6. Verify extracted intent shows up with emotion, obstacles, stake, deadline
-7. Click "CREATE PACT"
-8. Verify new commitment appears on dashboard
+
+1. Sign in first (voice-note upload requires auth)
+2. Navigate to `http://localhost:5000/voice-notes`
+3. Click "START RECORDING"
+4. Say something like: "I want to exercise 3 times this week. Monday, Wednesday, Friday at 6 AM. I'm scared I'll sleep through the alarm and skip the gym again."
+5. Click "STOP RECORDING"
+6. Click "EXTRACT"
+7. Verify extracted intent shows up with emotion, obstacles, stake, deadline
+8. Click "CREATE PACT"
+9. Verify new commitment appears on dashboard
 
 ---
 
@@ -335,9 +374,8 @@ supabase storage create audio_files
 
 ## What's Missing (for Phase 1 completion)
 
-- [ ] Route `/voice-notes` not yet added to App router
-- [ ] Supabase Storage bucket `audio_files` not yet created
-- [ ] Environment variables not yet set in Supabase Functions
+- [ ] Confirm storage bucket `audio_files` exists in target environment
+- [ ] Confirm `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are set for Supabase functions
 - [ ] Integration with recommendation system (Phase 1 follow-up)
 - [ ] Delete voice note functionality (optional, can add later)
 - [ ] Audio file deletion when voice note is deleted (garbage collection)
@@ -347,6 +385,7 @@ supabase storage create audio_files
 ## Success Metrics
 
 After deploying:
+
 1. ✅ Users can record voice notes successfully
 2. ✅ Transcription accuracy > 90% for clear speech
 3. ✅ Intent extraction matches user intent in 80%+ of cases

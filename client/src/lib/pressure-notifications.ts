@@ -5,7 +5,8 @@ export type PressureNotificationType =
   | "pre-failure-warning"
   | "deadline-pressure"
   | "missed-outcome"
-  | "recovery-trigger";
+  | "recovery-trigger"
+  | "day-2-trigger";
 
 export type PressureNotificationState = {
   lastNotificationSentAt: string | null;
@@ -14,6 +15,7 @@ export type PressureNotificationState = {
     final: boolean;
     missed: boolean;
     recovery: boolean;
+    day2: boolean;
   };
 };
 
@@ -99,6 +101,15 @@ function getActionLabel(commitment: CommitmentLike) {
   return commitment.actionText || commitment.intent.goal || commitment.intent.text || "this pact";
 }
 
+function getIgnoredCycleCount(commitment: CommitmentLike, commitments: CommitmentLike[]) {
+  return commitments.filter((candidate) => {
+    if (candidate.id === commitment.id) return false;
+    if (candidate.status !== "missed") return false;
+    if (hasProof(candidate)) return false;
+    return true;
+  }).length;
+}
+
 function hasProof(commitment: CommitmentLike) {
   return Boolean(commitment.proofSubmission);
 }
@@ -161,6 +172,7 @@ function setSentFlag(state: PressureNotificationState, type: PressureNotificatio
   if (type === "deadline-pressure") next.notificationsSent.final = true;
   if (type === "missed-outcome") next.notificationsSent.missed = true;
   if (type === "recovery-trigger") next.notificationsSent.recovery = true;
+  if (type === "day-2-trigger") next.notificationsSent.day2 = true;
 
   if (!isTransactional(type)) {
     next.lastNotificationSentAt = at.toISOString();
@@ -177,6 +189,7 @@ export function createEmptyNotificationState(): PressureNotificationState {
       final: false,
       missed: false,
       recovery: false,
+      day2: false,
     },
   };
 }
@@ -202,27 +215,35 @@ function buildVariant(
 ) {
   const action = getActionLabel(commitment);
   const streak = buildStreakIdentity(options.commitments).currentStreak;
+  const ignoredCycles = getIgnoredCycleCount(commitment, options.commitments);
   const isRiskWindow = options.worstTimeOfDay
     ? getTimeOfDay(new Date(commitment.scheduledDate)) === options.worstTimeOfDay
     : false;
 
   if (type === "pre-failure-warning") {
+    if (ignoredCycles >= 2) {
+      return {
+        title: "You keep missing this at this time",
+        body: `${action} is entering the same pattern window. Break it now.`,
+      };
+    }
+
     const variants = [
       {
-        title: "You're about to miss this.",
-        body: "No proof submitted. Consequence is approaching.",
+        title: "You're close to missing this.",
+        body: "No proof yet. Consequence is getting closer.",
       },
       {
-        title: `You said you would: “${action}”`,
-        body: "No proof submitted. The window is closing.",
+        title: `You said you'd do: “${action}”`,
+        body: "No proof yet. Your window is closing.",
       },
       {
-        title: "This is where you usually don't follow through.",
-        body: "No proof submitted. Decide before the window closes.",
+        title: "This is your usual miss window.",
+        body: "No proof yet. Decide now.",
       },
       {
         title: "Miss this, and your score drops.",
-        body: "No proof submitted. Consequence is approaching.",
+        body: "No proof yet. Consequence is getting closer.",
       },
     ];
 
@@ -237,13 +258,20 @@ function buildVariant(
   }
 
   if (type === "deadline-pressure") {
+    if (ignoredCycles >= 2) {
+      return {
+        title: "Same miss pattern. New choice.",
+        body: `${action} is at risk right now. Decide differently this time.`,
+      };
+    }
+
     const variants = [
-      { title: "30 minutes left.", body: "Proof or consequence." },
-      { title: "Last window. Do it or don't.", body: "No explanation left." },
-      { title: "This is the moment.", body: "Proof or consequence." },
+      { title: "30 minutes left.", body: "Submit proof or take the loss." },
+      { title: "Last window.", body: "Do it now or accept the outcome." },
+      { title: "This is the moment.", body: "Action now. No delay." },
       {
         title: streak > 0 ? "Break your streak or keep it." : "30 minutes left.",
-        body: streak > 0 ? "Decide what happens next." : "Proof or consequence.",
+        body: streak > 0 ? "Your next move decides the streak." : "Submit proof or take the loss.",
       },
     ];
 
@@ -252,10 +280,19 @@ function buildVariant(
 
   if (type === "missed-outcome") {
     const variants = [
-      { title: "You didn't do it.", body: "No proof. Outcome logged." },
-      { title: "Missed.", body: "No proof. Outcome logged." },
-      { title: "Score dropped.", body: "No proof. Outcome logged." },
-      { title: "This reinforces your current pattern.", body: "No proof. Outcome logged." },
+      { title: "You missed this one.", body: "No proof logged. Outcome locked." },
+      { title: "Missed.", body: "No proof logged. Outcome locked." },
+      { title: "Score dropped.", body: "No proof logged. Outcome locked." },
+      { title: "Pattern reinforced.", body: "No proof logged. Outcome locked." },
+    ];
+
+    return variants[hashString(`${commitment.id}:${type}`) % variants.length];
+  }
+
+  if (type === "day-2-trigger") {
+    const variants = [
+      { title: "You haven't proven anything yet.", body: "Yesterday doesn't count today." },
+      { title: "Yesterday doesn't count today.", body: "Lock one pact and prove it again." },
     ];
 
     return variants[hashString(`${commitment.id}:${type}`) % variants.length];
@@ -263,9 +300,9 @@ function buildVariant(
 
   const variants = [
     { title: "Recovery pact ready.", body: "Don't let this stack." },
-    { title: "Don't let this stack.", body: "Lock the next pact before avoidance compounds." },
-    { title: "One small win fixes this.", body: "Lock a recovery pact now." },
-    { title: "Stabilize before this compounds.", body: "Lock a recovery pact now." },
+    { title: "Don't let this stack.", body: "Lock your next pact now." },
+    { title: "One small win fixes this.", body: "Start a recovery pact now." },
+    { title: "Reset now.", body: "Lock one recovery pact." },
   ];
 
   return variants[hashString(`${commitment.id}:${type}`) % variants.length];
@@ -368,6 +405,19 @@ function inspectCandidate<T extends CommitmentLike>(
     };
   }
 
+  if (type === "day-2-trigger" && state.notificationsSent.day2) {
+    return {
+      notificationId: draft.id,
+      commitmentId: commitment.id,
+      type,
+      scheduledAt: scheduledAt.toISOString(),
+      title: draft.title,
+      body: draft.body,
+      decision: "already-sent",
+      reason: "Day-2 trigger already recorded for this pact.",
+    };
+  }
+
   if (type !== "missed-outcome") {
     if (dailyCount >= MAX_NOTIFICATIONS_PER_DAY) {
       return {
@@ -453,6 +503,7 @@ export function planPressureNotifications<T extends CommitmentLike>(
     const finalAt = new Date(dueDate.getTime() - finalLead * 60000);
     const missedAt = new Date(dueDate.getTime() + 60 * 1000);
     const recoveryAt = new Date(dueDate.getTime() + RECOVERY_DELAY_MINUTES * 60000);
+    const day2At = new Date(dueDate.getTime() + 24 * 60 * 60000);
     const state = commitment.notificationState ?? createEmptyNotificationState();
     const hasFuturePact = updatedCommitments.some(
       (candidate, candidateIndex) =>
@@ -487,6 +538,13 @@ export function planPressureNotifications<T extends CommitmentLike>(
       candidates.push({
         index,
         draft: createDraft(commitment, "recovery-trigger", recoveryAt, { worstTimeOfDay: options.worstTimeOfDay, commitments }),
+      });
+    }
+
+    if (!state.notificationsSent.day2 && !hasFuturePact && day2At.getTime() > nowDate.getTime()) {
+      candidates.push({
+        index,
+        draft: createDraft(commitment, "day-2-trigger", day2At, { worstTimeOfDay: options.worstTimeOfDay, commitments }),
       });
     }
   }
@@ -600,6 +658,17 @@ export function buildLivePressureNotifications<T extends CommitmentLike>(
           detail: recoveryVariant.body,
           commitmentId: commitment.id,
         });
+
+        if (minutesRemaining <= -24 * 60) {
+          const day2Variant = buildVariant("day-2-trigger", commitment, { worstTimeOfDay: options.worstTimeOfDay, commitments });
+          notifications.push({
+            id: `live-day2-${commitment.id}`,
+            type: "day-2-trigger",
+            title: day2Variant.title,
+            detail: day2Variant.body,
+            commitmentId: commitment.id,
+          });
+        }
       }
     }
   }
@@ -723,6 +792,20 @@ export function inspectPressureNotifications<T extends CommitmentLike>(
             : openedAfterMiss
               ? "User opened the app after the miss, so recovery trigger is withheld."
               : undefined),
+      ),
+    );
+
+    items.push(
+      inspectCandidate(
+        commitment,
+        "day-2-trigger",
+        new Date(dueDate.getTime() + 24 * 60 * 60000),
+        { worstTimeOfDay: options.worstTimeOfDay, commitments },
+        state,
+        dailyCount,
+        proactiveCount,
+        cooldownAnchor,
+        baseNotApplicableReason,
       ),
     );
 

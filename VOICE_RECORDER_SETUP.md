@@ -31,12 +31,14 @@
 The migration file has been created: `supabase/migrations/007_create_audio_storage.sql`
 
 When you're ready to run it:
+
 ```bash
 cd /workspaces/lockstep
 supabase migration up
 ```
 
 Or manually in Supabase Dashboard SQL Editor:
+
 ```sql
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('audio_files', 'audio_files', false)
@@ -78,12 +80,14 @@ ANTHROPIC_API_KEY=sk-ant-...  # Get from Anthropic/Claude API
 ```
 
 **Getting API Keys:**
-- **OpenAI**: https://platform.openai.com/account/api-keys
-- **Anthropic**: https://console.anthropic.com/account/keys
+
+- **OpenAI**: <https://platform.openai.com/api-keys>
+- **Anthropic**: <https://console.anthropic.com/account/keys>
 
 ### 3. Update Client Environment Variables
 
 In `.env.local`:
+
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
@@ -120,6 +124,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ## Files Created/Modified
 
 ### New Files
+
 - ✅ `client/src/components/voice-note-recorder.tsx` - Voice recording component
 - ✅ `client/src/pages/voice-notes.tsx` - Voice notes page
 - ✅ `supabase/functions/transcribe_voice_note/index.ts` - Whisper API integration
@@ -127,6 +132,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - ✅ `supabase/migrations/007_create_audio_storage.sql` - Storage bucket + RLS
 
 ### Modified Files
+
 - ✅ `client/src/App.tsx` - Added 3 new routes (voice-notes, history, connected-sources)
 - ✅ `client/src/pages/history.tsx` - Added export function keyword
 
@@ -135,6 +141,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ## Deployment Status
 
 ### Frontend Routes
+
 ```
 ✅ /voice-notes → VoiceNotesPage
 ✅ /history → HistoryPage
@@ -142,6 +149,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ### Supabase Functions
+
 ```
 ✅ transcribe_voice_note
    Endpoint: https://[project-id].supabase.co/functions/v1/transcribe_voice_note
@@ -153,6 +161,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ### Storage
+
 ```
 ⏳ audio_files bucket
    Status: Needs migration to create
@@ -164,20 +173,22 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ## Quick Start (After API Keys)
 
 1. **Get API Keys**
-   - OpenAI (https://platform.openai.com/account/api-keys)
-   - Anthropic (https://console.anthropic.com/account/keys)
+   - OpenAI (<https://platform.openai.com/api-keys>)
+   - Anthropic (<https://console.anthropic.com/account/keys>)
 
 2. **Set Function Secrets**
-   - Supabase Dashboard → Functions → Settings
+   - Supabase Dashboard → Edge Functions → Secrets / Environment Variables / Settings
    - Add `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`
 
 3. **Create Storage Bucket**
+
    ```bash
    supabase migration up
    ```
 
 4. **Test in Browser**
-   - Navigate to `http://localhost:5173/voice-notes`
+   - Sign in first (voice-note upload requires auth)
+   - Navigate to `http://localhost:5000/voice-notes`
    - Record → Extract → Create
 
 ---
@@ -185,20 +196,25 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ## Troubleshooting
 
 **"Failed to access microphone"**
+
 - Check browser permissions for microphone
 - Only works over HTTPS or localhost
 
 **"Upload failed"**
+
 - Check `OPENAI_API_KEY` is set in Supabase
 - Check storage bucket exists
 - Check RLS policies are correct
+- Make sure you are signed in before uploading
 
 **"Transcription timeout"**
+
 - Whisper API sometimes takes 5-10s
 - Long recordings (>30min) may fail
 - Consider max 2-3 minute recordings
 
-**"Intent extraction failed"**
+**"Intent extraction failed"**"**
+
 - Check `ANTHROPIC_API_KEY` is set
 - Check Claude API account has credits
 - Check transcription was successful
@@ -237,7 +253,7 @@ User reviews and clicks "CREATE PACT"
        ↓
 New commitment created from extracted_intent
        ↓
-Redirect to dashboard
+Redirect to app home (`/`), then verify commitment on dashboard
 ```
 
 ---
@@ -260,14 +276,17 @@ After completing all steps, you should be able to:
 ## Rate Limits & Costs
 
 **OpenAI Whisper API**
+
 - ~$0.0001 per minute of audio
 - Included in Free Tier credits
 
 **Anthropic Claude API**
+
 - ~$0.0008 per request (3.5 Sonnet)
 - Free tier: $5/month after free credits
 
 **Recommendation**: In production, implement:
+
 - Audio caching to avoid duplicate transcriptions
 - Batch processing for off-peak times
 - Feedback loop to improve extraction accuracy
@@ -277,6 +296,7 @@ After completing all steps, you should be able to:
 ## Next Phase (After Testing)
 
 Once voice recorder is working, next implement:
+
 1. Google Calendar sync (detect calendar overload)
 2. Pattern detection (suggest commitments based on patterns)
 3. Daily check-in flow (optional journal prompts)

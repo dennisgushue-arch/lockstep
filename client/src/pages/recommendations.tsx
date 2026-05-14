@@ -510,7 +510,7 @@ export function RecommendationsPage() {
                 {/* Action Button */}
                 <button
                   onClick={() => acceptRecommendation(rec)}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-all duration-200"
+                  className="w-full h-14 px-4 ls-button-primary text-white font-black rounded-lg flex items-center justify-center gap-2 transition-all duration-200"
                 >
                   <CheckCircle className="w-4 h-4" />
                   CREATE THIS PACT ({rec.suggestedStake} credits)

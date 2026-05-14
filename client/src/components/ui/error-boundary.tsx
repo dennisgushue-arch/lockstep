@@ -40,7 +40,7 @@ export class ErrorBoundary extends React.Component<
             </AlertDescription>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded"
+              className="mt-4 w-full sm:w-auto h-auto px-4 py-2 leading-tight whitespace-normal bg-slate-700 hover:bg-slate-600 text-white rounded"
             >
               Reload Page
             </button>
@@ -112,12 +112,12 @@ export function ErrorAlert({
     <Alert variant="destructive" className="mb-4">
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>{title}</AlertTitle>
-      <AlertDescription className="mt-2">
-        {message}
+      <AlertDescription className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
+        <span>{message}</span>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="ml-4 underline hover:no-underline"
+            className="w-full sm:w-auto h-auto leading-tight whitespace-normal text-left sm:text-right underline hover:no-underline"
           >
             Try again
           </button>

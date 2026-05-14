@@ -1,4 +1,4 @@
-const FALLBACK_STORE_URL = "https://lockstep.app";
+const FALLBACK_STORE_URL = "https://play.google.com/store/apps/details?id=com.dennisgushue.lockstepbeta";
 
 declare global {
   interface Window {

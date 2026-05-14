@@ -3,12 +3,26 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/mock-data";
+import { analytics } from "@/lib/analytics";
 import heroImage from "@assets/generated_images/minimalist_abstract_concrete_architecture,_dramatic_lighting,_black_and_white.png";
 export default function Landing() {
-  const { user } = useApp();
+  const { user, commitments } = useApp();
+
+  const localEvents = analytics.getLocalEvents() as Array<Record<string, unknown>>;
+  const firstPactCreated = localEvents.filter((event) => event.event === "first_pact_created").length;
+  const firstPactCompleted = localEvents.filter((event) => event.event === "first_pact_completed").length;
+  const recoveryCreated = localEvents.filter((event) => event.event === "recovery_pact_created");
+  const recoveryWithin24h = recoveryCreated.filter((event) => event.within_24h === true).length;
+  const firstPactCompletionRate = firstPactCreated > 0 ? Math.round((firstPactCompleted / firstPactCreated) * 100) : 0;
+  const recoveryRate = recoveryCreated.length > 0 ? Math.round((recoveryWithin24h / recoveryCreated.length) * 100) : 0;
+  const tinyPactWins = commitments.filter((commitment) => commitment.status === "completed" && (commitment.creditsCost ?? 0) <= 5).length;
+  const testimonials = [
+    "I stopped restarting every Monday.",
+    "The tiny pact format made it feel doable.",
+  ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-black text-white pb-20 sm:pb-0">
+    <div className="flex flex-col min-h-screen text-white pb-20 sm:pb-0">
       <section className="relative min-h-[88svh] sm:min-h-screen flex items-center overflow-hidden border-b border-border">
         <div className="absolute inset-0 z-0">
           <img
@@ -22,47 +36,43 @@ export default function Landing() {
 
         <div className="relative z-10 w-full px-5 py-16">
           <div className="space-y-6 text-center max-w-md mx-auto">
-            <div className="text-[10px] uppercase tracking-[0.3em] text-red-400">Lockstep</div>
+            <div className="text-[10px] uppercase tracking-[0.3em] text-danger">Lockstep</div>
 
             <h1 className="text-4xl sm:text-5xl md:text-7xl xl:text-8xl font-heading font-bold tracking-tight leading-[0.95]">
-              STOP SAYING IT.
+              STOP BREAKING
               <br />
-              DO IT.
+              PROMISES TO
+              <br />
+              YOURSELF.
             </h1>
 
-            <p className="text-lg sm:text-xl md:text-2xl text-zinc-300 max-w-2xl">
-              Follow through—or lose.
+            <p className="text-lg sm:text-xl md:text-2xl text-muted max-w-2xl">
+              Lockstep turns &ldquo;I should&rdquo; into a small commitment you can actually complete.
             </p>
 
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.35, duration: 0.8 }}
-              className="text-sm sm:text-base text-zinc-500 max-w-2xl"
+              className="text-sm sm:text-base label-subtle max-w-2xl"
             >
-              pressure → action → consequence
+              Follow through, build trust, recover fast when you miss.
             </motion.p>
 
             <div className="flex flex-col gap-3 sm:gap-4">
-              <Link href={user ? "/capture" : "/auth"}>
-                <Button className="w-full rounded-none h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg font-black tracking-widest bg-white text-black hover:bg-zinc-200">
+              <Link href={user ? "/onboarding" : "/auth"}>
+                <Button
+                  className="w-full rounded-none h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg font-black tracking-widest bg-white text-black hover:bg-zinc-200 glow-purple-soft"
+                  onClick={() => analytics.track("landing_cta_clicked", { surface: "hero", destination: user ? "/onboarding" : "/auth" })}
+                >
                   Download Lockstep
                 </Button>
               </Link>
-
-              <a href="#how-it-works" className="w-full">
-                <Button
-                  variant="secondary"
-                  className="w-full rounded-none h-12 px-8 text-sm tracking-widest bg-transparent border border-zinc-700 hover:bg-zinc-900"
-                >
-                  SEE HOW IT WORKS
-                </Button>
-              </a>
             </div>
 
-            <div className="border border-zinc-800 bg-black/40 p-4 text-left">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-2">System Preview</div>
-              <div className="text-sm text-zinc-300">Use the same pressure moment or failure screen preview as the App Store video.</div>
+            <div className="surface-gradient p-4 text-left glow-purple-soft">
+              <div className="text-[10px] uppercase tracking-[0.3em] label-subtle mb-2">System Preview</div>
+              <div className="text-sm text-muted">Use the same pressure moment or failure screen preview as the App Store video.</div>
             </div>
           </div>
         </div>
@@ -70,76 +80,83 @@ export default function Landing() {
 
       <section className="py-16 sm:py-24 px-5 sm:px-6 border-b border-border">
         <div className="max-w-4xl mx-auto space-y-4 text-center">
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">The Problem</div>
-          <h2 className="text-3xl md:text-5xl font-heading font-bold">You already know what you should do.</h2>
-          <p className="text-2xl md:text-4xl font-semibold text-zinc-300">You don&apos;t do it.</p>
+          <div className="text-xs uppercase tracking-[0.3em] label-subtle">The Problem</div>
+          <h2 className="text-3xl md:text-5xl font-heading font-bold">You keep saying &ldquo;I should.&rdquo;</h2>
+          <p className="text-2xl md:text-4xl font-semibold text-muted">Then nothing happens.</p>
         </div>
       </section>
 
-      <section className="py-16 sm:py-24 px-5 sm:px-6 border-b border-border bg-zinc-950/30">
+      <section className="py-16 sm:py-24 px-5 sm:px-6 border-b border-border">
         <div className="max-w-4xl mx-auto text-center space-y-4">
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">The Solution</div>
-          <h2 className="text-3xl md:text-5xl font-heading font-bold">Lockstep makes it cost you.</h2>
-        </div>
-      </section>
-
-      <section id="how-it-works" className="py-16 sm:py-24 px-5 sm:px-6 border-b border-border">
-        <div className="max-w-6xl mx-auto space-y-8">
-          <div className="text-center space-y-3">
-            <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">How It Works</div>
-            <h2 className="text-3xl md:text-5xl font-heading font-bold">pressure → action → consequence</h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-            <div className="border border-zinc-800 bg-black/30 p-5 sm:p-6 space-y-3 text-center">
-              <h3 className="text-xl md:text-2xl font-bold">Say it</h3>
-              <p className="text-sm md:text-base text-zinc-400">Name what you keep promising yourself.</p>
-            </div>
-            <div className="border border-zinc-800 bg-black/30 p-5 sm:p-6 space-y-3 text-center">
-              <h3 className="text-xl md:text-2xl font-bold">Lock it in</h3>
-              <p className="text-sm md:text-base text-zinc-400">Put real consequence on the line.</p>
-            </div>
-            <div className="border border-zinc-800 bg-black/30 p-5 sm:p-6 space-y-3 text-center">
-              <h3 className="text-xl md:text-2xl font-bold">Follow through—or don&apos;t</h3>
-              <p className="text-sm md:text-base text-zinc-400">If you miss, you pay.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 sm:py-20 px-5 sm:px-6 border-b border-border bg-zinc-950/40">
-        <div className="max-w-4xl mx-auto text-center space-y-4">
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">Reality</div>
-          <h2 className="text-3xl md:text-5xl font-heading font-bold">Most people stop at intention.</h2>
-          <p className="text-2xl md:text-4xl font-semibold text-zinc-300">Lockstep doesn&apos;t.</p>
+          <div className="text-xs uppercase tracking-[0.3em] label-subtle">The Solution</div>
+          <h2 className="text-3xl md:text-5xl font-heading font-bold">Turn one &ldquo;I should&rdquo; into one small action&mdash;with something real on the line.</h2>
         </div>
       </section>
 
       <section className="py-16 sm:py-20 px-5 sm:px-6 border-b border-border">
-        <div className="max-w-3xl mx-auto text-center space-y-4">
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">Social Proof</div>
-          <blockquote className="text-2xl md:text-3xl font-semibold text-zinc-100">
-            “I actually did it because I didn&apos;t want to lose.”
-          </blockquote>
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <div className="text-xs uppercase tracking-[0.3em] label-subtle">Reality</div>
+          <h2 className="text-3xl md:text-5xl font-heading font-bold">Get reminders before you slip.</h2>
+          <p className="text-2xl md:text-4xl font-semibold text-muted">Build your follow-through score.</p>
         </div>
       </section>
 
-      <section className="py-16 sm:py-24 px-5 sm:px-6 text-center border-t border-border bg-zinc-950">
+      <section className="py-16 sm:py-20 px-5 sm:px-6 border-b border-border">
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="text-xs uppercase tracking-[0.3em] label-subtle">Social Proof</div>
+          <div className="grid gap-4 md:grid-cols-3 text-left">
+            <div className="surface-gradient p-4">
+              <div className="text-[10px] uppercase tracking-[0.3em] label-subtle">First pact completion</div>
+              <div className="text-3xl font-black text-white mt-2">{firstPactCompletionRate}%</div>
+              <div className="text-sm text-subtle mt-2">of locally tracked first pacts get completed.</div>
+            </div>
+            <div className="surface-gradient p-4">
+              <div className="text-[10px] uppercase tracking-[0.3em] label-subtle">Recovery within 24h</div>
+              <div className="text-3xl font-black text-white mt-2">{recoveryRate}%</div>
+              <div className="text-sm text-subtle mt-2">of local recovery pacts happen the same day.</div>
+            </div>
+            <div className="surface-gradient p-4">
+              <div className="text-[10px] uppercase tracking-[0.3em] label-subtle">Tiny pact wins</div>
+              <div className="text-3xl font-black text-white mt-2">{tinyPactWins}</div>
+              <div className="text-sm text-subtle mt-2">completed wins started with 5 credits or less.</div>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {testimonials.map((quote) => (
+              <blockquote key={quote} className="surface-card p-5 text-xl font-semibold text-zinc-100">
+                “{quote}”
+              </blockquote>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 sm:py-24 px-5 sm:px-6 text-center border-t border-border">
         <h2 className="text-3xl sm:text-4xl md:text-6xl font-heading font-bold leading-tight mb-5">
-          Your word should mean something.
+          Missed? Recover with one small win.
         </h2>
         <div className="max-w-md mx-auto">
-          <Link href={user ? "/capture" : "/auth"}>
-            <Button size="lg" className="w-full rounded-none h-14 sm:h-16 px-10 sm:px-12 text-base sm:text-xl font-black bg-white text-black hover:bg-zinc-200">
+          <Link href={user ? "/onboarding" : "/auth"}>
+            <Button
+              size="lg"
+              className="w-full rounded-none h-14 sm:h-16 px-10 sm:px-12 text-base sm:text-xl font-black bg-white text-black hover:bg-zinc-200 glow-purple-soft"
+              onClick={() => analytics.track("landing_cta_clicked", { surface: "footer", destination: user ? "/onboarding" : "/auth" })}
+            >
               Get the app
             </Button>
           </Link>
         </div>
       </section>
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-black/95 p-3 sm:hidden">
-        <Link href={user ? "/capture" : "/auth"}>
-          <Button className="w-full rounded-none h-12 text-sm font-black bg-white text-black hover:bg-zinc-200">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-black/95 p-3 sm:hidden"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      >
+        <Link href={user ? "/onboarding" : "/auth"}>
+          <Button
+            className="w-full rounded-none h-12 text-sm font-black bg-white text-black hover:bg-zinc-200"
+            onClick={() => analytics.track("landing_cta_clicked", { surface: "mobile_sticky", destination: user ? "/onboarding" : "/auth" })}
+          >
             Download Lockstep
           </Button>
         </Link>

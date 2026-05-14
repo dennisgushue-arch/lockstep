@@ -31,6 +31,7 @@ import {
   schedulePactNotifications,
   cancelPactNotifications,
 } from "@/lib/pact-notifications";
+import { analytics } from "@/lib/analytics";
 
 const MOCK_USER_STORAGE_KEY = "intent_mock_user";
 const MOCK_COMMITMENTS_STORAGE_KEY = "intent_mock_commitments";
@@ -47,6 +48,7 @@ function getDefaultMockUser(): User {
   return {
     id: "guest_demo_user",
     email: "guest@lockstep.demo",
+    isFoundingMember: true,
     purchasedCreditsBalance: 100,
     earnedCreditsBalance: 0,
     creditBalance: 100,
@@ -82,6 +84,7 @@ function getInitialUser(): User | null {
     return {
       ...storedUser,
       email: storedUser.email || "user@example.com",
+      isFoundingMember: storedUser.isFoundingMember ?? true,
       purchasedCreditsBalance,
       earnedCreditsBalance,
       creditBalance: purchasedCreditsBalance + earnedCreditsBalance,
@@ -100,6 +103,7 @@ function getInitialPsychProfile(): PsychProfile | null {
 export type User = {
   id: string;
   email: string;
+  isFoundingMember: boolean;
   purchasedCreditsBalance: number;
   earnedCreditsBalance: number;
   creditBalance: number;
@@ -181,6 +185,14 @@ export type Commitment = {
     contact?: string | null;
     relationship?: string | null;
   } | null;
+  invitedWitnesses?: string[];
+  teamChallenge?: {
+    enabled: boolean;
+    memberNames: string[];
+    totalCredits: number;
+    splitCreditsPerMember: number;
+    confirmedBy?: string[];
+  } | null;
   notificationIds?: string[];
   ai_plan?: any;
   notificationState: PressureNotificationState;
@@ -211,8 +223,9 @@ type AppContextType = {
   processPendingCashouts: () => Promise<number>;
   
   commitments: Commitment[];
-  createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; }) => Promise<Commitment>;
-  completeCommitment: (id: string, proofSubmission?: ProofSubmission | null) => Promise<void>;
+  createCommitment: (config: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; invitedWitnesses?: string[]; teamChallenge?: Commitment["teamChallenge"]; }) => Promise<Commitment>;
+  completeCommitment: (id: string, proofSubmission?: ProofSubmission | null) => Promise<{ status: "completed" | "pending" }>;
+  confirmTeamMember: (id: string, memberName: string) => Promise<{ status: "completed" | "pending" }>;
   markMissed: (id: string) => Promise<void>;
   
   // Passive Detection
@@ -259,6 +272,13 @@ function getFallbackCreatedAt(scheduledDate: string) {
 function normalizeCommitment(commitment: Commitment): Commitment {
   return {
     ...commitment,
+    invitedWitnesses: commitment.invitedWitnesses ?? [],
+    teamChallenge: commitment.teamChallenge
+      ? {
+          ...commitment.teamChallenge,
+          confirmedBy: commitment.teamChallenge.confirmedBy ?? [],
+        }
+      : null,
     createdAt: commitment.createdAt ?? getFallbackCreatedAt(commitment.scheduledDate),
     notificationIds: commitment.notificationIds ?? [],
     notificationState: commitment.notificationState ?? createEmptyNotificationState(),
@@ -442,6 +462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const newUser = {
       id: 'user_123',
       email: safeEmail,
+      isFoundingMember: true,
       purchasedCreditsBalance: 100,
       earnedCreditsBalance: 0,
       creditBalance: 100,
@@ -671,7 +692,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const clearCurrentIntent = () => setCurrentIntent(null);
 
-  const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true, actionText, stakeAmount, proofMethod, aiPlan, witness, }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; }) => {
+  const createCommitment = async ({ creditsCost, consequenceType, scheduledDate, refundOnCompletion = true, actionText, stakeAmount, proofMethod, aiPlan, witness, invitedWitnesses, teamChallenge, }: { creditsCost: number; consequenceType: Commitment['consequenceType']; scheduledDate: Date; refundOnCompletion?: boolean; actionText?: string | null; stakeAmount?: number | null; proofMethod?: ProofMethod | null; aiPlan?: any; witness?: Commitment["witness"]; invitedWitnesses?: string[]; teamChallenge?: Commitment["teamChallenge"]; }) => {
     if (!currentIntent) throw new Error("No intent found");
     if (!user) throw new Error("No user logged in");
     if ((user.purchasedCreditsBalance + user.earnedCreditsBalance) < creditsCost) throw new Error("Insufficient credits");
@@ -717,6 +738,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       proofMethod: proofMethod ?? "checkin",
       proofSubmission: null,
       witness: witness ?? null,
+      invitedWitnesses: invitedWitnesses?.filter(Boolean) ?? [],
+      teamChallenge: teamChallenge ?? null,
       notificationIds: [],
       ai_plan: aiPlan ?? currentIntent?.ai_plan ?? null,
       notificationState: createEmptyNotificationState(),
@@ -744,6 +767,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     setCreditTransactions(prev => [spendTransaction, ...prev]);
     setCommitments(prev => [newCommitment, ...prev]);
+
+    if (typeof window !== "undefined") {
+      const rawRecoveryContext = window.localStorage.getItem("lockstep_recovery_context_v1");
+      if (rawRecoveryContext) {
+        try {
+          const recoveryContext = JSON.parse(rawRecoveryContext) as {
+            fromCommitmentId?: string;
+            missedAt?: string | null;
+            recoveryVariant?: string | null;
+          };
+          const missedAtMs = recoveryContext.missedAt ? new Date(recoveryContext.missedAt).getTime() : Number.NaN;
+          const within24h = Number.isFinite(missedAtMs)
+            ? Date.now() - missedAtMs <= 24 * 60 * 60 * 1000
+            : null;
+
+          analytics.track("recovery_pact_created", {
+            recovery_from: recoveryContext.fromCommitmentId || null,
+            new_commitment_id: newCommitment.id,
+            within_24h: within24h,
+            recovery_variant: recoveryContext.recoveryVariant || null,
+          });
+        } catch (error) {
+          console.warn("[Recovery] Failed to parse recovery context", error);
+        } finally {
+          window.localStorage.removeItem("lockstep_recovery_context_v1");
+        }
+      }
+    }
+
     setCurrentIntent(null);
     return newCommitment;
   };
@@ -755,6 +807,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const commitment = commitments.find(c => c.id === id);
     if (!commitment) throw new Error("Commitment not found");
+    if (commitment.status === "completed") {
+      return { status: "completed" as const };
+    }
+
+    const actorName = user.email?.split("@")[0] || "You";
+
+    const isTeamChallenge = Boolean(commitment.teamChallenge?.enabled);
+    const priorConfirmedBy = commitment.teamChallenge?.confirmedBy ?? [];
+    const confirmedBy = priorConfirmedBy.includes(actorName)
+      ? priorConfirmedBy
+      : [...priorConfirmedBy, actorName];
+
+    if (isTeamChallenge) {
+      const requiredMembers = new Set<string>([
+        actorName,
+        ...(commitment.teamChallenge?.memberNames ?? []),
+      ]);
+
+      const allConfirmed = Array.from(requiredMembers).every((member) => confirmedBy.includes(member));
+
+      setCommitments((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+
+          const normalizedProof = proofSubmission
+            ? {
+                ...proofSubmission,
+                confidence: proofSubmission.confidence ?? getProofConfidence(proofSubmission.method),
+                submittedAt: proofSubmission.submittedAt || new Date().toISOString(),
+              }
+            : c.proofSubmission ?? null;
+
+          return {
+            ...c,
+            status: allConfirmed ? "completed" : "scheduled",
+            notificationIds: allConfirmed ? [] : c.notificationIds,
+            proofSubmission: normalizedProof,
+            notificationState: allConfirmed ? createEmptyNotificationState() : c.notificationState,
+            teamChallenge: c.teamChallenge
+              ? {
+                  ...c.teamChallenge,
+                  confirmedBy,
+                }
+              : null,
+          };
+        })
+      );
+
+      if (!allConfirmed) {
+        return { status: "pending" as const };
+      }
+    }
 
     await cancelPactNotifications(commitment.notificationIds || []);
     
@@ -798,8 +902,89 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         notificationIds: [],
         proofSubmission: normalizedProof,
         notificationState: createEmptyNotificationState(),
+        teamChallenge: c.teamChallenge
+          ? {
+              ...c.teamChallenge,
+              confirmedBy,
+            }
+          : null,
       };
     }));
+
+    return { status: "completed" as const };
+  };
+
+  const confirmTeamMember = async (id: string, memberName: string) => {
+    if (!memberName.trim()) throw new Error("Member name is required");
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    const commitment = commitments.find((c) => c.id === id);
+    if (!commitment) throw new Error("Commitment not found");
+    if (commitment.status === "completed") {
+      return { status: "completed" as const };
+    }
+    if (!commitment.teamChallenge?.enabled) {
+      throw new Error("This pact is not a team challenge");
+    }
+
+    const actorName = memberName.trim();
+    const priorConfirmedBy = commitment.teamChallenge.confirmedBy ?? [];
+    const confirmedBy = priorConfirmedBy.includes(actorName)
+      ? priorConfirmedBy
+      : [...priorConfirmedBy, actorName];
+
+    const ownerName = user?.email?.split("@")[0] || "You";
+    const requiredMembers = new Set<string>([
+      ownerName,
+      ...(commitment.teamChallenge.memberNames ?? []),
+    ]);
+    const allConfirmed = Array.from(requiredMembers).every((member) => confirmedBy.includes(member));
+
+    setCommitments((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              status: allConfirmed ? "completed" : c.status,
+              notificationIds: allConfirmed ? [] : c.notificationIds,
+              notificationState: allConfirmed ? createEmptyNotificationState() : c.notificationState,
+              teamChallenge: c.teamChallenge
+                ? {
+                    ...c.teamChallenge,
+                    confirmedBy,
+                  }
+                : null,
+            }
+          : c
+      )
+    );
+
+    if (allConfirmed && user && commitment.refundOnCompletion) {
+      const newEarnedBalance = user.earnedCreditsBalance + commitment.creditsCost;
+      const newBalance = user.purchasedCreditsBalance + newEarnedBalance;
+      const earnTransaction: CreditTransaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        type: "earn",
+        amount: commitment.creditsCost,
+        balanceAfter: newBalance,
+        description: `Team pact completed: ${commitment.intent.text.slice(0, 50)}...`,
+        relatedCommitmentId: commitment.id,
+        createdAt: new Date().toISOString(),
+      };
+
+      setUser({
+        ...user,
+        earnedCreditsBalance: newEarnedBalance,
+        creditBalance: newBalance,
+      });
+      setCreditTransactions((prev) => [earnTransaction, ...prev]);
+      await cancelPactNotifications(commitment.notificationIds || []);
+      return { status: "completed" as const };
+    }
+
+    return { status: allConfirmed ? "completed" as const : "pending" as const };
   };
 
   const markMissed = async (id: string) => {
@@ -1189,6 +1374,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       commitments,
       createCommitment,
       completeCommitment,
+      confirmTeamMember,
       markMissed,
       intentSignals,
       intentPatterns,

@@ -134,42 +134,34 @@ Universal layout structure for every frame:
 2. Centered app UI mockup
 3. Optional subtext line
 
-### Screenshot set (7 total)
+### Screenshot set (5 total)
+
+> **Positioning principle**: sell the pain and the promise first. Pressure comes after trust.
 
 1. **HOOK**
-   - Headline: `YOU SAID YOU WOULD`
-   - Sub: `Nothing happens when you don't follow through`
-   - Visual: blurred phone UI background + faint red glow
+   - Headline: `Stop breaking promises to yourself`
+   - Sub: `The app that turns "I should" into real commitments`
+   - Visual: hero black screen + white headline, faint red glow accent
 
 2. **CAPTURE**
-   - Headline: `Say it once`
-   - Sub: `Stop repeating it in your head`
-   - Visual: input screen with `I need to...` filled
+   - Headline: `Turn "I should" into one small action`
+   - Sub: `Say it once. Do it once. Build from there.`
+   - Visual: input screen with example commitment filled in
 
-3. **TRANSFORM**
-   - Headline: `We turn it real`
-   - Sub: `Clear action. Real deadline.`
-   - Visual: action card example (`Run 5 minutes`, `Today 7 PM`, `5 credits`)
+3. **REMINDERS**
+   - Headline: `Get reminders before you slip`
+   - Sub: `Stay on track before the deadline hits`
+   - Visual: notification/reminder UI, clean dark card
 
-4. **STAKE**
-   - Headline: `Put something on the line`
-   - Sub: `Follow through—or lose it`
-   - Visual: credits-at-risk UI with restrained red emphasis
+4. **PROGRESS**
+   - Headline: `Build your follow-through score`
+   - Sub: `Every completed commitment raises your credibility`
+   - Visual: momentum screen with rising score/streak indicator
 
-5. **PRESSURE**
-   - Headline: `Now it costs you`
-   - Sub: `This is where most people quit`
-   - Visual: countdown + `You're at risk`
-
-6. **FAILURE (CRITICAL)**
-   - Headline: `YOU DIDN'T DO IT`
-   - Sub: `That's the truth`
-   - Visual: red-leaning result state with score drop indicator
-
-7. **RECOVERY / IDENTITY**
-   - Headline: `Recover immediately`
-   - Sub: `Your word starts to mean something`
-   - Visual: recovery pact + identity score rising
+5. **RECOVERY**
+   - Headline: `Missed? Recover with one small win`
+   - Sub: `You don't lose everything. One pact gets you back.`
+   - Visual: recovery pact screen, green accent, identity score recovering
 
 ### Ready-to-copy Figma text layer pack (Frame 1–7)
 
@@ -177,32 +169,24 @@ Use this block verbatim when creating text layers in Figma.
 
 ```text
 Frame 1 — Hook
-TOP_HEADLINE: YOU SAID YOU WOULD
-SUBTEXT: Nothing happens when you don't follow through
+TOP_HEADLINE: Stop breaking promises to yourself
+SUBTEXT: The app that turns "I should" into real commitments
 
 Frame 2 — Capture
-TOP_HEADLINE: Say it once
-SUBTEXT: Stop repeating it in your head
+TOP_HEADLINE: Turn "I should" into one small action
+SUBTEXT: Say it once. Do it once. Build from there.
 
-Frame 3 — Transform
-TOP_HEADLINE: We turn it real
-SUBTEXT: Clear action. Real deadline.
+Frame 3 — Reminders
+TOP_HEADLINE: Get reminders before you slip
+SUBTEXT: Stay on track before the deadline hits
 
-Frame 4 — Stake
-TOP_HEADLINE: Put something on the line
-SUBTEXT: Follow through—or lose it
+Frame 4 — Progress
+TOP_HEADLINE: Build your follow-through score
+SUBTEXT: Every completed commitment raises your credibility
 
-Frame 5 — Pressure
-TOP_HEADLINE: Now it costs you
-SUBTEXT: This is where most people quit
-
-Frame 6 — Failure
-TOP_HEADLINE: YOU DIDN'T DO IT
-SUBTEXT: That's the truth
-
-Frame 7 — Recovery
-TOP_HEADLINE: Recover immediately
-SUBTEXT: Your word starts to mean something
+Frame 5 — Recovery
+TOP_HEADLINE: Missed? Recover with one small win
+SUBTEXT: You don't lose everything. One pact gets you back.
 ```
 
 Optional text-layer naming convention per frame:
@@ -1165,6 +1149,7 @@ Use as a seed list and refine with your audience language:
 ## Final pre-submit quality gate
 
 - [ ] Production build uses no debug/test routes.
+- [ ] Detection smoke test passes: `pnpm smoke:detection`.
 - [ ] Store screenshots reflect current UI (not older branding).
 - [ ] Listing text and in-app behavior are fully consistent.
 - [ ] Legal URLs are live and publicly reachable.
@@ -1173,13 +1158,21 @@ Use as a seed list and refine with your audience language:
 
 ## Release flow (recommended)
 
-1. `pnpm mobile:build`
-2. Open native IDE (Xcode/Android Studio)
-3. Run on physical device
-4. Create release build (AAB/IPA)
-5. Upload to TestFlight / Internal Testing
-6. Fix review feedback
-7. Submit for production review
+1. `pnpm smoke:detection`
+2. `pnpm screenshots:play`
+3. `pnpm mobile:build`
+4. Open native IDE (Xcode/Android Studio)
+5. Run on physical device
+6. Create release build (AAB/IPA)
+7. Upload to TestFlight / Internal Testing
+8. Fix review feedback
+9. Submit for production review
+
+### Required order for release assets
+
+- Always run `pnpm smoke:detection` before generating release screenshots.
+- Always generate screenshots (`pnpm screenshots:play`) before creating final AAB/IPA artifacts.
+- If smoke test fails, do not proceed to screenshots or release bundles.
 
 ---
 

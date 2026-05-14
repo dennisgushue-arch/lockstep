@@ -13,7 +13,7 @@ export default function Step3Commit({
 }) {
   return (
     <div className="space-y-6 text-center">
-      <h1 className="text-2xl font-bold">Lock it in</h1>
+      <h1 className="text-2xl font-bold">Final check</h1>
 
       <div className="border border-zinc-800 p-5 bg-zinc-950 space-y-3">
         <div className="text-lg font-bold">{intent.action || intent.goal}</div>
@@ -22,7 +22,7 @@ export default function Step3Commit({
       </div>
 
       <p className="text-sm text-red-400">
-        If you don’t do this, your score drops.
+        Miss this and the loss is real.
       </p>
 
       <Button
@@ -30,7 +30,7 @@ export default function Step3Commit({
         disabled={isLoading}
         className="w-full h-14 bg-white text-black font-black hover:bg-zinc-200"
       >
-        {isLoading ? "LOCKING IN..." : "LOCK IT IN"}
+        {isLoading ? "LOCKING IN..." : "LOCK THIS PACT"}
       </Button>
     </div>
   );

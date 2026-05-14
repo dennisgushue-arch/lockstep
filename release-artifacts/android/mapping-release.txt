@@ -3,8 +3,8 @@
 # min_api: 23
 # common_typos_disable
 # {"id":"com.android.tools.r8.mapping","version":"2.2"}
-# pg_map_id: f6cfe60
-# pg_map_hash: SHA-256 f6cfe60833089c34c4958e643133f6b63462d2db009109a80c8556e4fa49dc7a
+# pg_map_id: 0cb391a
+# pg_map_hash: SHA-256 0cb391ae1fb54ac90a163054d964bf7d38225bdc6940e1e0d63f423bb38d4363
 android.app.AppComponentFactory -> android.app.AppComponentFactory:
 # {"id":"com.android.tools.r8.synthesized"}
     void <clinit>() -> <clinit>
@@ -36050,9 +36050,6 @@ com.capacitorjs.plugins.localnotifications.TimedNotificationPublisher$$ExternalS
 # {"id":"com.android.tools.r8.synthesized"}
     1:1:java.lang.Object m(android.content.Intent,java.lang.String,java.lang.Class):0:0 -> a
       # {"id":"com.android.tools.r8.synthesized"}
-com.dennisgushue.lockstepbeta.MainActivity -> com.dennisgushue.lockstepbeta.MainActivity:
-# {"id":"sourceFile","fileName":"MainActivity.java"}
-    1:4:void <init>():5:5 -> <init>
 com.getcapacitor.AndroidProtocolHandler -> com.getcapacitor.a:
 # {"id":"sourceFile","fileName":"AndroidProtocolHandler.java"}
     android.content.Context context -> a
@@ -39519,6 +39516,9 @@ com.getcapacitor.util.WebColor -> V.g:
     57:61:int parseColor(java.lang.String):21:21 -> a
     62:88:int parseColor(java.lang.String):24:24 -> a
     89:93:int parseColor(java.lang.String):25:25 -> a
+com.lockstep.app.MainActivity -> com.lockstep.app.MainActivity:
+# {"id":"sourceFile","fileName":"MainActivity.java"}
+    1:4:void <init>():5:5 -> <init>
 kotlin.Lazy -> W.a:
 # {"id":"sourceFile","fileName":"Lazy.kt"}
     java.lang.Object getValue() -> getValue

@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useApp } from "@/lib/mock-data";
+import { analytics } from "@/lib/analytics";
 import { AlertTriangle, Shield } from "lucide-react";
 
 export default function AuthPage() {
+  const ONBOARDING_STORAGE_KEY = "onboarding_completed_v1";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -32,8 +34,9 @@ export default function AuthPage() {
         if (isRealSupabase) {
           const { data: { session } } = await auth.getSession();
           if (session) {
-            console.log("[Auth] User already logged in, redirecting to dashboard");
-            setLocation("/momentum");
+            const completedOnboarding = localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
+            console.log("[Auth] User already logged in, redirecting to", completedOnboarding ? "momentum" : "onboarding");
+            setLocation(completedOnboarding ? "/momentum" : "/onboarding");
             return;
           }
         }
@@ -53,8 +56,9 @@ export default function AuthPage() {
         (event: string, session: any) => {
           console.log("[Auth] State changed:", event, !!session);
           if (event === 'SIGNED_IN' && session) {
+            const completedOnboarding = localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
             console.log("[Auth] User signed in via magic link, redirecting...");
-            setLocation("/momentum");
+            setLocation(completedOnboarding ? "/momentum" : "/onboarding");
           }
         }
       );
@@ -79,6 +83,8 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
+      analytics.track("signup_started", { surface: "auth_form" });
+
       // Check if we have real Supabase configured
       const auth = (supabase as any)?.auth;
       
@@ -92,8 +98,9 @@ export default function AuthPage() {
         
         // Actually log the user in via mock context
         await login(email);
+        analytics.track("signup_completed", { method: "mock_magic_link" });
         
-        setLocation("/momentum");
+        setLocation("/onboarding");
         setLoading(false);
         return;
       }
@@ -142,6 +149,7 @@ export default function AuthPage() {
       }
 
       console.log("[Auth] Magic link sent successfully to:", data.user.email);
+      analytics.track("signup_completed", { method: "magic_link" });
       
       toast({
         title: "✓ Check your email",
@@ -213,7 +221,7 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 required
-                className="bg-zinc-900/50 border-zinc-800 focus:border-white h-12"
+                className="input-dark focus:border-white h-12"
                 data-testid="input-email"
               />
             </div>
@@ -227,7 +235,7 @@ export default function AuthPage() {
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-zinc-800 space-y-3">
+          <div className="mt-6 pt-6 border-t border-border space-y-3">
             <p className="text-xs text-muted-foreground text-center">
               💡 <strong>Tip:</strong> {isMockMode ? "Demo mode: any email works!" : "Check your spam folder if you don't see the email within 30 seconds."}
             </p>

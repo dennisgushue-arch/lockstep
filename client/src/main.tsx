@@ -1,4 +1,5 @@
 import "./index.css";
+import "@/styles/lockstep-premium.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { Elements } from "@stripe/react-stripe-js";

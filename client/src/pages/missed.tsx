@@ -58,7 +58,8 @@ export default function MissedPage() {
       <div className="container mx-auto px-4 py-12 max-w-2xl space-y-6">
         <div className="space-y-2">
           <h1 className="text-4xl font-heading font-bold text-red-400">YOU DIDN'T DO IT.</h1>
-          <p className="text-muted-foreground text-lg">The deadline passed. You're still here. It's done.</p>
+          <p className="text-muted-foreground text-lg">Deadline passed. Outcome locked.</p>
+          <p className="text-red-200 font-semibold">Fix it now.</p>
           <div className={`text-sm font-bold uppercase tracking-widest ${integrityIdentity.colorClass}`}>
             {integrityIdentity.label}
           </div>
@@ -72,7 +73,7 @@ export default function MissedPage() {
           <CardHeader>
             <CardTitle className="text-red-300 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
-              What You Said vs. What You Did
+              What happened
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-red-200">
@@ -86,7 +87,7 @@ export default function MissedPage() {
             ) : (
               <p className="font-semibold">You locked in a commitment. Then you didn't follow through.</p>
             )}
-            <p className="text-sm text-red-300/80">That's not a judgment. That's a fact.</p>
+            <p className="text-sm text-red-300/80">No story. Just outcome.</p>
             <div className="text-sm text-red-200/90">
               {latestMissed?.proofSubmission ? (
                 <>
@@ -123,7 +124,7 @@ export default function MissedPage() {
             <CardHeader>
               <CardTitle className="text-purple-300 flex items-center gap-2">
                 <Brain className="w-5 h-5" />
-                Psych Engine — Result Read
+                Pattern Read
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -136,7 +137,7 @@ export default function MissedPage() {
               {behaviorProfile.commonFailureReason !== "no data yet" && (
                 <div className="space-y-1">
                   <p className="text-xs uppercase tracking-widest text-red-400 font-bold">
-                    Common Failure Pattern
+                    Pattern you can break
                   </p>
                   <p className="text-sm text-red-200 capitalize">{behaviorProfile.commonFailureReason}</p>
                 </div>
@@ -179,7 +180,7 @@ export default function MissedPage() {
             <CardContent className="pt-5 space-y-2">
               <p className="text-xs uppercase tracking-widest text-sky-400 font-bold flex items-center gap-2">
                 <RefreshCw className="w-3 h-3" />
-                Recovery Signal
+                Next move
               </p>
               <p className="text-sm text-sky-100">{psychProfile?.best_leverage_point ?? behaviorProfile.psych.best_leverage_point}</p>
             </CardContent>
@@ -188,14 +189,14 @@ export default function MissedPage() {
 
         <div className="grid gap-3">
           <Button className="w-full rounded-none font-bold h-14 bg-red-600 hover:bg-red-700 text-white" onClick={() => setLocation("/capture")}>
-            START RECOVERY PACT
+            FIX IT NOW
           </Button>
           <Button
             variant="secondary"
             className="w-full rounded-none font-bold"
             onClick={() => setLocation("/momentum")}
           >
-            RETURN TO MOMENTUM
+            BACK TO MOMENTUM
           </Button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/mock-data";
 import { getRecoveryPlan } from "@/lib/identity-recovery";
 import { getIntegrityIdentity } from "@/lib/integrity-identity";
@@ -11,6 +11,7 @@ import StreakIdentityCard from "@/components/streak-identity-card";
 import { buildStreakIdentity } from "@/lib/streak-identity";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { buildPactInviteDeepLink, buildPactInviteShareUrl } from "@/lib/deeplink";
 
 export default function MomentumPage() {
   const { commitments, psychProfile, behaviorProfile } = useApp();
@@ -43,6 +44,8 @@ export default function MomentumPage() {
   }, [commitments]);
 
   // Enhanced psychLine with streak break pressure
+  const [copiedInviteTarget, setCopiedInviteTarget] = useState<string | null>(null);
+
   const psychLine = [
     psychProfile?.next_pressure_line,
     streakIdentity.currentStreak >= 2
@@ -64,7 +67,7 @@ export default function MomentumPage() {
 
         {/* Score Transparency */}
         <div className="border border-zinc-800 bg-zinc-950/30 p-4 space-y-3">
-          <div className="text-xs uppercase tracking-widest text-zinc-500">How Your Score Moves</div>
+          <div className="text-xs uppercase tracking-widest text-zinc-500">How scoring works</div>
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center gap-2 text-green-400">
               <span className="font-bold">+2</span>
@@ -83,7 +86,7 @@ export default function MomentumPage() {
       </div>
       {/* Main content */}
       <div className="w-full md:w-2/3">
-        <div className="text-2xl font-bold mb-4">Momentum Center</div>
+        <div className="text-2xl font-bold mb-4">Momentum</div>
         <div className="mb-4 text-zinc-300">{psychLine}</div>
 
         {showFirstLockInTooltip && (
@@ -99,15 +102,15 @@ export default function MomentumPage() {
         {liveBannerActive && (
           <div className="mb-4 border border-red-500/40 bg-red-950/20 p-5 space-y-2 rounded-xl">
             <div className="text-xs uppercase tracking-widest text-red-300">This is live now.</div>
-            <div className="text-base text-white">You either do it… or you don't.</div>
-            <div className="text-sm text-zinc-400">Nothing else happens.</div>
+            <div className="text-base text-white">You said you'd do this. Now execute.</div>
+            <div className="text-sm text-zinc-400">One move: finish before deadline.</div>
           </div>
         )}
 
         {/* Primary Pact */}
         {primaryPact && (
           <div className="border border-zinc-800 bg-zinc-950/30 p-6 space-y-4 rounded-xl">
-            <div className="text-lg font-bold">Primary Pact</div>
+            <div className="text-lg font-bold">What matters now</div>
             <div className="text-sm text-zinc-300">{primaryPact.actionText || primaryPact.intent.text}</div>
             <div className="text-xs text-zinc-500">
               Due: {new Date(primaryPact.scheduledDate).toLocaleString()}
@@ -132,18 +135,123 @@ export default function MomentumPage() {
                 </div>
               </div>
             )}
+
+            {!!primaryPact.invitedWitnesses?.length && (
+              <div className="border border-zinc-800 bg-black/20 p-4">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Invited witnesses</div>
+                <div className="mt-2 space-y-2">
+                  {primaryPact.invitedWitnesses.map((name) => {
+                    const shareUrl = buildPactInviteShareUrl(primaryPact.id, name, "act");
+                    const deepLink = buildPactInviteDeepLink(primaryPact.id, name, "act");
+                    const shareText = `${name}, witness my pact and keep me accountable.\n\nWeb: ${shareUrl}\nApp: ${deepLink}`;
+                    return (
+                      <div key={name} className="border border-zinc-700 bg-black/20 p-3">
+                        <div className="text-sm text-zinc-200 font-semibold">{name}</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(shareUrl);
+                              setCopiedInviteTarget(name);
+                              setTimeout(() => setCopiedInviteTarget(null), 1500);
+                            }}
+                          >
+                            {copiedInviteTarget === name ? "COPIED" : "COPY INVITE LINK"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+                                await navigator.share({ title: "Witness my pact", text: shareText });
+                              } else {
+                                await navigator.clipboard.writeText(shareText);
+                                setCopiedInviteTarget(name);
+                                setTimeout(() => setCopiedInviteTarget(null), 1500);
+                              }
+                            }}
+                          >
+                            SHARE
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {primaryPact.teamChallenge?.enabled && (
+              <div className="border border-violet-900/50 bg-violet-950/20 p-4">
+                <div className="text-xs uppercase tracking-widest text-violet-300">Team challenge</div>
+                <div className="mt-1 text-sm text-zinc-200">
+                  Team: You{primaryPact.teamChallenge.memberNames.length ? `, ${primaryPact.teamChallenge.memberNames.join(", ")}` : ""}
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">
+                  Total stake {primaryPact.teamChallenge.totalCredits} credits · Your share {primaryPact.teamChallenge.splitCreditsPerMember} credits
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">
+                  Confirmed: {(primaryPact.teamChallenge.confirmedBy ?? []).length} / {primaryPact.teamChallenge.memberNames.length + 1}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {primaryPact.teamChallenge.memberNames.map((name) => {
+                    const shareUrl = buildPactInviteShareUrl(primaryPact.id, name, "act");
+                    const deepLink = buildPactInviteDeepLink(primaryPact.id, name, "act");
+                    const shareText = `${name}, confirm our team pact commitment.\n\nWeb: ${shareUrl}\nApp: ${deepLink}`;
+                    const alreadyConfirmed = (primaryPact.teamChallenge?.confirmedBy ?? []).includes(name);
+                    return (
+                      <div key={name} className="border border-violet-900/40 bg-black/20 p-3 flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-zinc-100">{name}</div>
+                          <div className="text-[11px] text-zinc-400">{alreadyConfirmed ? "✓ Confirmed" : "Awaiting confirmation"}</div>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(shareUrl);
+                              setCopiedInviteTarget(`team-${name}`);
+                              setTimeout(() => setCopiedInviteTarget(null), 1500);
+                            }}
+                          >
+                            {copiedInviteTarget === `team-${name}` ? "COPIED" : "COPY LINK"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+                                await navigator.share({ title: "Team pact confirmation", text: shareText });
+                              } else {
+                                await navigator.clipboard.writeText(shareText);
+                                setCopiedInviteTarget(`team-${name}`);
+                                setTimeout(() => setCopiedInviteTarget(null), 1500);
+                              }
+                            }}
+                          >
+                            SHARE
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
         {!primaryPact && (
           <div className="border border-zinc-800 bg-zinc-950/40 p-8 space-y-4 rounded-xl text-center">
-            <div className="text-zinc-400 text-base">No active pacts. Nothing is at stake.</div>
-            <div className="text-zinc-500 text-sm">Every day without a pact is a day without pressure.</div>
+            <div className="text-xs uppercase tracking-[0.35em] text-red-500">Nothing Proven</div>
+            <div className="text-3xl font-black leading-tight">YOU HAVEN&apos;T PROVEN ANYTHING YET</div>
+            <div className="text-zinc-400 text-sm">Start with one small pact. Make it real.</div>
             <Button
-              className="mt-2 rounded-none font-bold h-12 px-8 bg-red-600 text-white hover:bg-red-700"
-              onClick={() => setLocation("/capture")}
+              className="mt-2 w-full h-14 ls-button-primary font-black"
+              onClick={() => setLocation("/onboarding")}
             >
-              CREATE YOUR FIRST PACT
+              CREATE FIRST PACT
             </Button>
           </div>
         )}

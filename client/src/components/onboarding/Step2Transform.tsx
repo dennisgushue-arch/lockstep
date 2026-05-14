@@ -11,9 +11,9 @@ export default function Step2Transform({
 }) {
   return (
     <div className="space-y-6 text-center">
-      <h1 className="text-2xl font-bold">AI transforms it into:</h1>
+      <h1 className="text-2xl font-bold">Here’s your pact:</h1>
 
-      <p className="text-zinc-400">Action. Deadline. Stake. Proof.</p>
+      <p className="text-zinc-400">One action. One deadline. One stake. One proof.</p>
 
       <div className="border border-zinc-800 p-5 text-left space-y-3 bg-zinc-950">
         <div>
@@ -40,16 +40,16 @@ export default function Step2Transform({
       {intent.is_first_pact && (
         <div className="border border-green-900/40 bg-green-950/10 p-4 text-left">
           <div className="text-xs uppercase tracking-widest text-green-400">
-            First Pact Optimization
+            Why this is small
           </div>
           <div className="mt-2 text-sm text-zinc-300">
-            {intent.first_pact_reason || "This first pact was optimized to give you a fast, believable win."}
+            {intent.first_pact_reason || "This first pact is intentionally small so you can get a real first win."}
           </div>
         </div>
       )}
 
       <p className="text-xs text-zinc-500">
-        We adjusted this so you’re more likely to actually do it.
+        Simple on purpose. Doable on purpose.
       </p>
 
       <Button

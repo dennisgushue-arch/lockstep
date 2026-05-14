@@ -210,7 +210,7 @@ export function VoiceNotesPage() {
               <button
                 onClick={handleCreateCommitment}
                 disabled={isExtracting}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 ls-button-primary text-white font-black rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isExtracting ? (
                   <>

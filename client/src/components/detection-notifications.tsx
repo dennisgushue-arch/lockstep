@@ -16,17 +16,26 @@ export function DetectionBadge() {
   const [, setLocation] = useLocation();
   const activePatterns = getActivePatterns();
 
-  if (activePatterns.length === 0) return null;
-
   return (
     <button
+      type="button"
       onClick={() => setLocation("/detection")}
-      className="relative p-2 hover:bg-accent rounded-md transition-colors"
+      aria-label="Open detection notifications"
+      title="Open Detection"
+      className="relative p-2 hover:bg-accent rounded-md transition-colors cursor-pointer pointer-events-auto"
     >
       <Bell className="w-5 h-5" />
-      <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-        {activePatterns.length}
-      </span>
+      {activePatterns.length > 0 && (
+        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          {activePatterns.length}
+        </span>
+      )}
+      {activePatterns.length === 0 && (
+        <span
+          className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-zinc-500/40 animate-pulse"
+          aria-hidden="true"
+        />
+      )}
     </button>
   );
 }
@@ -64,11 +73,11 @@ export function PatternPrompt({
             </p>
           </div>
           
-          <div className="flex gap-3 pt-2">
-            <Button onClick={onLockIn} variant="destructive">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Button onClick={onLockIn} variant="destructive" className="w-full sm:w-auto h-auto py-2 leading-tight whitespace-normal">
               LOCK IT IN NOW
             </Button>
-            <Button onClick={onDismiss} variant="ghost">
+            <Button onClick={onDismiss} variant="ghost" className="w-full sm:w-auto h-auto py-2 leading-tight whitespace-normal">
               Not yet
             </Button>
           </div>

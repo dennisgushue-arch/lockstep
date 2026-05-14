@@ -2,13 +2,24 @@
 
 ## Pre-Deployment
 
+### App Release Sanity Gate
+
+- [ ] Run detection smoke test first: `pnpm smoke:detection`
+- [ ] If smoke fails, stop release flow and fix before proceeding
+- [ ] Generate store screenshots only after smoke passes: `pnpm screenshots:play`
+- [ ] Build release artifacts (AAB/IPA) only after screenshot refresh
+
+**Required order:** `pnpm smoke:detection` → `pnpm screenshots:play` → `pnpm mobile:build` → release bundle creation
+
 ### Code Review
+
 - [ ] Review logging.ts for any sensitive data leakage
 - [ ] Verify idempotency guard logic (can't bypass double-charge protection)
 - [ ] Check that request IDs are properly propagated
 - [ ] Confirm audit logging doesn't impact performance
 
 ### Testing
+
 - [ ] Run Level 1 test locally
 - [ ] Run Level 2 test locally (concurrency check)
 - [ ] Verify stress_test_gen creates proper payloads
@@ -19,12 +30,14 @@
 ## Deployment Steps
 
 ### 1. Database Migration
+
 ```bash
 # Before deploying functions, ensure database is updated
 supabase db push
 ```
 
 **Verify:**
+
 ```bash
 # Check new columns exist
 psql $DATABASE_URL -c "\d commitments" | grep -E "stake_captured|last_sweep|failed_at|completed_at"
@@ -34,6 +47,7 @@ psql $DATABASE_URL -c "\d commitment_audit_log"
 ```
 
 ### 2. Deploy Edge Functions
+
 ```bash
 # Deploy updated functions with logging and idempotency
 supabase functions deploy complete_commitment
@@ -42,6 +56,7 @@ supabase functions deploy stress_test_gen
 ```
 
 **Ensure secrets are set before deploy:**
+
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SWEEP_SECRET`
@@ -54,6 +69,7 @@ supabase functions deploy stress_test_gen
 - `TOKEN_ENCRYPTION_KEY` (32-byte base64; generate via `node scripts/generate_token_key.mjs`)
 
 **Verify each function deployed:**
+
 ```bash
 curl https://your-project.supabase.co/functions/v1/stress_test_gen \
   -H "Authorization: Bearer $ANON_KEY" \
@@ -69,6 +85,7 @@ curl https://your-project.supabase.co/functions/v1/fail_commitment \
 ```
 
 ### 3. Run Smoke Tests
+
 ```bash
 # Level 1: Quick correctness check
 node scripts/stress.mjs --level 1 --user-id smoke_test_1 \
@@ -80,6 +97,7 @@ node scripts/stress.mjs --level 1 --user-id smoke_test_1 \
 ```
 
 ### 4. Run Full Stress Tests
+
 ```bash
 # Level 2: Concurrency (idempotency check)
 node scripts/stress.mjs --level 2 --user-id stress_test_2 \
@@ -91,6 +109,7 @@ node scripts/stress.mjs --level 2 --user-id stress_test_2 \
 ```
 
 ### 5. Verify Invariants
+
 ```bash
 # In Supabase dashboard or psql:
 
@@ -124,6 +143,7 @@ WHERE ca1.created_at < ca2.created_at
 ## Post-Deployment
 
 ### Monitor Logs
+
 ```bash
 # Watch for errors in first hour
 tail -f logs | grep -i "error\|failed\|exception"
@@ -133,12 +153,14 @@ tail -f logs | jq '.action' | sort | uniq -c
 ```
 
 ### Check Metrics
+
 - [ ] No 5xx errors in logs
 - [ ] sweep_overdue_commitments still runs on schedule
 - [ ] All requests have requestId
 - [ ] No missing commitment_audit_log entries
 
 ### Performance Baseline
+
 ```bash
 # Record baseline performance
 psql $DATABASE_URL -c "
@@ -153,6 +175,7 @@ psql $DATABASE_URL -c "
 ```
 
 ### Run Baseline Tests Every Hour
+
 ```bash
 # Automated check (add to cron)
 0 * * * * node scripts/stress.mjs --level 1 --user-id hourly_check_$(date +%s) \
@@ -167,12 +190,14 @@ psql $DATABASE_URL -c "
 If issues arise:
 
 ### Quick Disable (keep functions deployed)
+
 ```sql
 -- Disable audit logging (non-critical path)
 ALTER TABLE commitment_audit_log DISABLE TRIGGER ALL;
 ```
 
 ### Full Rollback
+
 ```bash
 # Revert functions to previous version
 git checkout HEAD~1 supabase/functions/
@@ -184,6 +209,7 @@ supabase functions deploy fail_commitment
 ```
 
 ### Investigation
+
 ```sql
 -- Find the problematic commitment
 SELECT * FROM commitment_audit_log
@@ -230,7 +256,7 @@ ORDER BY created_at;
 
 ## Sign-Off
 
-```
++
 Date: ___________________
 Deployed By: ___________________
 Reviewed By: ___________________
@@ -248,16 +274,19 @@ _____________________________________________________________________________
 ## Ongoing Maintenance
 
 ### Weekly
+
 - [ ] Run Level 2 test
 - [ ] Review error logs
 - [ ] Check audit log for anomalies
 
 ### Monthly
+
 - [ ] Run Level 3 test
 - [ ] Analyze performance trends
 - [ ] Update documentation if needed
 
 ### Quarterly
+
 - [ ] Full Level 4 realistic mix test
 - [ ] Review and optimize slow queries
 - [ ] Update performance baselines

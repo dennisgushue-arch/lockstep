@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { analytics } from "@/lib/analytics";
+import { distributionOps } from "@/lib/distribution-ops";
 import {
   calculatePaywallCtrByMode,
   formatCtrRows,
@@ -48,6 +49,16 @@ export default function AdminPage() {
   const [batchLimit, setBatchLimit] = useState("25");
   const [runningBatch, setRunningBatch] = useState(false);
   const [batchRunLogs, setBatchRunLogs] = useState<string[]>([]);
+
+  // Distribution Ops tracking
+  const today = new Date().toISOString().split("T")[0];
+  const [opsDate, setOpsDate] = useState(today);
+  const [opsPostsCount, setOpsPostsCount] = useState(0);
+  const [opsDmsCount, setOpsDmsCount] = useState(0);
+  const [opsCreatorOutreachCount, setOpsCreatorOutreachCount] = useState(0);
+  const [opsCacValue, setOpsCacValue] = useState<number | undefined>();
+  const [opsNotes, setOpsNotes] = useState("");
+  const [opsExportVersion, setOpsExportVersion] = useState(0);
 
   const paywallRows = useMemo(() => {
     const events = analytics.getLocalEvents() as PaywallAnalyticsEvent[];
@@ -98,11 +109,106 @@ export default function AdminPage() {
     [paywallDismissalsByMode]
   );
 
+  const onboardingFunnel = useMemo(() => {
+    const events = analytics.getLocalEvents() as Array<Record<string, unknown>>;
+
+    const landingCta = events.filter((event) => event.event === "landing_cta_clicked");
+    const signupCompleted = events.filter((event) => event.event === "signup_completed");
+    const firstIntentSubmitted = events.filter((event) => event.event === "first_intent_submitted");
+
+    const firstPactCreated = events.filter((event) => event.event === "first_pact_created");
+    const firstPactCompleted = events.filter((event) => event.event === "first_pact_completed");
+    const completed24h = events.filter(
+      (event) => event.event === "first_pact_completed_24h" && event.within_24h === true,
+    );
+    const adjusted = events.filter((event) => event.event === "ai_suggestion_adjusted");
+
+    const acceptedWithoutEdit = firstPactCreated.filter((event) => event.ai_accept_without_edit === true).length;
+    const acceptanceRate = firstPactCreated.length
+      ? (acceptedWithoutEdit / firstPactCreated.length) * 100
+      : 0;
+
+    const timeToLockValues = firstPactCreated
+      .map((event) => Number(event.time_to_lock_seconds))
+      .filter((value) => Number.isFinite(value));
+
+    const avgTimeToLock = timeToLockValues.length
+      ? timeToLockValues.reduce((sum, value) => sum + value, 0) / timeToLockValues.length
+      : 0;
+
+    const recoveryCreated = events.filter((event) => event.event === "recovery_pact_created");
+    const recoveryWithin24h = recoveryCreated.filter((event) => event.within_24h === true).length;
+
+    return {
+      landingCta: landingCta.length,
+      signupCompleted: signupCompleted.length,
+      firstIntentSubmitted: firstIntentSubmitted.length,
+      created: firstPactCreated.length,
+      completed: firstPactCompleted.length,
+      completed24h: completed24h.length,
+      adjusted: adjusted.length,
+      acceptanceRate,
+      avgTimeToLock,
+      recoveryCreated: recoveryCreated.length,
+      recoveryWithin24h,
+    };
+  }, [paywallExportVersion]);
+
+  const opsTrend = useMemo(() => {
+    return distributionOps.getTrend();
+  }, [opsExportVersion]);
+
   const refreshPaywallExport = () => setPaywallExportVersion((v) => v + 1);
 
   const clearPaywallExport = () => {
     analytics.clearLocalEvents();
     setPaywallExportVersion((v) => v + 1);
+  };
+
+  const handleOpsSubmit = () => {
+    distributionOps.addEntry({
+      date: opsDate,
+      postsCount: opsPostsCount,
+      dmsCount: opsDmsCount,
+      creatorOutreachCount: opsCreatorOutreachCount,
+      cacInputValue: opsCacValue,
+      notes: opsNotes,
+    });
+    setOpsExportVersion((v) => v + 1);
+    // Reset form to today
+    setOpsDate(today);
+    setOpsPostsCount(0);
+    setOpsDmsCount(0);
+    setOpsCreatorOutreachCount(0);
+    setOpsCacValue(undefined);
+    setOpsNotes("");
+  };
+
+  const handleOpsDelete = (date: string) => {
+    distributionOps.deleteEntry(date);
+    setOpsExportVersion((v) => v + 1);
+  };
+
+  const handleOpsExport = () => {
+    if (typeof window === "undefined") return;
+    const csv = distributionOps.exportCsv();
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `distribution-ops-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleOpsClear = () => {
+    if (confirm("Clear all distribution ops entries? This cannot be undone.")) {
+      distributionOps.clearAllEntries();
+      setOpsExportVersion((v) => v + 1);
+    }
   };
 
   const paywallEventSlice = useMemo(() => {
@@ -437,6 +543,215 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Onboarding + Recovery Funnel (Local)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Derived from local analytics events. Useful for rapid UX iteration before shipping server analytics.
+          </p>
+
+          <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Landing CTA</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.landingCta}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Signups</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.signupCompleted}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">First intent</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.firstIntentSubmitted}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">First pact created</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.created}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">First pact completed</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.completed}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Completed in 24h</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.completed24h}</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">AI adjusted taps</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.adjusted}</div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Accepted w/o edits</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.acceptanceRate.toFixed(1)}%</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Avg time to lock</div>
+              <div className="text-2xl font-bold text-white">{Math.round(onboardingFunnel.avgTimeToLock)}s</div>
+            </div>
+            <div className="border border-zinc-800 bg-black/30 p-3">
+              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Recovery created ≤24h</div>
+              <div className="text-2xl font-bold text-white">{onboardingFunnel.recoveryWithin24h}/{onboardingFunnel.recoveryCreated}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Distribution Ops Tracker (Team Cadence)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Log daily distribution & outreach metrics: posts, DMs, creator outreach, CAC trends. Run your go-to-market cadence from inside the system.
+          </p>
+
+          <div className="border border-zinc-800 bg-black/30 p-4 space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <label className="space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Date</div>
+                <input
+                  type="date"
+                  value={opsDate}
+                  onChange={(e) => setOpsDate(e.target.value)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Posts created</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={opsPostsCount}
+                  onChange={(e) => setOpsPostsCount(parseInt(e.target.value) || 0)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">DMs sent</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={opsDmsCount}
+                  onChange={(e) => setOpsDmsCount(parseInt(e.target.value) || 0)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Creator outreach</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={opsCreatorOutreachCount}
+                  onChange={(e) => setOpsCreatorOutreachCount(parseInt(e.target.value) || 0)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">CAC input (optional)</div>
+                <input
+                  type="number"
+                  step={0.01}
+                  placeholder="e.g., 12.50"
+                  value={opsCacValue ?? ""}
+                  onChange={(e) => setOpsCacValue(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Notes</div>
+                <input
+                  type="text"
+                  placeholder="e.g., Heavy DM outreach with founders"
+                  value={opsNotes}
+                  onChange={(e) => setOpsNotes(e.target.value)}
+                  className="w-full bg-black border border-zinc-800 px-3 py-2 text-sm text-white"
+                />
+              </label>
+            </div>
+
+            <Button onClick={handleOpsSubmit} variant="outline" className="w-full rounded-none">
+              Add / Update Entry
+            </Button>
+          </div>
+
+          {opsTrend.totalDaysTracked > 0 && (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="border border-zinc-800 bg-black/30 p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500">Avg posts/day</div>
+                  <div className="text-2xl font-bold text-white">{opsTrend.avgPostsPerDay.toFixed(1)}</div>
+                </div>
+                <div className="border border-zinc-800 bg-black/30 p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500">Avg DMs/day</div>
+                  <div className="text-2xl font-bold text-white">{opsTrend.avgDmsPerDay.toFixed(1)}</div>
+                </div>
+                <div className="border border-zinc-800 bg-black/30 p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500">Avg outreach/day</div>
+                  <div className="text-2xl font-bold text-white">{opsTrend.avgCreatorOutreachPerDay.toFixed(1)}</div>
+                </div>
+                <div className="border border-zinc-800 bg-black/30 p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-zinc-500">Days tracked</div>
+                  <div className="text-2xl font-bold text-white">{opsTrend.totalDaysTracked}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs uppercase tracking-widest text-zinc-500">Trend history</div>
+                <div className="border border-zinc-800 bg-black/30 p-3 space-y-2 max-h-64 overflow-y-auto">
+                  {Array.from(opsTrend.trend).reverse().map((entry) => (
+                    <div key={entry.date} className="flex items-center justify-between text-xs gap-2 pb-2 border-b border-zinc-800 last:border-b-0">
+                      <div className="flex-1">
+                        <div className="text-white font-semibold">{entry.date}</div>
+                        <div className="text-zinc-400">
+                          {entry.postsCount} posts · {entry.dmsCount} DMs · {entry.creatorOutreachCount} outreach
+                          {entry.cacInputValue && <span className="ml-2 text-zinc-500">(CAC ${entry.cacInputValue.toFixed(2)})</span>}
+                        </div>
+                        {entry.notes && <div className="text-zinc-500 text-xs italic">{entry.notes}</div>}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-none h-6 text-xs px-2"
+                        onClick={() => handleOpsDelete(entry.date)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-none"
+                  onClick={handleOpsExport}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-none"
+                  onClick={handleOpsClear}
+                >
+                  Clear all
+                </Button>
+              </div>
+            </>
+          )}
+
+          {opsTrend.totalDaysTracked === 0 && (
+            <div className="text-sm text-zinc-500 italic">No entries yet. Start logging your cadence above.</div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
