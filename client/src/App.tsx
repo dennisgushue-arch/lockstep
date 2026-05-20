@@ -8,6 +8,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider } from "@/lib/mock-data";
+import { EchoProvider } from "@/lib/echo-context";
 import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -36,6 +37,16 @@ import PactAct from "@/pages/pact-act";
 import PactProvePage from "@/pages/pact-prove";
 import RecoveryPage from "@/pages/recovery";
 import LeaderboardPage from "@/pages/leaderboard";
+
+// ECHO pages
+import EchoHomePage from "@/pages/echo/index";
+import EchoCapturePage from "@/pages/echo/capture";
+import EchoRecallPage from "@/pages/echo/recall";
+import EchoTodayPage from "@/pages/echo/today";
+import EchoTimelinePage from "@/pages/echo/timeline";
+import EchoPeoplePage from "@/pages/echo/people";
+import EchoPersonPage from "@/pages/echo/person";
+
 import { App as CapacitorApp } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { handleDeepLink } from "@/lib/deeplink";
@@ -143,6 +154,16 @@ function Router() {
           </Route>
         )}
         <Route path="/admin" component={AdminPage} />
+
+        {/* ECHO: Memory Recovery AI */}
+        <Route path="/echo" component={EchoHomePage} />
+        <Route path="/echo/capture" component={EchoCapturePage} />
+        <Route path="/echo/recall" component={EchoRecallPage} />
+        <Route path="/echo/today" component={EchoTodayPage} />
+        <Route path="/echo/timeline" component={EchoTimelinePage} />
+        <Route path="/echo/people" component={EchoPeoplePage} />
+        <Route path="/echo/people/:name" component={EchoPersonPage} />
+
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -155,10 +176,12 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppProvider>
-            <DeepLinkRuntime />
-            <Router />
-            <ReviewPrompt />
-            <Toaster />
+            <EchoProvider>
+              <DeepLinkRuntime />
+              <Router />
+              <ReviewPrompt />
+              <Toaster />
+            </EchoProvider>
           </AppProvider>
         </TooltipProvider>
       </QueryClientProvider>
