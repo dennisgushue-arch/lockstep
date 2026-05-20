@@ -157,9 +157,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/admin">
                 <span className="hover:text-foreground hover:underline cursor-pointer">System Admin</span>
               </Link>
-              <Link href="/echo">
-                <span className="hover:text-foreground hover:underline cursor-pointer">ECHO Memory</span>
-              </Link>
             </div>
           </div>
         </footer>
