@@ -161,3 +161,4 @@ export const insertInputSourceSchema = createInsertSchema(inputSources).pick({
 
 export type InsertInputSource = z.infer<typeof insertInputSourceSchema>;
 export type InputSource = typeof inputSources.$inferSelect;
+

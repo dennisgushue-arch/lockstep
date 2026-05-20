@@ -60,6 +60,8 @@ function applyProfileStake(baseStake: number, behaviorProfile?: any): number {
   return clamp(5, adjusted, 100);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 const mockSupabase = {
   functions: {
     invoke: async (name: string, { body }: { body: any }): Promise<{ data: any; error: any }> => {

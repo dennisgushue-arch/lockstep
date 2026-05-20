@@ -153,9 +153,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         >
           <div className="container mx-auto px-4 text-center text-xs text-muted-foreground font-mono">
             <p>INTENT SYSTEMS © 2026</p>
-            <Link href="/admin">
-              <span className="mt-2 inline-block hover:text-foreground hover:underline cursor-pointer">System Admin</span>
-            </Link>
+            <div className="mt-2 flex items-center justify-center gap-4">
+              <Link href="/admin">
+                <span className="hover:text-foreground hover:underline cursor-pointer">System Admin</span>
+              </Link>
+            </div>
           </div>
         </footer>
       )}

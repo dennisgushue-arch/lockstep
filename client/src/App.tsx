@@ -36,6 +36,8 @@ import PactAct from "@/pages/pact-act";
 import PactProvePage from "@/pages/pact-prove";
 import RecoveryPage from "@/pages/recovery";
 import LeaderboardPage from "@/pages/leaderboard";
+
+
 import { App as CapacitorApp } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { handleDeepLink } from "@/lib/deeplink";
@@ -143,6 +145,7 @@ function Router() {
           </Route>
         )}
         <Route path="/admin" component={AdminPage} />
+
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -155,11 +158,11 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppProvider>
-            <DeepLinkRuntime />
-            <Router />
-            <ReviewPrompt />
-            <Toaster />
-          </AppProvider>
+              <DeepLinkRuntime />
+              <Router />
+              <ReviewPrompt />
+              <Toaster />
+            </AppProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
